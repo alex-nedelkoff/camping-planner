@@ -131,7 +131,9 @@ def test_build_route_no_portage_falls_back_to_approx():
     out = build_route(nights=nights, access_point="Alpha Lake", osm=osm)
 
     approx = [s for s in out["segments"] if s["kind"] == "approx"]
-    assert len(approx) == 1  # one Alpha->Beta leg degraded
+    # Two approx legs: outbound (Alpha->Beta) AND return (Beta->Alpha access),
+    # neither has a connecting portage in this fixture.
+    assert len(approx) == 2
     assert approx[0]["from"].startswith("Alpha")
     assert approx[0]["to"].startswith("Beta")
     assert any("no portage" in w.lower() for w in out["warnings"])
