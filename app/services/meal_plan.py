@@ -10,7 +10,9 @@ plan scaffolded from the trip dates and exposes the legacy prose under
 from __future__ import annotations
 
 import datetime
+import os
 import re
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -152,3 +154,90 @@ def compute_totals(plan: dict, catalog: dict) -> dict:
         "target_kcal": target_kcal,
         "delta_kcal": trip_kcal - target_kcal,
     }
+
+
+_MEAL_TITLE_CASE = {
+    "breakfast": "Breakfast",
+    "lunch": "Lunch",
+    "dinner": "Dinner",
+    "snack": "Snack",
+}
+
+
+def _name_for(food_id: str, by_id: dict) -> str:
+    food = by_id.get(food_id)
+    return food["name"] if food else f"Unknown ({food_id})"
+
+
+def render_markdown_body(plan: dict, catalog: dict) -> str:
+    """Build the human-readable markdown body from a plan + catalog."""
+    by_id = {f["id"]: f for f in catalog.get("foods", [])}
+    totals = compute_totals(plan, catalog)
+    days = len(plan.get("days") or [])
+    people = len(plan.get("participants") or [])
+    kcd = int(plan.get("calorie_target", {}).get("kcal_per_person_per_day") or 0)
+    target = kcd * people * days
+
+    lines: list[str] = ["# Food plan", ""]
+    lines.append(
+        f"Calorie target: **{kcd} kcal/person/day × {people} people × "
+        f"{days} days = {target:,} kcal**"
+    )
+    lines.append("")
+    for day, day_totals in zip(plan.get("days") or [], totals["days"]):
+        lines.append(
+            f"## {day.get('label', '')} ({day.get('date', '')}) — "
+            f"{day_totals['kcal']} kcal"
+        )
+        for meal in day_totals["meals"]:
+            meal_name = _MEAL_TITLE_CASE.get(meal.get("meal", ""), meal.get("meal", "").title())
+            for item in meal["items"]:
+                kcal_str = "?" if item.get("kcal") is None else str(item["kcal"])
+                who = item.get("who") or "shared"
+                note = item.get("note") or ""
+                note_suffix = f" — {note}" if note else ""
+                lines.append(
+                    f"- **{meal_name}** — {_name_for(item['food_id'], by_id)} × "
+                    f"{item.get('servings', 0)} ({kcal_str} kcal) — {who}{note_suffix}"
+                )
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _atomic_write(path: Path, text: str) -> None:
+    fd, tmp = tempfile.mkstemp(prefix="food-", suffix=".md", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fp:
+            fp.write(text)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def save(slug: str, plan: dict, catalog: dict) -> None:
+    """Rewrite trips/<slug>/food.md with YAML frontmatter + regenerated body."""
+    trip_dir = _trip_dir(slug)
+    fm_dump = yaml.safe_dump(
+        {
+            "calorie_target": plan.get("calorie_target") or {
+                "activity_level": "backcountry",
+                "kcal_per_person_per_day": ACTIVITY_DEFAULTS["backcountry"],
+            },
+            "days": plan.get("days") or [],
+        },
+        sort_keys=False,
+        allow_unicode=True,
+    )
+    body = render_markdown_body(plan, catalog)
+    text = (
+        "---\n"
+        f"{fm_dump}"
+        "---\n\n"
+        "<!-- generated from frontmatter on save; edit via UI -->\n"
+        f"{body}"
+    )
+    _atomic_write(trip_dir / "food.md", text)

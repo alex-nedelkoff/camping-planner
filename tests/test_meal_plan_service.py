@@ -157,3 +157,61 @@ def test_compute_totals_unknown_food_id_marked_as_none():
     assert totals["days"][0]["meals"][0]["items"][0]["unknown_food"] is True
     assert totals["days"][0]["meals"][0]["kcal"] == 0
     assert totals["trip_kcal"] == 0
+
+
+def test_render_markdown_body_lists_days_and_meals():
+    body = mp.render_markdown_body(SAMPLE_PLAN, SAMPLE_CATALOG)
+    assert "# Food plan" in body
+    assert "Calorie target: **4000 kcal/person/day × 3 people × 2 days = 24,000 kcal**" in body
+    assert "## Friday (2026-07-10) — 1400 kcal" in body
+    assert "**Dinner**" in body
+    assert "Tuna pouch" in body
+    assert "Instant mashed potatoes" in body
+    # Saturday breakfast
+    assert "## Saturday (2026-07-11) — 330 kcal" in body
+
+
+def test_render_markdown_body_marks_unknown_food():
+    plan = {
+        "calorie_target": {"activity_level": "backcountry", "kcal_per_person_per_day": 4000},
+        "participants": ["X"],
+        "days": [{"date": "2026-07-10", "label": "F", "meals": [
+            {"meal": "dinner", "items": [{"food_id": "ghost", "servings": 1, "who": "X"}]},
+        ]}],
+        "legacy_body": "",
+    }
+    body = mp.render_markdown_body(plan, SAMPLE_CATALOG)
+    assert "ghost" in body
+    assert "?" in body  # unknown kcal marker
+
+
+def test_save_writes_frontmatter_and_regenerated_body(tmp_trips):
+    write_trip_md(tmp_trips / "killarney-2026-07", None)
+    plan = {
+        "calorie_target": {"activity_level": "bikepacking", "kcal_per_person_per_day": 4500},
+        "days": [{"date": "2026-07-10", "label": "Friday", "meals": [
+            {"meal": "dinner", "items": [
+                {"food_id": "tuna-pouch", "servings": 2, "who": "Tom", "note": ""},
+            ]},
+        ]}],
+    }
+    mp.save("killarney-2026-07", plan, catalog=SAMPLE_CATALOG)
+    written = (tmp_trips / "killarney-2026-07" / "food.md").read_text(encoding="utf-8")
+    assert written.startswith("---\n")
+    assert "activity_level: bikepacking" in written
+    assert "food_id: tuna-pouch" in written
+    assert "<!-- generated from frontmatter on save; edit via UI -->" in written
+    assert "# Food plan" in written
+    assert "Tuna pouch × 2" in written
+
+
+def test_save_round_trips_through_load(tmp_trips):
+    write_trip_md(tmp_trips / "killarney-2026-07", None)
+    plan = {
+        "calorie_target": {"activity_level": "boat-camping", "kcal_per_person_per_day": 3500},
+        "days": [{"date": "2026-07-10", "label": "Friday", "meals": []}],
+    }
+    mp.save("killarney-2026-07", plan, catalog=SAMPLE_CATALOG)
+    reloaded = mp.load("killarney-2026-07")
+    assert reloaded["calorie_target"]["activity_level"] == "boat-camping"
+    assert reloaded["days"][0]["date"] == "2026-07-10"
