@@ -190,3 +190,110 @@ def test_snap_to_polyline_clamps_to_endpoint_at_end():
     assert idx == 1
     assert abs(t - 1.0) < 1e-9
     assert snap == [2.0, 0.0]
+
+
+from paddle_router import route_paddle_leg
+
+
+def _square_lake(centroid_lat=46.0, centroid_lon=-81.0, half_deg=0.025):
+    """A 0.05° square lake centered on (centroid_lat, centroid_lon)."""
+    poly = [
+        [centroid_lat - half_deg, centroid_lon - half_deg],
+        [centroid_lat - half_deg, centroid_lon + half_deg],
+        [centroid_lat + half_deg, centroid_lon + half_deg],
+        [centroid_lat + half_deg, centroid_lon - half_deg],
+        [centroid_lat - half_deg, centroid_lon - half_deg],
+    ]
+    return {"polygon": poly, "centroid": [centroid_lat, centroid_lon]}
+
+
+def test_route_paddle_leg_picks_yellow_when_tolerance_met():
+    """Yellow path with both endpoints within 0.5 km of entry/exit → use it."""
+    lake = _square_lake()
+    # Yellow path is a curve through the lake.
+    yellow = {
+        "id": 0,
+        "points": [[45.985, -80.99], [46.0, -80.985], [46.015, -80.99]],
+        "length_km": 3.5,
+    }
+    # Entry close to yellow start, exit close to yellow end.
+    entry = [45.985, -80.99]
+    exit = [46.015, -80.99]
+    geom = route_paddle_leg(entry, exit, lake, [yellow])
+    # Yellow route should produce more than just [entry, exit]: it includes
+    # the polyline's interior point (46.0, -80.985).
+    assert len(geom) >= 4
+    # First and last are entry/exit (after snap).
+    assert _haversine_km(geom[0], entry) < 0.01
+    assert _haversine_km(geom[-1], exit) < 0.01
+    # Interior should include something close to the polyline midpoint.
+    interior_close_to_yellow_mid = any(
+        _haversine_km(pt, [46.0, -80.985]) < 0.05 for pt in geom[1:-1]
+    )
+    assert interior_close_to_yellow_mid
+
+
+def test_route_paddle_leg_falls_back_to_centroid_when_yellow_too_far():
+    """Yellow path > SNAP_TOLERANCE_KM from entry → use centroid curve instead."""
+    lake = _square_lake()
+    # Place yellow path 1 km away from the entry point.
+    yellow = {
+        "id": 0,
+        "points": [[45.95, -81.05], [45.96, -81.04]],
+        "length_km": 1.0,
+    }
+    entry = [45.985, -80.99]
+    exit = [46.015, -80.99]
+    geom = route_paddle_leg(entry, exit, lake, [yellow])
+    # Should have many sample points (centroid curve, not snap-walk).
+    assert len(geom) >= 20
+    # Endpoints exact.
+    assert geom[0] == [entry[0], entry[1]]
+    assert geom[-1] == [exit[0], exit[1]]
+
+
+def test_route_paddle_leg_filters_yellow_by_lake_coverage():
+    """Yellow polyline mostly outside the lake → not a candidate."""
+    lake = _square_lake(centroid_lat=46.0, centroid_lon=-81.0, half_deg=0.01)
+    # Yellow polyline 3 of 5 points OUTSIDE the lake (40% inside).
+    yellow = {
+        "id": 0,
+        "points": [
+            [46.005, -80.995],   # inside
+            [46.005, -81.001],   # inside
+            [46.05, -81.05],     # outside
+            [46.06, -81.06],     # outside
+            [46.07, -81.07],     # outside
+        ],
+        "length_km": 9.0,
+    }
+    entry = [46.005, -80.995]
+    exit = [46.005, -81.001]
+    geom = route_paddle_leg(entry, exit, lake, [yellow])
+    # Coverage 40% < 70% → yellow rejected; centroid-curve geometry returned
+    # (≥ 20 samples, both endpoints).
+    assert len(geom) >= 20
+    assert geom[0] == [entry[0], entry[1]]
+    assert geom[-1] == [exit[0], exit[1]]
+
+
+def test_route_paddle_leg_reverses_yellow_when_endpoints_inverted():
+    """Entry near yellow's END, exit near yellow's START → walk path reversed."""
+    lake = _square_lake()
+    yellow = {
+        "id": 0,
+        "points": [
+            [45.985, -80.99],   # path "start"
+            [46.0, -80.985],
+            [46.015, -80.99],   # path "end"
+        ],
+        "length_km": 3.5,
+    }
+    # Entry near the path's END, exit near the path's START.
+    entry = [46.015, -80.99]
+    exit = [45.985, -80.99]
+    geom = route_paddle_leg(entry, exit, lake, [yellow])
+    # Returned geometry should still START at entry and END at exit
+    # (router must reverse the path internally).
+    assert _haversine_km(geom[0], entry) < 0.01
+    assert _haversine_km(geom[-1], exit) < 0.01

@@ -233,3 +233,85 @@ def _snap_to_polyline(point, polyline):
         if best is None or sq < best[0]:
             best = (sq, [sx, sy], i, t)
     return best[1], best[2], best[3]
+
+
+def _path_inside_lake_pct(polyline_points, polygon):
+    """Fraction of polyline vertices that fall inside the polygon."""
+    if not polyline_points:
+        return 0.0
+    inside = sum(1 for pt in polyline_points if _point_in_polygon(pt, polygon))
+    return inside / len(polyline_points)
+
+
+def _walk_yellow_path(entry, exit, polyline):
+    """Snap entry & exit to polyline; return geometry from entry → exit
+    walking the polyline in the correct direction.
+
+    Returns None if the polyline can't yield a sensible walk (e.g., snap
+    points are at the same segment+t, meaning entry≈exit on the path).
+    """
+    snap_e, idx_e, t_e = _snap_to_polyline(entry, polyline)
+    snap_x, idx_x, t_x = _snap_to_polyline(exit, polyline)
+    # If entry and exit snap to the same single point, no useful walk.
+    if idx_e == idx_x and abs(t_e - t_x) < 1e-9:
+        return None
+
+    # Determine forward vs reverse: lower (idx, t) is "earlier" along the path.
+    forward = (idx_e, t_e) < (idx_x, t_x)
+    out = [list(entry), list(snap_e)]
+    if forward:
+        # Add intermediate vertices polyline[idx_e+1 ... idx_x] (vertices
+        # between the two snap points).
+        for i in range(idx_e + 1, idx_x + 1):
+            out.append(list(polyline[i]))
+        out.append(list(snap_x))
+    else:
+        # Reverse: walk from idx_e backward to idx_x+1.
+        for i in range(idx_e, idx_x, -1):
+            out.append(list(polyline[i]))
+        out.append(list(snap_x))
+    out.append(list(exit))
+    return out
+
+
+def route_paddle_leg(entry, exit, lake, yellow_paths=()):
+    """Route a paddle leg from entry to exit within the given lake.
+
+    Tries yellow paths first (snap + walk); falls back to centroid-region
+    Bezier curve if no yellow path qualifies. Final fallback is a straight
+    line. Output geometry is densely sampled (the curve already IS the
+    smooth geometry — no client-side spline rendering required).
+
+    yellow_paths is a list of {"points": [[lat,lon], ...], ...} dicts.
+    """
+    polygon = lake.get("polygon") or []
+
+    # Filter candidate yellow paths.
+    candidates = []
+    for yp in yellow_paths or ():
+        pts = yp.get("points") or []
+        if len(pts) < 2:
+            continue
+        if polygon and _path_inside_lake_pct(pts, polygon) < LAKE_COVERAGE_PCT:
+            continue
+        snap_e, _, _ = _snap_to_polyline(entry, pts)
+        snap_x, _, _ = _snap_to_polyline(exit, pts)
+        d_e = _haversine_km(entry, snap_e)
+        d_x = _haversine_km(exit, snap_x)
+        if d_e <= SNAP_TOLERANCE_KM and d_x <= SNAP_TOLERANCE_KM:
+            # Score: total cost (entry-snap + walk + snap-exit).
+            # We approximate the walk cost as |d_e + d_x| + path_length;
+            # ranking on this is fine for the v1 "pick shortest" heuristic.
+            total = d_e + d_x + (yp.get("length_km") or 0.0)
+            candidates.append((total, pts))
+
+    if candidates:
+        candidates.sort(key=lambda c: c[0])
+        for _, pts in candidates:
+            walked = _walk_yellow_path(entry, exit, pts)
+            if walked:
+                return walked
+        # All candidates produced empty walks → fall through to centroid.
+
+    # Centroid-region curve.
+    return fit_paddle_curve(entry, exit, lake)
