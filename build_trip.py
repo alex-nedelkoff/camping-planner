@@ -3,8 +3,12 @@ Generate a self-contained trip HTML page from a directory of markdown files.
 
 Usage: python3 build_trip.py trips/<trip-name>/
 """
+
+import argparse
 import datetime
+import json
 import re
+import sys
 from html import escape
 from pathlib import Path
 
@@ -14,9 +18,54 @@ import yaml
 import weather as _weather
 import route_map as _route_map
 
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
 SECTION_FILES = ["itinerary", "gear", "food", "packing", "costs"]
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?(.*)", re.DOTALL)
+TASK_LINE_RE = re.compile(
+    r"^(?P<prefix>\s*[-*+]\s+)\[(?P<mark>[ xX])\]\s+(?P<label>.+)$",
+    re.MULTILINE,
+)
 
+_PAGE_CSS = """
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       max-width: 900px; margin: 0 auto; padding: 1.5rem; color: #222;
+       line-height: 1.55; background: #fafafa; }
+h1, h2, h3 { color: #1f3a3a; }
+h1 { border-bottom: 3px solid #2d5016; padding-bottom: 0.3rem; }
+section { background: white; padding: 1.25rem 1.5rem; margin: 1rem 0;
+          border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; }
+th { background: #f0f4ee; }
+input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
+.trip-header { background: #2d5016; color: white; padding: 1.5rem 1.5rem 1rem;
+               border-radius: 10px; margin-bottom: 1rem; }
+.trip-header h1 { color: white; border-bottom: none; margin: 0 0 0.5rem; }
+.trip-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; opacity: 0.95; }
+@media print { body { background: white; } section { box-shadow: none; } }
+"""
+
+_PAGE_JS = """
+(function() {
+  document.querySelectorAll('input[type=checkbox][data-cb-key]').forEach(function(cb) {
+    var key = 'cb:' + cb.dataset.cbKey;
+    var saved = localStorage.getItem(key);
+    if (saved === '1') cb.checked = true;
+    if (saved === '0') cb.checked = false;
+    cb.addEventListener('change', function() {
+      localStorage.setItem(key, cb.checked ? '1' : '0');
+    });
+  });
+})();
+"""
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _stringify_dates(obj):
     """Recursively convert date/datetime values to ISO strings in parsed YAML."""
@@ -29,15 +78,98 @@ def _stringify_dates(obj):
     return obj
 
 
-TASK_LINE_RE = re.compile(
-    r"^(?P<prefix>\s*[-*+]\s+)\[(?P<mark>[ xX])\]\s+(?P<label>.+)$",
-    re.MULTILINE,
-)
-
-
 def _slugify(text: str) -> str:
     """Lowercase, replace non-alphanumerics with hyphens, trim hyphens."""
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def _load_park_info(park_slug: str) -> dict:
+    """Look up park name + drive time from parks.json. Returns {} if not found."""
+    repo_root = Path(__file__).parent
+    parks_path = repo_root / "parks.json"
+    if not parks_path.exists():
+        return {}
+    data = json.loads(parks_path.read_text())
+    return data.get("parks", {}).get(park_slug, {})
+
+
+def _render_header(fm: dict) -> str:
+    park_info = _load_park_info(fm.get("park", ""))
+    park_name = park_info.get("name", fm.get("park", "Trip"))
+    drive = park_info.get("driveFromAjax", "")
+    participants = ", ".join(fm.get("participants", []) or [])
+    nights_rows = ""
+    for night in fm.get("nights", []) or []:
+        nights_rows += (
+            f"<tr><td>{night.get('date', '')}</td>"
+            f"<td>{night.get('site', '')}</td>"
+            f"<td>{night.get('location', '')}</td></tr>"
+        )
+    nights_table = ""
+    if nights_rows:
+        nights_table = (
+            '<table><thead><tr><th>Date</th><th>Site</th><th>Location</th>'
+            f"</tr></thead><tbody>{nights_rows}</tbody></table>"
+        )
+    return (
+        '<header class="trip-header">'
+        f'<h1>{park_name} &middot; {fm.get("start_date", "")} → '
+        f'{fm.get("end_date", "")}</h1>'
+        '<div class="trip-meta">'
+        f'<span><strong>Participants:</strong> {participants}</span>'
+        + (f'<span><strong>Access:</strong> {fm.get("access_point", "")}</span>'
+           if fm.get("access_point") else "")
+        + (f'<span><strong>Drive from Ajax:</strong> {drive}</span>'
+           if drive else "")
+        + '</div>'
+        + nights_table
+        + '</header>'
+    )
+
+# ---------------------------------------------------------------------------
+# Loading & rendering
+# ---------------------------------------------------------------------------
+
+def load_trip(trip_dir) -> dict:
+    """Parse a trip directory.
+
+    Returns dict with keys:
+      frontmatter (dict from trip.md YAML),
+      intro (str, markdown body of trip.md after frontmatter),
+      itinerary, gear, food, packing, costs (str, markdown content),
+      route_file (Path or None — prefers route.gpx over route.kml).
+    """
+    trip_dir = Path(trip_dir)
+    trip_md_path = trip_dir / "trip.md"
+    if not trip_md_path.exists():
+        raise ValueError(f"{trip_md_path}: trip.md not found")
+    trip_md = trip_md_path.read_text()
+
+    match = FRONTMATTER_RE.match(trip_md)
+    if not match:
+        raise ValueError(f"{trip_md_path}: missing YAML frontmatter")
+    frontmatter = yaml.safe_load(match.group(1)) or {}
+    frontmatter = _stringify_dates(frontmatter)
+    intro = match.group(2).strip()
+
+    sections = {}
+    for name in SECTION_FILES:
+        path = trip_dir / f"{name}.md"
+        sections[name] = path.read_text() if path.exists() else ""
+
+    route_file = None
+    for ext in ("gpx", "kml"):
+        candidate = trip_dir / f"route.{ext}"
+        if candidate.exists():
+            route_file = candidate
+            break
+
+    return {
+        "frontmatter": frontmatter,
+        "intro": intro,
+        "route_file": route_file,
+        **sections,
+    }
 
 
 def render_section(md_text: str, section_id: str) -> str:
@@ -96,90 +228,9 @@ def render_route_section(route_file) -> str:
     data = _route_map.parse_route_file(str(route_file))
     return _route_map.generate_map_section(data)
 
-
-import argparse
-import json
-import sys
-
-
-_PAGE_CSS = """
-* { box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-       max-width: 900px; margin: 0 auto; padding: 1.5rem; color: #222;
-       line-height: 1.55; background: #fafafa; }
-h1, h2, h3 { color: #1f3a3a; }
-h1 { border-bottom: 3px solid #2d5016; padding-bottom: 0.3rem; }
-section { background: white; padding: 1.25rem 1.5rem; margin: 1rem 0;
-          border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
-th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; }
-th { background: #f0f4ee; }
-input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
-.trip-header { background: #2d5016; color: white; padding: 1.5rem 1.5rem 1rem;
-               border-radius: 10px; margin-bottom: 1rem; }
-.trip-header h1 { color: white; border-bottom: none; margin: 0 0 0.5rem; }
-.trip-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; opacity: 0.95; }
-@media print { body { background: white; } section { box-shadow: none; } }
-"""
-
-_PAGE_JS = """
-(function() {
-  document.querySelectorAll('input[type=checkbox][data-cb-key]').forEach(function(cb) {
-    var key = 'cb:' + cb.dataset.cbKey;
-    var saved = localStorage.getItem(key);
-    if (saved === '1') cb.checked = true;
-    if (saved === '0') cb.checked = false;
-    cb.addEventListener('change', function() {
-      localStorage.setItem(key, cb.checked ? '1' : '0');
-    });
-  });
-})();
-"""
-
-
-def _load_park_info(park_slug: str) -> dict:
-    """Look up park name + drive time from parks.json. Returns {} if not found."""
-    repo_root = Path(__file__).parent
-    parks_path = repo_root / "parks.json"
-    if not parks_path.exists():
-        return {}
-    data = json.loads(parks_path.read_text())
-    return data.get("parks", {}).get(park_slug, {})
-
-
-def _render_header(fm: dict) -> str:
-    park_info = _load_park_info(fm.get("park", ""))
-    park_name = park_info.get("name", fm.get("park", "Trip"))
-    drive = park_info.get("driveFromAjax", "")
-    participants = ", ".join(fm.get("participants", []) or [])
-    nights_rows = ""
-    for night in fm.get("nights", []) or []:
-        nights_rows += (
-            f"<tr><td>{night.get('date', '')}</td>"
-            f"<td>{night.get('site', '')}</td>"
-            f"<td>{night.get('location', '')}</td></tr>"
-        )
-    nights_table = ""
-    if nights_rows:
-        nights_table = (
-            '<table><thead><tr><th>Date</th><th>Site</th><th>Location</th>'
-            f"</tr></thead><tbody>{nights_rows}</tbody></table>"
-        )
-    return (
-        '<header class="trip-header">'
-        f'<h1>{park_name} &middot; {fm.get("start_date", "")} → '
-        f'{fm.get("end_date", "")}</h1>'
-        '<div class="trip-meta">'
-        f'<span><strong>Participants:</strong> {participants}</span>'
-        + (f'<span><strong>Access:</strong> {fm.get("access_point", "")}</span>'
-           if fm.get("access_point") else "")
-        + (f'<span><strong>Drive from Ajax:</strong> {drive}</span>'
-           if drive else "")
-        + '</div>'
-        + nights_table
-        + '</header>'
-    )
-
+# ---------------------------------------------------------------------------
+# Top-level orchestration
+# ---------------------------------------------------------------------------
 
 def build_html(trip_dir) -> str:
     """Build the full self-contained HTML page for a trip directory."""
@@ -249,45 +300,3 @@ def main(argv=None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-def load_trip(trip_dir) -> dict:
-    """Parse a trip directory.
-
-    Returns dict with keys:
-      frontmatter (dict from trip.md YAML),
-      intro (str, markdown body of trip.md after frontmatter),
-      itinerary, gear, food, packing, costs (str, markdown content),
-      route_file (Path or None — prefers route.gpx over route.kml).
-    """
-    trip_dir = Path(trip_dir)
-    trip_md_path = trip_dir / "trip.md"
-    if not trip_md_path.exists():
-        raise ValueError(f"{trip_md_path}: trip.md not found")
-    trip_md = trip_md_path.read_text()
-
-    match = FRONTMATTER_RE.match(trip_md)
-    if not match:
-        raise ValueError(f"{trip_md_path}: missing YAML frontmatter")
-    frontmatter = yaml.safe_load(match.group(1)) or {}
-    frontmatter = _stringify_dates(frontmatter)
-    intro = match.group(2).strip()
-
-    sections = {}
-    for name in SECTION_FILES:
-        path = trip_dir / f"{name}.md"
-        sections[name] = path.read_text() if path.exists() else ""
-
-    route_file = None
-    for ext in ("gpx", "kml"):
-        candidate = trip_dir / f"route.{ext}"
-        if candidate.exists():
-            route_file = candidate
-            break
-
-    return {
-        "frontmatter": frontmatter,
-        "intro": intro,
-        "route_file": route_file,
-        **sections,
-    }
