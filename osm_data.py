@@ -159,7 +159,13 @@ def refresh_killarney_cache() -> None:
 def load_killarney_features() -> dict:
     """Read cached features. Merges Jeff's cache when present.
 
-    Lakes: Jeff's wins on name conflict.
+    Lakes: BOTH Jeff's and OSM polygons are kept. Jeff's are first in the list
+    so name lookups (`_find_lake`) return Jeff's centroid (typically more
+    accurate). OSM polygons remain so point-in-polygon tests (used by the
+    portage classifier) still match against OSM-shaped portage endpoints —
+    otherwise OSM portages get dropped because Jeff's tighter polygons don't
+    contain the OSM-tagged endpoints.
+
     Portages: OSM only (Phase 1 doesn't extract portages).
     Campsites: Jeff's only (new top-level key; absent OSM-only loads).
 
@@ -180,11 +186,9 @@ def load_killarney_features() -> dict:
     if JEFFS_CACHE_PATH.exists():
         jeffs = json.loads(JEFFS_CACHE_PATH.read_text(encoding="utf-8"))
         jeffs_lakes = jeffs.get("lakes", [])
-        jeffs_names = {l["name"] for l in jeffs_lakes if "name" in l}
-        out["lakes"] = (
-            [l for l in out["lakes"] if l.get("name") not in jeffs_names]
-            + jeffs_lakes
-        )
+        # Jeff's lakes prepended → name lookup finds Jeff's first.
+        # OSM lakes preserved → portage point-in-polygon still resolves.
+        out["lakes"] = list(jeffs_lakes) + out["lakes"]
         out["campsites"] = jeffs.get("campsites", [])
 
     return out

@@ -158,7 +158,7 @@ _FAKE_WEATHER = {
 
 def test_build_html_assembles_full_page():
     fixture = Path(__file__).parent / "fixtures" / "sample-trip"
-    with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER), \
+    with patch("build_trip.weather_provider", return_value=_FAKE_WEATHER), \
          patch("build_trip._osm_data.load_killarney_features",
                side_effect=FileNotFoundError("no cache")):
         html = build_html(fixture)
@@ -208,7 +208,7 @@ def test_build_html_renders_auto_route_table_when_no_gpx():
         ],
         "portages": [],
     }
-    with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER), \
+    with patch("build_trip.weather_provider", return_value=_FAKE_WEATHER), \
          patch("build_trip._osm_data.load_killarney_features", return_value=fake_osm):
         html = build_html(fixture)
 
@@ -222,7 +222,7 @@ def test_build_html_renders_auto_route_table_when_no_gpx():
 def test_build_html_omits_route_when_no_osm_cache():
     """When OSM cache load fails AND no route file, route section is omitted."""
     fixture = Path(__file__).parent / "fixtures" / "sample-trip"
-    with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER), \
+    with patch("build_trip.weather_provider", return_value=_FAKE_WEATHER), \
          patch("build_trip._osm_data.load_killarney_features",
                side_effect=FileNotFoundError("no cache")):
         html = build_html(fixture)

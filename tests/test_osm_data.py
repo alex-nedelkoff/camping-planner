@@ -131,8 +131,10 @@ import osm_data as _osm_data
 
 
 def test_load_features_merges_jeffs_when_present(tmp_path, monkeypatch):
-    """When jeffs_killarney_cache.json exists, its lakes win on name conflict
-    and its campsites surface as a top-level key."""
+    """When jeffs_killarney_cache.json exists, BOTH Jeff's and OSM polygons
+    are kept (Jeff's first), so name lookups find Jeff's first while
+    point-in-polygon tests still see OSM polygons. Campsites surface as a
+    top-level key."""
     osm_cache = {
         "lakes": [
             {"name": "Killarney Lake", "polygon": [[1, 1]], "centroid": [46.05, -81.40]},
@@ -159,13 +161,18 @@ def test_load_features_merges_jeffs_when_present(tmp_path, monkeypatch):
     monkeypatch.setattr(_osm_data, "JEFFS_CACHE_PATH", jeffs_path)
 
     out = _osm_data.load_killarney_features()
+    # Killarney Lake appears twice (Jeff's + OSM's), Other Lake once, Baie Fine once.
     names = sorted(l["name"] for l in out["lakes"])
-    # Killarney Lake from Jeff's wins; Other Lake (OSM-only) preserved;
-    # Baie Fine added.
-    assert names == ["Baie Fine", "Killarney Lake", "Other Lake"]
-    killarney = next(l for l in out["lakes"] if l["name"] == "Killarney Lake")
-    # Verify Jeff's polygon, not OSM's.
-    assert killarney["polygon"] == [[9, 9]]
+    assert names == ["Baie Fine", "Killarney Lake", "Killarney Lake", "Other Lake"]
+    # First Killarney Lake in the list is Jeff's (so name lookups return Jeff's).
+    first_killarney = next(l for l in out["lakes"] if l["name"] == "Killarney Lake")
+    assert first_killarney["polygon"] == [[9, 9]]
+    # OSM's Killarney Lake is also still present.
+    osm_killarney_polygons = [
+        l["polygon"] for l in out["lakes"]
+        if l["name"] == "Killarney Lake"
+    ]
+    assert [[1, 1]] in osm_killarney_polygons
     # Campsites surfaced.
     assert out["campsites"] == jeffs_cache["campsites"]
     # Portages still from OSM.
