@@ -97,3 +97,82 @@ def _zhang_suen_thinning(mask: np.ndarray) -> np.ndarray:
             break
         prev = img.copy()
     return (img * 255).astype(np.uint8)
+
+
+def _trace_skeleton_polylines(skel: np.ndarray, min_length_px: int = 30) -> list:
+    """Walk a skeletonized binary mask into polylines.
+
+    Returns list of polylines, each a list of (col, row) integer tuples.
+    Points where degree != 2 (endpoints, junctions) are treated as polyline
+    boundaries — branches at junctions become separate polylines.
+
+    Drops polylines shorter than min_length_px (Manhattan length is fine
+    for filtering noise; we don't need true Euclidean length here).
+    """
+    # Build set of white-pixel coords.
+    ys, xs = np.where(skel > 0)
+    if len(xs) == 0:
+        return []
+    pixels = set(zip(xs.tolist(), ys.tolist()))
+    h, w = skel.shape
+
+    def neighbors(p):
+        x, y = p
+        out = []
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if dx == 0 and dy == 0:
+                    continue
+                np_ = (x + dx, y + dy)
+                if np_ in pixels:
+                    out.append(np_)
+        return out
+
+    def degree(p):
+        return len(neighbors(p))
+
+    # Endpoints (degree 1) and junctions (degree ≥ 3) are walk boundaries.
+    boundaries = {p for p in pixels if degree(p) != 2}
+
+    visited_edges = set()  # set of frozenset({a, b}) edges already walked
+    polylines = []
+
+    def walk_from(start, first_step):
+        path = [start, first_step]
+        visited_edges.add(frozenset({start, first_step}))
+        prev, curr = start, first_step
+        while curr not in boundaries:
+            nbrs = [n for n in neighbors(curr) if n != prev]
+            if not nbrs:
+                break
+            nxt = nbrs[0]
+            if frozenset({curr, nxt}) in visited_edges:
+                break
+            visited_edges.add(frozenset({curr, nxt}))
+            path.append(nxt)
+            prev, curr = curr, nxt
+        return path
+
+    # Walk from every boundary along each unvisited neighbor.
+    for b in list(boundaries):
+        for n in neighbors(b):
+            if frozenset({b, n}) in visited_edges:
+                continue
+            path = walk_from(b, n)
+            if len(path) >= min_length_px:
+                polylines.append(path)
+
+    # Pixels in degree-2 chains with no boundary (closed loops) — pick any
+    # remaining pixel and walk both directions.
+    remaining = pixels - {pt for path in polylines for pt in path}
+    for p in list(remaining):
+        if any(frozenset({p, n}) in visited_edges for n in neighbors(p)):
+            continue
+        nbrs = neighbors(p)
+        if not nbrs:
+            continue
+        path = walk_from(p, nbrs[0])
+        if len(path) >= min_length_px:
+            polylines.append(path)
+
+    return polylines
