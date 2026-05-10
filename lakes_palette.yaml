@@ -6,3 +6,17 @@ value:      [180, 255]
 
 # Minimum contour area in pixels (drops label boxes, decorative water symbols)
 min_area_px: 500
+
+# Optional: union a "paths" mask into the water mask. Jeff's draws yellow
+# canoe-route lines on top of water bodies; without this union the route
+# graphics split single lakes into multiple polygons. The yellow lines ARE
+# semantically on water, so OR'ing them in restores the unified lake shape.
+# Set `paths_yellow.enabled: false` (or omit the section entirely) to skip.
+paths_yellow:
+  enabled: true
+  hue:        [22, 38]      # yellow-orange band
+  saturation: [120, 255]
+  value:      [180, 255]
+  # Morphological open to drop isolated yellow blobs (text labels, trail
+  # icons on land). Width in px of the kernel — set 0 to disable.
+  open_kernel_px: 3

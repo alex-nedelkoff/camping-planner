@@ -188,6 +188,27 @@ def extract_lakes_from_mosaic(mosaic, mosaic_bounds: tuple, palette: dict) -> li
     high = np.array([palette["hue"][1], palette["saturation"][1], palette["value"][1]])
     mask = cv2.inRange(hsv, low, high)
 
+    # Optional: union a "paths" mask (e.g., yellow canoe-route lines drawn
+    # on top of water bodies). Without this, the route graphics split single
+    # lakes into multiple polygons.
+    paths_cfg = palette.get("paths_yellow") or {}
+    if paths_cfg.get("enabled"):
+        plow = np.array([paths_cfg["hue"][0],
+                         paths_cfg["saturation"][0],
+                         paths_cfg["value"][0]])
+        phigh = np.array([paths_cfg["hue"][1],
+                          paths_cfg["saturation"][1],
+                          paths_cfg["value"][1]])
+        path_mask = cv2.inRange(hsv, plow, phigh)
+        # Drop isolated yellow blobs (text, icons on land) before unioning.
+        open_px = int(paths_cfg.get("open_kernel_px", 0) or 0)
+        if open_px > 0:
+            path_mask = cv2.morphologyEx(
+                path_mask, cv2.MORPH_OPEN,
+                cv2.getStructuringElement(cv2.MORPH_RECT, (open_px, open_px)),
+            )
+        mask = cv2.bitwise_or(mask, path_mask)
+
     # Clean: close holes, then open to drop specks.
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE,
                             cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)))
