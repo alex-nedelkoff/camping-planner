@@ -85,11 +85,12 @@ def _extract_connectors(runs: list) -> list:
         lake_b = next_run["state"]
         if lake_a is None or lake_b is None or lake_a == lake_b:
             continue
-        # Cap each side to the last/first ~50 points so the connector stays
-        # focused on the lake transition rather than a full-day paddle.
-        approach = [list(p) for p in prev_run["points"][-50:]]
+        # Use the FULL paddle run on each side. Multi-hop chaining in
+        # route_engine drops redundant approaches on non-first hops so the
+        # intermediate-lake paddle isn't double-counted.
+        approach = [list(p) for p in prev_run["points"]]
         portage = [list(p) for p in run["points"]]
-        departure = [list(p) for p in next_run["points"][:50]]
+        departure = [list(p) for p in next_run["points"]]
         out.append({
             "lake_a": lake_a,
             "lake_b": lake_b,
@@ -153,6 +154,57 @@ def load_library_index(library_dir: Path) -> dict:
     if not path.exists():
         return {"connectors": []}
     return json.loads(path.read_text())
+
+
+def _build_library_graph(library: dict) -> dict:
+    """Adjacency: {lake_name: [(neighbor_name, connector), ...]}."""
+    graph: dict = {}
+    for c in library.get("connectors", []):
+        a, b = c["lake_a"], c["lake_b"]
+        graph.setdefault(a, []).append((b, c))
+        graph.setdefault(b, []).append((a, c))
+    return graph
+
+
+def find_library_path(lake_a: str, lake_b: str, library: dict,
+                      max_hops: int = 5) -> Optional[list]:
+    """BFS over library connectors from lake_a to lake_b.
+
+    Returns a list of connectors (oriented lake_a -> lake_b) representing the
+    chain, or None if no path exists. Each connector in the result is already
+    flipped to read in the requested direction.
+    """
+    graph = _build_library_graph(library)
+    if lake_a not in graph:
+        return None
+    queue: list = [(lake_a, [])]
+    visited = {lake_a}
+    while queue:
+        current, path = queue.pop(0)
+        if current == lake_b:
+            return path
+        if len(path) >= max_hops:
+            continue
+        for neighbor, conn in graph.get(current, []):
+            if neighbor in visited:
+                continue
+            visited.add(neighbor)
+            # Orient the connector so it reads current -> neighbor.
+            if conn["lake_a"] == current and conn["lake_b"] == neighbor:
+                oriented = conn
+            else:
+                oriented = {
+                    **conn,
+                    "lake_a": current,
+                    "lake_b": neighbor,
+                    "approach": list(reversed(conn["departure"])),
+                    "portage": list(reversed(conn["portage"])),
+                    "departure": list(reversed(conn["approach"])),
+                    "approach_km": conn["departure_km"],
+                    "departure_km": conn["approach_km"],
+                }
+            queue.append((neighbor, path + [oriented]))
+    return None
 
 
 def find_connector(lake_a: str, lake_b: str, library: dict) -> Optional[dict]:

@@ -351,35 +351,46 @@ def build_route(nights: list, access_point: str, osm: dict,
             continue
 
         if lake_a and lake_b:
-            # Library connector takes precedence over OSM portage graph.
-            from gpx_library import find_connector
-            conn = find_connector(lake_a["name"], lake_b["name"], library)
-            if conn:
-                # Three segments using real GPX geometry: approach paddle on
-                # lake_a → portage trail → departure paddle on lake_b. The
-                # approach starts at the resolved a_pt (access GPS / centroid /
-                # gps override) so the trip-page line connects cleanly even
-                # when the GPX trace's first point isn't at the actual put-in.
-                approach_geom = ([a_pt_resolved] + conn["approach"]
-                                 if a_pt_resolved else conn["approach"])
-                segments.append(_segment(
-                    day_label, "paddle", a["label"],
-                    f"{lake_a['name']} portage",
-                    conn["approach_km"], approach_geom,
-                ))
-                segments.append(_segment(
-                    day_label, "portage",
-                    f"{lake_a['name']} portage",
-                    f"{lake_b['name']} portage",
-                    conn["portage_km"], conn["portage"],
-                ))
-                departure_geom = (conn["departure"] + [b_pt_resolved]
-                                  if b_pt_resolved else conn["departure"])
-                segments.append(_segment(
-                    day_label, "paddle",
-                    f"{lake_b['name']} portage", b["label"],
-                    conn["departure_km"], departure_geom,
-                ))
+            # Library path (possibly multi-hop) takes precedence over OSM.
+            from gpx_library import find_library_path
+            lib_path = find_library_path(lake_a["name"], lake_b["name"], library)
+            if lib_path:
+                # Walk each connector in the chain, emitting paddle / portage /
+                # paddle for each hop. Inter-hop paddles between two connectors
+                # use the geometry from the prior connector's `departure` and
+                # the next connector's `approach`.
+                for hop_idx, conn in enumerate(lib_path):
+                    is_first_hop = hop_idx == 0
+                    is_last_hop = hop_idx == len(lib_path) - 1
+
+                    # Approach paddle is only emitted on the FIRST hop. For
+                    # subsequent hops, the previous hop's `departure` already
+                    # covers the same intermediate-lake traversal — skipping
+                    # avoids double-counting both distance and geometry.
+                    if is_first_hop:
+                        approach_geom = ([a_pt_resolved] + conn["approach"]
+                                         if a_pt_resolved else conn["approach"])
+                        segments.append(_segment(
+                            day_label, "paddle", a["label"],
+                            f"{conn['lake_a']} portage",
+                            conn["approach_km"], approach_geom,
+                        ))
+                    segments.append(_segment(
+                        day_label, "portage",
+                        f"{conn['lake_a']} portage",
+                        f"{conn['lake_b']} portage",
+                        conn["portage_km"], conn["portage"],
+                    ))
+                    if is_last_hop and b_pt_resolved:
+                        departure_geom = conn["departure"] + [b_pt_resolved]
+                    else:
+                        departure_geom = conn["departure"]
+                    segments.append(_segment(
+                        day_label, "paddle",
+                        f"{conn['lake_b']} portage",
+                        b["label"] if is_last_hop else conn["lake_b"],
+                        conn["departure_km"], departure_geom,
+                    ))
                 continue
 
             path = _find_path_through_portages(lake_a, lake_b, lakes, portages)
