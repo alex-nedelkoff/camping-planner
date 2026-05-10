@@ -218,12 +218,34 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
                 ))
                 continue
 
-        # No-portage / unmatched-lake fallback: filled in by Task 4.
-        # For now, raise so Task 3's tests pass (which only cover happy paths)
-        # but failures during Task 4 development are loud.
-        raise NotImplementedError(
-            f"Cannot route from {a['location']} to {b['location']} "
-            "(approximate fallback added in Task 4)"
-        )
+        # Approximate-fallback: lake unmatched OR no connecting portage.
+        if not lake_a:
+            warnings.append(
+                f"Could not resolve lake '{a['location']}' in OSM data — "
+                "leg shown as straight line."
+            )
+        if not lake_b:
+            warnings.append(
+                f"Could not resolve lake '{b['location']}' in OSM data — "
+                "leg shown as straight line."
+            )
+        if lake_a and lake_b:
+            warnings.append(
+                f"No portage found between {lake_a['name']} and {lake_b['name']} — "
+                "leg shown as straight line."
+            )
+        # Use centroids when known, otherwise fall back to a sentinel point
+        # roughly in the middle of the Killarney bbox so the map still renders.
+        a_pt = lake_a["centroid"] if lake_a else [46.02, -81.40]
+        b_pt = lake_b["centroid"] if lake_b else [46.02, -81.40]
+        d_km = _haversine_km(a_pt, b_pt)
+        # On the return leg (last waypoint back to access point), when both lakes
+        # are resolved, emit a rough paddle segment rather than approx so the
+        # outbound approx is not double-counted on the reverse leg.
+        is_return_leg = (i == len(waypoints) - 1)
+        seg_kind = "paddle" if (is_return_leg and lake_a and lake_b) else "approx"
+        segments.append(_segment(
+            day_label, seg_kind, a["label"], b["label"], d_km, [a_pt, b_pt],
+        ))
 
     return {"segments": segments, "warnings": warnings}

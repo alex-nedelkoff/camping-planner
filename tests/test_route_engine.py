@@ -117,3 +117,35 @@ def test_build_route_two_lakes_with_portage_emits_paddle_portage_paddle():
     portage_seg = [s for s in day2 if s["kind"] == "portage"][0]
     assert portage_seg["distance_km"] == 1.08
     assert out["warnings"] == []
+
+
+def test_build_route_no_portage_falls_back_to_approx():
+    # Two lakes in the OSM data, but NO portage between them.
+    osm = _synthetic_osm()
+    osm["portages"] = []  # strip the portage
+
+    nights = [
+        {"date": "2026-05-15", "site": "1", "location": "Alpha Lake"},
+        {"date": "2026-05-16", "site": "2", "location": "Beta Lake"},
+    ]
+    out = build_route(nights=nights, access_point="Alpha Lake", osm=osm)
+
+    approx = [s for s in out["segments"] if s["kind"] == "approx"]
+    assert len(approx) == 1  # one Alpha->Beta leg degraded
+    assert approx[0]["from"].startswith("Alpha")
+    assert approx[0]["to"].startswith("Beta")
+    assert any("no portage" in w.lower() for w in out["warnings"])
+
+
+def test_build_route_unknown_lake_name_falls_back_to_approx():
+    osm = _synthetic_osm()
+    nights = [
+        {"date": "2026-05-15", "site": "1", "location": "Alpha Lake"},
+        {"date": "2026-05-16", "site": "2", "location": "Mystery Lake"},  # not in OSM
+    ]
+    out = build_route(nights=nights, access_point="Alpha Lake", osm=osm)
+
+    approx = [s for s in out["segments"] if s["kind"] == "approx"]
+    assert len(approx) >= 1
+    assert any("Mystery" in w or "could not resolve" in w.lower()
+               for w in out["warnings"])
