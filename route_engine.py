@@ -12,6 +12,8 @@ import re
 from fractions import Fraction
 from typing import Optional
 
+from paddle_router import route_paddle_leg
+
 # Conservative pace defaults — see spec for rationale.
 PADDLE_KMH = 4.0
 PORTAGE_KMH = 2.0
@@ -544,9 +546,9 @@ def build_route(nights: list, access_point: str, osm: dict,
         b_pt_resolved = b["point"] if b["point"] else (lake_b["centroid"] if lake_b else None)
 
         if lake_a and lake_b and lake_a["name"] == lake_b["name"]:
-            # Same lake — straight paddle, routed around peninsulas if needed.
-            geom = _polygon_aware_paddle(
-                a_pt_resolved, b_pt_resolved, lake_a, all_lakes=lakes,
+            # Same lake — route via yellow path or centroid curve.
+            geom = route_paddle_leg(
+                a_pt_resolved, b_pt_resolved, lake_a, yellow_paths=(),
             )
             segments.append(_segment(
                 day_label, "paddle", a["label"], b["label"],
@@ -611,8 +613,8 @@ def build_route(nights: list, access_point: str, osm: dict,
                         portage_geom = list(reversed(portage["line"]))
                     # Paddle from current point to portage entry, routed around
                     # peninsulas if a straight line would cross outside water.
-                    paddle_geom = _polygon_aware_paddle(
-                        current_pt, entry, current_lake, all_lakes=lakes,
+                    paddle_geom = route_paddle_leg(
+                        current_pt, entry, current_lake, yellow_paths=(),
                     )
                     segments.append(_segment(
                         day_label, "paddle",
@@ -631,8 +633,8 @@ def build_route(nights: list, access_point: str, osm: dict,
                     current_lake = next_lake
                     current_pt = exit_
                 end_pt = b_pt_resolved or lake_b["centroid"]
-                final_geom = _polygon_aware_paddle(
-                    current_pt, end_pt, lake_b, all_lakes=lakes,
+                final_geom = route_paddle_leg(
+                    current_pt, end_pt, lake_b, yellow_paths=(),
                 )
                 segments.append(_segment(
                     day_label, "paddle",
