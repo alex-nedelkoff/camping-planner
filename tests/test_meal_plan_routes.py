@@ -82,3 +82,22 @@ def test_trip_payload_marks_food_section_as_meal_plan(client):
     body = r.json()
     food_section = next(s for s in body["sections"] if s["id"] == "food")
     assert food_section["kind"] == "meal-plan"
+
+
+def test_food_section_is_not_legacy_editable(client):
+    """Food section must use the meal-plan UI; legacy save-section endpoint
+    must NOT accept writes to it (would destroy the YAML frontmatter)."""
+    r = client.post(
+        "/api/save-section?trip=killarney-2026-05&section=food",
+        json={"markdown": "garbage that would overwrite YAML"},
+    )
+    assert r.status_code == 400
+
+
+def test_food_section_payload_is_marked_not_editable(client):
+    """The trip payload must mark the food section as not legacy-editable."""
+    r = client.get("/api/trip/killarney-2026-05")
+    assert r.status_code == 200
+    food_section = next(s for s in r.json()["sections"] if s["id"] == "food")
+    assert food_section["editable"] is False
+    assert food_section["kind"] == "meal-plan"

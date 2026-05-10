@@ -227,7 +227,7 @@ def create_trip(
     return slug
 
 
-EDITABLE_SECTIONS = {"intro", "itinerary", "gear", "food", "packing", "costs"}
+EDITABLE_SECTIONS = {"intro", "itinerary", "gear", "packing", "costs"}
 
 # Sections whose primary content is a single markdown table — eligible for the
 # in-place row editor in the trip pane.
@@ -414,7 +414,7 @@ def load_trip_payload(slug: str, trips_dir: Path | None = None) -> dict:
             sections.append({
                 "id": "food",
                 "title": "Food",
-                "editable": True,
+                "editable": False,
                 "kind": "meal-plan",
                 "html": "",
                 "payload": {"plan": plan, "totals": totals},
