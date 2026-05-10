@@ -97,3 +97,31 @@ class WhoamiResponse(BaseModel):
 
 class WhoamiSetRequest(BaseModel):
     user: str = Field(min_length=1, max_length=40)
+
+
+class FoodIn(BaseModel):
+    name: str = Field(min_length=1)
+    category: str
+    kcal_per_serving: int = Field(ge=0)
+    serving_size: str = Field(min_length=1)
+    url: str | None = None
+
+
+class FoodOut(FoodIn):
+    id: str
+
+
+class FoodsCatalogResponse(BaseModel):
+    ok: bool = True
+    categories: list[str]
+    foods: list[FoodOut]
+
+
+class FoodCreatedResponse(BaseModel):
+    ok: bool = True
+    id: str
+
+
+class FoodReferencesResponse(BaseModel):
+    ok: bool = True
+    references: list[str]
