@@ -325,3 +325,54 @@ def test_build_route_emits_markers_for_access_and_each_night():
     assert access["lat"] == 46.0136 and access["lon"] == -81.4049
     assert "Site 7" in site["label"]
     assert "lake center" in site["label"]
+
+
+def test_build_route_resolves_site_gps_from_campsites_when_no_override():
+    """Campsite extracted from Jeff's data fills in the marker GPS by ref+lake."""
+    osm = {
+        "lakes": [
+            {"name": "OSA Lake",
+             "polygon": [[46.05, -81.40], [46.05, -81.38],
+                         [46.07, -81.38], [46.07, -81.40],
+                         [46.05, -81.40]],
+             "centroid": [46.06, -81.39]},
+        ],
+        "portages": [],
+        "campsites": [
+            {"ref": "61", "lake": "OSA Lake", "gps": [46.063, -81.392]},
+        ],
+    }
+    nights = [
+        {"date": "2026-05-15", "site": "61", "location": "OSA Lake"},
+        # No gps: override.
+    ]
+    out = build_route(nights=nights, access_point="OSA Lake", osm=osm)
+    site_marker = [m for m in out["markers"] if m["kind"] == "site"][0]
+    # Marker should be at the campsite GPS, not the OSA Lake centroid.
+    assert abs(site_marker["lat"] - 46.063) < 1e-4
+    assert abs(site_marker["lon"] - -81.392) < 1e-4
+
+
+def test_build_route_frontmatter_gps_wins_over_campsite():
+    osm = {
+        "lakes": [
+            {"name": "OSA Lake",
+             "polygon": [[46.05, -81.40], [46.05, -81.38],
+                         [46.07, -81.38], [46.07, -81.40],
+                         [46.05, -81.40]],
+             "centroid": [46.06, -81.39]},
+        ],
+        "portages": [],
+        "campsites": [
+            {"ref": "61", "lake": "OSA Lake", "gps": [46.063, -81.392]},
+        ],
+    }
+    nights = [
+        {"date": "2026-05-15", "site": "61", "location": "OSA Lake",
+         "gps": [99.0, -99.0]},  # explicit override
+    ]
+    out = build_route(nights=nights, access_point="OSA Lake", osm=osm)
+    site_marker = [m for m in out["markers"] if m["kind"] == "site"][0]
+    # Frontmatter override wins.
+    assert site_marker["lat"] == 99.0
+    assert site_marker["lon"] == -99.0

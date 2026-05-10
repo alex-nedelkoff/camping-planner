@@ -287,11 +287,23 @@ def build_route(nights: list, access_point: str, osm: dict,
     access_info = _resolve_access_point(access_point, lakes)
 
     def _night_point(night: dict) -> Optional[list]:
-        """Best [lat, lon] for a night: gps override > lake centroid > None."""
+        """Best [lat, lon] for a night.
+
+        Resolution order:
+          1. Frontmatter `gps:` override.
+          2. Auto-resolve from osm['campsites'] by (ref, lake).
+          3. Lake centroid.
+          4. None if even the lake doesn't resolve.
+        """
         gps = night.get("gps")
         if gps and len(gps) == 2:
             return [gps[0], gps[1]]
-        lake = _find_lake(night["location"], lakes)
+        site_ref = str(night.get("site", ""))
+        location = night.get("location", "")
+        for cs in osm.get("campsites", []) or []:
+            if cs.get("ref") == site_ref and cs.get("lake") == location:
+                return [cs["gps"][0], cs["gps"][1]]
+        lake = _find_lake(location, lakes)
         return lake["centroid"] if lake else None
 
     # Build the ordered list of waypoint dicts. Each carries a `point` that
@@ -469,6 +481,7 @@ def build_route(nights: list, access_point: str, osm: dict,
             "kind": "access",
         })
     for night in nights:
+        # Use the same resolution priority as _night_point above.
         gps = night.get("gps")
         if gps and len(gps) == 2:
             markers.append({
@@ -478,7 +491,22 @@ def build_route(nights: list, access_point: str, osm: dict,
                 "kind": "site",
             })
             continue
-        lake = _find_lake(night["location"], lakes)
+        site_ref = str(night.get("site", ""))
+        location = night.get("location", "")
+        campsite = next(
+            (cs for cs in (osm.get("campsites") or [])
+             if cs.get("ref") == site_ref and cs.get("lake") == location),
+            None,
+        )
+        if campsite:
+            markers.append({
+                "label": f"Site {night['site']}, {night['location']}",
+                "lat": campsite["gps"][0],
+                "lon": campsite["gps"][1],
+                "kind": "site",
+            })
+            continue
+        lake = _find_lake(location, lakes)
         if lake:
             markers.append({
                 "label": f"Site {night['site']}, {night['location']} (lake center)",
