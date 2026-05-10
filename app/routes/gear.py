@@ -3,6 +3,8 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from app.models import (
+    CategoryRenameRequest,
+    CategoryRequest,
     GearCatalogResponse,
     GearItemCreatedResponse,
     GearItemIn,
@@ -58,4 +60,43 @@ def delete_item(item_id: str, force: bool = Query(default=False)):
                 detail={"ok": False, "error": "item is referenced", "references": refs},
             )
     gear_svc.delete(item_id)
+    return OkResponse()
+
+
+categories_router = APIRouter(prefix="/api/gear/categories")
+
+
+@categories_router.post("", response_model=OkResponse)
+def add_category(body: CategoryRequest):
+    try:
+        gear_svc.add_category(body.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"ok": False, "error": str(exc)})
+    return OkResponse()
+
+
+@categories_router.put("/{old_name}", response_model=OkResponse)
+def rename_category(old_name: str, body: CategoryRenameRequest):
+    try:
+        gear_svc.rename_category(old_name, body.new_name)
+    except KeyError:
+        raise HTTPException(status_code=404, detail={"ok": False, "error": "category not found"})
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"ok": False, "error": str(exc)})
+    return OkResponse()
+
+
+@categories_router.delete("/{name}", response_model=OkResponse)
+def delete_category(name: str, force: bool = Query(default=False)):
+    try:
+        gear_svc.delete_category(name, force=force)
+    except KeyError:
+        raise HTTPException(status_code=404, detail={"ok": False, "error": "category not found"})
+    except ValueError as exc:
+        # Distinguish "in use" (409) from validation errors (400).
+        if "in use" in str(exc):
+            raise HTTPException(
+                status_code=409, detail={"ok": False, "error": str(exc)},
+            )
+        raise HTTPException(status_code=400, detail={"ok": False, "error": str(exc)})
     return OkResponse()

@@ -113,3 +113,74 @@ def test_get_gear_refs(client, tmp_path):
     r = client.get("/api/gear/refs/compass")
     assert r.status_code == 200
     assert r.json()["references"] == ["killarney-2026-07"]
+
+
+def test_post_category_adds(client):
+    r = client.post("/api/gear/categories", json={"name": "Photography"})
+    assert r.status_code == 200
+    cat = client.get("/api/gear").json()
+    assert "Photography" in cat["categories"]
+
+
+def test_post_category_duplicate_returns_400(client):
+    r = client.post("/api/gear/categories", json={"name": "cook"})
+    assert r.status_code == 400
+    assert "already exists" in r.json()["detail"]["error"]
+
+
+def test_put_category_renames_and_updates_items(client):
+    """Add a category, then rename it (no items use it) — happy path."""
+    client.post("/api/gear/categories", json={"name": "Tmp"})
+    r = client.put("/api/gear/categories/Tmp", json={"new_name": "Tmp2"})
+    assert r.status_code == 200
+    cat = client.get("/api/gear").json()
+    assert "Tmp2" in cat["categories"]
+    assert "Tmp" not in cat["categories"]
+
+
+def test_put_category_renames_navigation_to_orient(client):
+    r = client.put("/api/gear/categories/Navigation", json={"new_name": "Orient"})
+    assert r.status_code == 200
+    cat = client.get("/api/gear").json()
+    assert "Orient" in cat["categories"]
+    assert "Navigation" not in cat["categories"]
+    assert cat["items"][0]["category"] == "Orient"
+
+
+def test_put_category_unknown_returns_404(client):
+    r = client.put("/api/gear/categories/Bogus", json={"new_name": "X"})
+    assert r.status_code == 404
+
+
+def test_put_category_protected_other_returns_400(client):
+    r = client.put("/api/gear/categories/Other", json={"new_name": "Misc"})
+    assert r.status_code == 400
+
+
+def test_put_category_collision_returns_400(client):
+    r = client.put("/api/gear/categories/Cook", json={"new_name": "Other"})
+    assert r.status_code == 400
+
+
+def test_delete_category_blocked_when_in_use(client):
+    r = client.delete("/api/gear/categories/Navigation")
+    assert r.status_code == 409
+
+
+def test_delete_category_force_reassigns_to_other(client):
+    r = client.delete("/api/gear/categories/Navigation?force=true")
+    assert r.status_code == 200
+    cat = client.get("/api/gear").json()
+    assert "Navigation" not in cat["categories"]
+    assert cat["items"][0]["category"] == "Other"
+
+
+def test_delete_category_unused_succeeds(client):
+    # Cook has no items in fixture
+    r = client.delete("/api/gear/categories/Cook")
+    assert r.status_code == 200
+
+
+def test_delete_category_protected_other_returns_400(client):
+    r = client.delete("/api/gear/categories/Other?force=true")
+    assert r.status_code == 400
