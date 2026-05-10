@@ -153,6 +153,7 @@
       wireHeader();
       wireLegacyBanner();
       wireDayChrome();
+      wireSave();
     }
 
     function wireHeader() {
@@ -305,9 +306,100 @@
       inp.addEventListener('blur', () => setTimeout(close, 150));
     }
 
-    // openCreateFoodModal full implementation in Task 14.
     function openCreateFoodModal(name, date, mealIdx, itemIdx) {
-      alert('Create-food modal added in next task.');
+      const overlay = document.createElement('div');
+      overlay.className = 'mp-modal-overlay';
+      const catOpts = catalog.categories
+        .map(c => `<option value="${c}">${c}</option>`).join('');
+      overlay.innerHTML = `
+        <div class="mp-modal">
+          <h3>Create new food</h3>
+          <div class="mp-modal-error" hidden></div>
+          <label>Name <input type="text" id="mpf-name" value="${escapeHtml(name)}"></label>
+          <label>Category <select id="mpf-category">${catOpts}</select></label>
+          <label>kcal per serving <input type="number" id="mpf-kcal" min="0" step="1" value="0"></label>
+          <label>Serving size <input type="text" id="mpf-serving" placeholder="1 pouch (113 g)"></label>
+          <label>URL (optional) <input type="url" id="mpf-url" placeholder="https://..."></label>
+          <div class="mp-modal-actions">
+            <button class="btn" id="mpf-create">Create + select</button>
+            <button class="btn secondary" id="mpf-cancel">Cancel</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      const close = () => overlay.remove();
+      overlay.querySelector('#mpf-cancel').addEventListener('click', close);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+      overlay.querySelector('#mpf-create').addEventListener('click', async () => {
+        const payload = {
+          name: overlay.querySelector('#mpf-name').value.trim(),
+          category: overlay.querySelector('#mpf-category').value,
+          kcal_per_serving: parseInt(overlay.querySelector('#mpf-kcal').value, 10) || 0,
+          serving_size: overlay.querySelector('#mpf-serving').value.trim(),
+          url: overlay.querySelector('#mpf-url').value.trim() || null,
+        };
+        const r = await fetch('/api/foods', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          const err = overlay.querySelector('.mp-modal-error');
+          err.textContent = (j.detail && j.detail.error) || `HTTP ${r.status}`;
+          err.hidden = false;
+          return;
+        }
+        const { id: newId } = await r.json();
+        // Reload catalog, set the item.food_id, recompute, rerender.
+        const cr = await fetch('/api/foods');
+        catalog = await cr.json();
+        const day = plan.days.find(d => d.date === date);
+        day.meals[mealIdx].items[itemIdx].food_id = newId;
+        close();
+        recomputeTotals();
+        renderAll();
+      });
+    }
+
+    function wireSave() {
+      const btn = sectionEl.querySelector('.mp-save');
+      const status = sectionEl.querySelector('.mp-status');
+      btn.addEventListener('click', async () => {
+        status.textContent = 'Saving…';
+        // Strip computed kcal/unknown_food fields before sending
+        const cleanDays = plan.days.map(d => ({
+          date: d.date, label: d.label || '',
+          meals: (d.meals || []).map(m => ({
+            meal: m.meal,
+            items: (m.items || []).map(it => ({
+              food_id: it.food_id || '',
+              servings: parseInt(it.servings, 10) || 0,
+              who: it.who || '',
+              note: it.note || '',
+            })),
+          })),
+        }));
+        const payload = {
+          calorie_target: plan.calorie_target,
+          days: cleanDays,
+        };
+        const r = await fetch(`/api/trip/${encodeURIComponent(slug)}/meals`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          status.textContent = 'Error: ' + ((j.detail && j.detail.error) || `HTTP ${r.status}`);
+          return;
+        }
+        status.textContent = 'Saved.';
+        // Clear legacy banner state — body has been regenerated.
+        plan.legacy_body = '';
+        renderAll();
+        setTimeout(() => { status.textContent = ''; }, 2000);
+      });
     }
 
     fetchCatalog().then(() => {

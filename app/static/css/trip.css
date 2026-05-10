@@ -106,3 +106,13 @@
 .mp-who { padding: 0.3rem; }
 .mp-remove-item, .mp-remove-meal { background: transparent; border: none; color: #b91c1c; cursor: pointer; font-size: 1.2em; }
 .mp-add-item { background: transparent; color: var(--muted, #52525b); border: 1px dashed var(--border, #d4d4d8); padding: 0.2rem 0.5rem; border-radius: 4px; cursor: pointer; font-size: 0.85em; margin-top: 0.2rem; }
+
+/* Create-food modal */
+.mp-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.mp-modal { background: white; padding: 1.5rem; border-radius: 8px; min-width: 22rem; max-width: 30rem; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+.mp-modal h3 { margin: 0 0 0.8rem; }
+.mp-modal label { display: block; margin-bottom: 0.6rem; font-weight: 500; font-size: 0.9em; }
+.mp-modal input, .mp-modal select { display: block; width: 100%; padding: 0.4rem; margin-top: 0.2rem; }
+.mp-modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end; }
+.mp-modal-error { background: #fee2e2; color: #991b1b; padding: 0.5rem; border-radius: 4px; margin-bottom: 0.8rem; }
+.mp-status { color: var(--muted, #52525b); font-size: 0.9em; }
