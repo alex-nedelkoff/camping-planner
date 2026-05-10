@@ -76,3 +76,56 @@ def test_fit_paddle_curve_quadratic_for_small_lake():
     # already IS the centroid, so we just verify the curve passes through
     # something close to the centroid (within 100 m).
     assert _haversine_km(mid, centroid) < 0.1
+
+
+def test_fit_paddle_curve_cubic_for_medium_lake():
+    """Area in [1, 5) km² → cubic Bezier with 2 control points pulled toward centroid."""
+    # ~0.04° square at lat 46 ≈ 4.4 km × 3.1 km ≈ 13.6 km² — actually large.
+    # Use a smaller square to land in cubic range.
+    # 0.018° lat × 0.018° lon at lat 46 ≈ 2 km × 1.4 km ≈ 2.8 km².
+    poly = [
+        [45.991, -81.009], [45.991, -80.991],
+        [46.009, -80.991], [46.009, -81.009],
+        [45.991, -81.009],
+    ]
+    lake = {"polygon": poly, "centroid": [46.0, -81.0]}
+    area = _polygon_area_km2(poly)
+    assert 1.0 <= area < 5.0, f"Test fixture wrong: area={area}"
+    entry = [45.992, -81.008]
+    exit = [46.008, -80.992]
+    geom = fit_paddle_curve(entry, exit, lake)
+    # Densely sampled.
+    assert len(geom) >= 20
+    # Endpoints exact.
+    assert geom[0] == [entry[0], entry[1]]
+    assert geom[-1] == [exit[0], exit[1]]
+    # All intermediate samples should be inside the polygon.
+    for pt in geom[1:-1]:
+        assert _point_in_polygon(pt, poly), f"Sample outside polygon: {pt}"
+    # Midpoint should be pulled toward the centroid (closer to it than the
+    # entry-exit midpoint would be in the absence of any centroid effect).
+    # For our diagonal entry/exit through a square centered on the centroid,
+    # the curve midpoint should be at or near the centroid.
+    mid = geom[len(geom) // 2]
+    assert _haversine_km(mid, lake["centroid"]) < 0.5  # within 500 m
+
+
+def test_fit_paddle_curve_quartic_for_large_lake():
+    """Area ≥ 5 km² → quartic Bezier with 3 control points."""
+    # 0.05° square at lat 46 ≈ 5.6 km × 3.9 km ≈ 21 km² — definitely large.
+    poly = [
+        [45.975, -81.025], [45.975, -80.975],
+        [46.025, -80.975], [46.025, -81.025],
+        [45.975, -81.025],
+    ]
+    lake = {"polygon": poly, "centroid": [46.0, -81.0]}
+    area = _polygon_area_km2(poly)
+    assert area >= 5.0, f"Test fixture wrong: area={area}"
+    entry = [45.977, -81.023]
+    exit = [46.023, -80.977]
+    geom = fit_paddle_curve(entry, exit, lake)
+    assert len(geom) >= 20
+    assert geom[0] == [entry[0], entry[1]]
+    assert geom[-1] == [exit[0], exit[1]]
+    for pt in geom[1:-1]:
+        assert _point_in_polygon(pt, poly), f"Sample outside polygon: {pt}"

@@ -76,6 +76,42 @@ def _bezier_quadratic(p0, p1, p2, t):
     ]
 
 
+def _bezier_cubic(p0, p1, p2, p3, t):
+    """Cubic Bezier at parameter t."""
+    u = 1.0 - t
+    uu = u * u
+    tt = t * t
+    return [
+        uu * u * p0[0] + 3 * uu * t * p1[0] + 3 * u * tt * p2[0] + tt * t * p3[0],
+        uu * u * p0[1] + 3 * uu * t * p1[1] + 3 * u * tt * p2[1] + tt * t * p3[1],
+    ]
+
+
+def _bezier_quartic(p0, p1, p2, p3, p4, t):
+    """Quartic (4th-order) Bezier at parameter t."""
+    u = 1.0 - t
+    return [
+        u**4 * p0[0]
+        + 4 * u**3 * t * p1[0]
+        + 6 * u**2 * t**2 * p2[0]
+        + 4 * u * t**3 * p3[0]
+        + t**4 * p4[0],
+        u**4 * p0[1]
+        + 4 * u**3 * t * p1[1]
+        + 6 * u**2 * t**2 * p2[1]
+        + 4 * u * t**3 * p3[1]
+        + t**4 * p4[1],
+    ]
+
+
+def _control_point(anchor, centroid, pull):
+    """Anchor + pull × (centroid - anchor)."""
+    return [
+        anchor[0] + pull * (centroid[0] - anchor[0]),
+        anchor[1] + pull * (centroid[1] - anchor[1]),
+    ]
+
+
 def _sample_count_for(distance_km):
     """How many sample points to generate along a curve of the given length."""
     return max(SAMPLES_MIN, math.ceil(distance_km * SAMPLES_PER_KM))
@@ -86,8 +122,8 @@ def fit_paddle_curve(entry, exit, lake):
 
     Curve order scales with polygon area:
       area < 1 km²   → quadratic (1 control point at centroid)
-      1 ≤ area < 5   → cubic    (2 control points; added in Task 2)
-      area ≥ 5       → quartic  (3 control points; added in Task 2)
+      1 ≤ area < 5   → cubic    (2 control points pulled toward centroid)
+      area ≥ 5       → quartic  (3 control points distributed entry→centroid→exit)
 
     Returns a densely-sampled polyline of [lat, lon] points starting at
     entry and ending at exit.
@@ -99,17 +135,31 @@ def fit_paddle_curve(entry, exit, lake):
     distance = _haversine_km(entry, exit)
     n_samples = _sample_count_for(distance)
     area = _polygon_area_km2(polygon)
-    # Quadratic for small lakes: control point IS the centroid (no pull factor
-    # needed because there's only one point to place).
+
     if area < 1.0:
-        out = []
-        for i in range(n_samples + 1):
-            t = i / n_samples
-            out.append(_bezier_quadratic(entry, centroid, exit, t))
-        # Force exact endpoint match (Bezier evaluates to endpoints at t=0/1
-        # but we may want zero floating-point drift).
-        out[0] = [entry[0], entry[1]]
-        out[-1] = [exit[0], exit[1]]
-        return out
-    # Cubic / quartic added in Task 2; return straight line for now.
-    return [list(entry), list(exit)]
+        sampler = lambda t: _bezier_quadratic(entry, centroid, exit, t)
+    elif area < 5.0:
+        cp1 = _control_point(entry, centroid, CENTROID_PULL)
+        cp2 = _control_point(exit, centroid, CENTROID_PULL)
+        sampler = lambda t: _bezier_cubic(entry, cp1, cp2, exit, t)
+    else:
+        # Quartic: 3 controls distributed at fractions 0.25, 0.5, 0.75 of
+        # the entry → centroid → exit polyline, each pulled toward centroid.
+        # Anchors first:
+        a25 = [entry[0] + 0.5 * (centroid[0] - entry[0]),
+               entry[1] + 0.5 * (centroid[1] - entry[1])]
+        a50 = list(centroid)
+        a75 = [exit[0] + 0.5 * (centroid[0] - exit[0]),
+               exit[1] + 0.5 * (centroid[1] - exit[1])]
+        cp1 = _control_point(a25, centroid, CENTROID_PULL)
+        cp2 = _control_point(a50, centroid, CENTROID_PULL)
+        cp3 = _control_point(a75, centroid, CENTROID_PULL)
+        sampler = lambda t: _bezier_quartic(entry, cp1, cp2, cp3, exit, t)
+
+    out = []
+    for i in range(n_samples + 1):
+        t = i / n_samples
+        out.append(sampler(t))
+    out[0] = [entry[0], entry[1]]
+    out[-1] = [exit[0], exit[1]]
+    return out
