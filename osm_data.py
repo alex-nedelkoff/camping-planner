@@ -112,9 +112,17 @@ def _parse_overpass_response(data: dict) -> dict:
 
 def refresh_killarney_cache() -> None:
     """Fetch from Overpass and write the cache file. Slow; rate-limit tolerant."""
+    import urllib.parse
     s, w, n, e = KILLARNEY_BBOX
     query = OVERPASS_QUERY.format(s=s, w=w, n=n, e=e)
-    resp = requests.post(OVERPASS_URL, data={"data": query}, timeout=60)
+    # Overpass requires an explicitly URL-encoded body with Content-Type header;
+    # passing a plain dict triggers a 406 on some Apache front-ends.
+    body = urllib.parse.urlencode({"data": query})
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "camping-planner/1.0 (github.com/alex)",
+    }
+    resp = requests.post(OVERPASS_URL, data=body, headers=headers, timeout=60)
     resp.raise_for_status()
     parsed = _parse_overpass_response(resp.json())
     CACHE_PATH.write_text(json.dumps(parsed, indent=2))
