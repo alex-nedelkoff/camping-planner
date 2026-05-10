@@ -285,12 +285,23 @@ function _centripetalCatmullRom(p0, p1, p2, p3, t /* in [0,1] */) {
 function smoothPolyline(points, stepsPerSegment) {
   if (!Array.isArray(points) || points.length < 3) return points;
   const steps = stepsPerSegment || 12;
+
+  // Synthesize phantom endpoints by mirroring the first/last interior
+  // segment. This avoids division-by-zero in centripetal Catmull-Rom when
+  // p0 = p1 or p2 = p3, which otherwise sends interpolated points to
+  // infinity.
+  function mirror(a, b) {
+    return [a[0] + (a[0] - b[0]), a[1] + (a[1] - b[1])];
+  }
+  const phantomStart = mirror(points[0], points[1]);
+  const phantomEnd = mirror(points[points.length - 1], points[points.length - 2]);
+
   const out = [points[0]];
   for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i - 1] || points[i];
+    const p0 = (i === 0) ? phantomStart : points[i - 1];
     const p1 = points[i];
     const p2 = points[i + 1];
-    const p3 = points[i + 2] || points[i + 1];
+    const p3 = (i + 2 >= points.length) ? phantomEnd : points[i + 2];
     for (let s = 1; s <= steps; s++) {
       out.push(_centripetalCatmullRom(p0, p1, p2, p3, s / steps));
     }
