@@ -258,7 +258,8 @@ def _segment(day: str, kind: str, frm: str, to: str,
     }
 
 
-def build_route(nights: list, access_point: str, osm: dict) -> dict:
+def build_route(nights: list, access_point: str, osm: dict,
+                library: Optional[dict] = None) -> dict:
     """Build per-leg segments + warnings from frontmatter nights + OSM data.
 
     Each "leg" is the travel between consecutive waypoints. Legs are:
@@ -266,8 +267,16 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
       - Day N: nights[N-1] -> nights[N]
       - Last day: nights[-1] -> access_point
 
-    Returns {"segments": [...], "warnings": [...]}.
+    For each leg the engine consults `library` (curated GPX connectors) first
+    and uses real geometry when a matching lake-pair connector is found.
+    Falls back to the OSM portage graph + straight-line paddle when no library
+    match exists, and finally to an `approx` straight-line segment when even
+    OSM lacks connecting data.
+
+    Returns {"segments": [...], "warnings": [...], "markers": [...]}.
     """
+    if library is None:
+        library = {"connectors": []}
     lakes = osm["lakes"] + LAKE_SUPPLEMENT  # add hardcoded supplements
     portages = osm["portages"]
     segments: list = []
@@ -342,6 +351,37 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
             continue
 
         if lake_a and lake_b:
+            # Library connector takes precedence over OSM portage graph.
+            from gpx_library import find_connector
+            conn = find_connector(lake_a["name"], lake_b["name"], library)
+            if conn:
+                # Three segments using real GPX geometry: approach paddle on
+                # lake_a → portage trail → departure paddle on lake_b. The
+                # approach starts at the resolved a_pt (access GPS / centroid /
+                # gps override) so the trip-page line connects cleanly even
+                # when the GPX trace's first point isn't at the actual put-in.
+                approach_geom = ([a_pt_resolved] + conn["approach"]
+                                 if a_pt_resolved else conn["approach"])
+                segments.append(_segment(
+                    day_label, "paddle", a["label"],
+                    f"{lake_a['name']} portage",
+                    conn["approach_km"], approach_geom,
+                ))
+                segments.append(_segment(
+                    day_label, "portage",
+                    f"{lake_a['name']} portage",
+                    f"{lake_b['name']} portage",
+                    conn["portage_km"], conn["portage"],
+                ))
+                departure_geom = (conn["departure"] + [b_pt_resolved]
+                                  if b_pt_resolved else conn["departure"])
+                segments.append(_segment(
+                    day_label, "paddle",
+                    f"{lake_b['name']} portage", b["label"],
+                    conn["departure_km"], departure_geom,
+                ))
+                continue
+
             path = _find_path_through_portages(lake_a, lake_b, lakes, portages)
             if path:
                 current_lake = lake_a

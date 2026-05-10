@@ -429,8 +429,15 @@ def render_route_section(trip) -> str:
     except FileNotFoundError:
         return ""
 
+    # Optional GPX library — used when a real trace exists for a lake-pair
+    # leg. Falls back to OSM portage graph otherwise.
+    import gpx_library as _gpx_library
+    library = _gpx_library.load_library_index(
+        Path(__file__).parent / "routes" / "killarney" / "library"
+    )
+
     route = _route_engine.build_route(
-        nights=nights, access_point=access_point, osm=osm,
+        nights=nights, access_point=access_point, osm=osm, library=library,
     )
     return _render_auto_route(route)
 
@@ -586,10 +593,23 @@ def main(argv=None) -> int:
         "--refresh-osm", action="store_true",
         help="Re-fetch the Killarney OSM cache from Overpass before rendering.",
     )
+    parser.add_argument(
+        "--refresh-library", action="store_true",
+        help="Re-segment all GPX in routes/killarney/library/ and rewrite "
+             "index.json before rendering.",
+    )
     args = parser.parse_args(argv)
 
     if args.refresh_osm:
         _osm_data.refresh_killarney_cache()
+
+    if args.refresh_library:
+        import gpx_library as _gpx_library
+        osm = _osm_data.load_killarney_features()
+        library_dir = Path(__file__).parent / "routes" / "killarney" / "library"
+        out = _gpx_library.write_library_index(library_dir, osm)
+        idx = _gpx_library.load_library_index(library_dir)
+        print(f"Wrote {len(idx['connectors'])} connectors to {out}")
 
     trip_dir = Path(args.trip_dir)
     html = build_html(trip_dir)
