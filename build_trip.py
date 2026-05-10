@@ -48,10 +48,34 @@ input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
                border-radius: 10px; margin-bottom: 1rem; }
 .trip-header h1 { color: white; border-bottom: none; margin: 0 0 0.5rem; }
 .trip-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; opacity: 0.95; }
-@media print { body { background: white; } section { box-shadow: none; } }
+.trip-header table { background: rgba(0,0,0,0.18); border-radius: 6px;
+                     overflow: hidden; margin-top: 1rem; }
+.trip-header th, .trip-header td { color: white;
+                     border-bottom: 1px solid rgba(255,255,255,0.18);
+                     padding: 0.5rem 0.75rem; }
+.trip-header th { background: rgba(0,0,0,0.28); font-weight: 600; }
+.trip-header tr:last-child td { border-bottom: none; }
+.gear-edit-toolbar { margin-top: 0.6rem; display: flex; gap: 0.5rem;
+                     align-items: center; flex-wrap: wrap; }
+.gear-btn { padding: 0.35rem 0.85rem; background: #2d5016; color: white;
+            border: none; border-radius: 5px; cursor: pointer;
+            font-size: 0.9rem; font-family: inherit; }
+.gear-btn:hover { background: #3a6420; }
+.gear-btn.secondary { background: #6b7a5a; }
+.gear-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+#gear table.editing td { background: #fffbe6; }
+#gear table.editing td[contenteditable=true]:focus { outline: 2px solid #2d5016;
+                     outline-offset: -2px; background: #fff; }
+#gear .row-del { background: transparent; border: none; color: #c00;
+                 cursor: pointer; font-size: 1.1rem; padding: 0 0.3rem;
+                 margin-left: 0.4rem; }
+.gear-status { font-size: 0.9rem; color: #555; margin-left: 0.25rem; }
+.gear-status.error { color: #c00; }
+@media print { body { background: white; } section { box-shadow: none; }
+               .gear-edit-toolbar { display: none; } }
 """
 
-_PAGE_JS = """
+_PAGE_JS = r"""
 (function() {
   document.querySelectorAll('input[type=checkbox][data-cb-key]').forEach(function(cb) {
     var key = 'cb:' + cb.dataset.cbKey;
@@ -61,6 +85,150 @@ _PAGE_JS = """
     cb.addEventListener('change', function() {
       localStorage.setItem(key, cb.checked ? '1' : '0');
     });
+  });
+})();
+
+(function() {
+  var section = document.getElementById('gear');
+  if (!section) return;
+  var table = section.querySelector('table');
+  if (!table) return;
+  var tbody = table.querySelector('tbody');
+  if (!tbody) return;
+
+  var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
+  var tripSlug = slugMatch ? slugMatch[1] : null;
+
+  var ncols = 0;
+  var firstRow = tbody.querySelector('tr');
+  if (firstRow) ncols = firstRow.cells.length;
+  if (!ncols) {
+    var theadRow = table.querySelector('thead tr');
+    if (theadRow) ncols = theadRow.cells.length;
+  }
+  if (!ncols) return;
+
+  var toolbar = document.createElement('div');
+  toolbar.className = 'gear-edit-toolbar';
+  toolbar.innerHTML =
+    '<button class="gear-btn" id="gear-edit-btn">Edit gear</button>' +
+    '<button class="gear-btn" id="gear-add-btn" hidden>+ Add row</button>' +
+    '<button class="gear-btn" id="gear-save-btn" hidden>Save</button>' +
+    '<button class="gear-btn secondary" id="gear-cancel-btn" hidden>Cancel</button>' +
+    '<span class="gear-status" id="gear-status"></span>';
+  table.after(toolbar);
+
+  var editBtn = toolbar.querySelector('#gear-edit-btn');
+  var addBtn = toolbar.querySelector('#gear-add-btn');
+  var saveBtn = toolbar.querySelector('#gear-save-btn');
+  var cancelBtn = toolbar.querySelector('#gear-cancel-btn');
+  var status = toolbar.querySelector('#gear-status');
+
+  var snapshot = null;
+
+  function addDeleteButtons() {
+    Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
+      if (tr.querySelector('.row-del')) return;
+      var lastCell = tr.cells[tr.cells.length - 1];
+      if (!lastCell) return;
+      var btn = document.createElement('button');
+      btn.className = 'row-del';
+      btn.textContent = '×';
+      btn.title = 'Delete row';
+      btn.hidden = true;
+      btn.contentEditable = 'false';
+      btn.addEventListener('click', function() { tr.remove(); });
+      lastCell.appendChild(btn);
+    });
+  }
+
+  function setEditing(on) {
+    table.classList.toggle('editing', on);
+    Array.from(tbody.querySelectorAll('td')).forEach(function(td) {
+      td.contentEditable = on ? 'true' : 'false';
+    });
+    Array.from(tbody.querySelectorAll('.row-del')).forEach(function(b) {
+      b.hidden = !on;
+    });
+    editBtn.hidden = on;
+    addBtn.hidden = !on;
+    saveBtn.hidden = !on;
+    cancelBtn.hidden = !on;
+  }
+
+  function rowsAsArray() {
+    return Array.from(tbody.querySelectorAll('tr')).map(function(tr) {
+      return Array.from(tr.cells).map(function(td) {
+        var clone = td.cloneNode(true);
+        var del = clone.querySelector('.row-del');
+        if (del) del.remove();
+        return clone.textContent.replace(/\s+/g, ' ').trim();
+      });
+    });
+  }
+
+  addDeleteButtons();
+
+  editBtn.addEventListener('click', function() {
+    snapshot = tbody.innerHTML;
+    setEditing(true);
+    status.textContent = '';
+    status.className = 'gear-status';
+  });
+
+  cancelBtn.addEventListener('click', function() {
+    if (snapshot != null) tbody.innerHTML = snapshot;
+    addDeleteButtons();
+    setEditing(false);
+    status.textContent = '';
+  });
+
+  addBtn.addEventListener('click', function() {
+    var tr = document.createElement('tr');
+    for (var i = 0; i < ncols; i++) {
+      var td = document.createElement('td');
+      td.contentEditable = 'true';
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+    addDeleteButtons();
+    Array.from(tr.querySelectorAll('.row-del')).forEach(function(b) { b.hidden = false; });
+    tr.cells[0].focus();
+  });
+
+  saveBtn.addEventListener('click', async function() {
+    if (!tripSlug) {
+      status.textContent = 'Cannot detect trip slug from URL';
+      status.className = 'gear-status error';
+      return;
+    }
+    var rows = rowsAsArray();
+    saveBtn.disabled = true;
+    cancelBtn.disabled = true;
+    status.textContent = 'Saving…';
+    status.className = 'gear-status';
+    try {
+      var r = await fetch('/api/save-gear?trip=' + encodeURIComponent(tripSlug), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({rows: rows})
+      });
+      var j = await r.json();
+      if (j.ok) {
+        status.textContent = 'Saved ✓ — reloading…';
+        setTimeout(function() { location.reload(); }, 600);
+      } else {
+        status.textContent = 'Error: ' + (j.error || 'unknown');
+        status.className = 'gear-status error';
+        saveBtn.disabled = false;
+        cancelBtn.disabled = false;
+      }
+    } catch (e) {
+      status.textContent = 'Error: ' + e.message + ' (is launch.py running?)';
+      status.className = 'gear-status error';
+      saveBtn.disabled = false;
+      cancelBtn.disabled = false;
+    }
   });
 })();
 """
@@ -426,7 +594,7 @@ def main(argv=None) -> int:
     trip_dir = Path(args.trip_dir)
     html = build_html(trip_dir)
     out_path = trip_dir / "trip.html"
-    out_path.write_text(html)
+    out_path.write_text(html, encoding="utf-8")
     print(f"Wrote {out_path}")
     return 0
 

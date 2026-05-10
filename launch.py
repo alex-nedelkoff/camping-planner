@@ -10,6 +10,7 @@ import datetime
 import http.server
 import json
 import os
+import re
 import shutil
 import socketserver
 import sys
@@ -23,6 +24,39 @@ import yaml
 
 import build_trip
 import ontario_parks
+
+
+_MD_TABLE_RE = re.compile(
+    r"(^\|.+\|[ \t]*\n\|[\s|:\-]+\|[ \t]*\n)((?:^\|.*\|[ \t]*\n)*)",
+    re.MULTILINE,
+)
+
+
+def _md_escape_cell(value: str) -> str:
+    return (
+        str(value)
+        .replace("\\", "\\\\")
+        .replace("|", "\\|")
+        .replace("\n", " ")
+        .strip()
+    )
+
+
+def replace_first_table(md_text: str, new_rows: list) -> str:
+    """Replace the data rows of the first markdown table; preserve the header."""
+    match = _MD_TABLE_RE.search(md_text)
+    if not match:
+        raise ValueError("no markdown table found")
+    header_block = match.group(1)
+    header_line = header_block.splitlines()[0]
+    ncols = len(header_line.strip().strip("|").split("|"))
+    rendered = []
+    for row in new_rows:
+        cells = [_md_escape_cell(c) for c in (row or [])]
+        cells = (cells + [""] * ncols)[:ncols]
+        rendered.append("| " + " | ".join(cells) + " |")
+    new_rows_md = ("\n".join(rendered) + "\n") if rendered else ""
+    return md_text[: match.start()] + header_block + new_rows_md + md_text[match.end():]
 
 
 REPO_ROOT = Path(__file__).resolve().parent
@@ -394,6 +428,9 @@ class LauncherHandler(http.server.SimpleHTTPRequestHandler):
         if path == "/api/new-trip":
             self._handle_new_trip()
             return
+        if path == "/api/save-gear":
+            self._handle_save_gear()
+            return
         self.send_error(404, "Not found")
 
     def log_message(self, fmt, *args):
@@ -494,6 +531,43 @@ class LauncherHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as exc:
             if target.exists():
                 shutil.rmtree(target, ignore_errors=True)
+            self._send_json({"ok": False, "error": str(exc)}, status=500)
+
+    def _handle_save_gear(self):
+        params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        trip = (params.get("trip") or [""])[0]
+        trip_dir = TRIPS_DIR / trip
+        if not trip or not trip_dir.is_dir():
+            self._send_json({"ok": False, "error": "trip not found"}, status=404)
+            return
+        gear_md = trip_dir / "gear.md"
+        if not gear_md.exists():
+            self._send_json({"ok": False, "error": "gear.md not found"}, status=404)
+            return
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        try:
+            body = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+        except json.JSONDecodeError as exc:
+            self._send_json({"ok": False, "error": f"bad json: {exc}"}, status=400)
+            return
+        rows = body.get("rows")
+        if not isinstance(rows, list) or any(not isinstance(r, list) for r in rows):
+            self._send_json(
+                {"ok": False, "error": "rows must be a list of lists"}, status=400,
+            )
+            return
+        try:
+            text = gear_md.read_text(encoding="utf-8")
+            new_text = replace_first_table(text, rows)
+        except ValueError as exc:
+            self._send_json({"ok": False, "error": str(exc)}, status=400)
+            return
+        try:
+            gear_md.write_text(new_text, encoding="utf-8")
+            html = build_trip.build_html(trip_dir)
+            (trip_dir / "trip.html").write_text(html, encoding="utf-8")
+            self._send_json({"ok": True})
+        except Exception as exc:
             self._send_json({"ok": False, "error": str(exc)}, status=500)
 
     def _handle_availability(self):
