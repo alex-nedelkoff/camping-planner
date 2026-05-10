@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Killarney — 2026-07-10 to 2026-07-12</title>
+<style>
+
+:root {
+  --green: #2d5016;
+  --green-light: #e8f5e9;
+  --tan: #f5f0e8;
+  --bark: #5d4037;
+  --text: #1a1a1a;
+  --muted: #666;
+  --border: #ddd;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  color: var(--text);
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 16px;
+  background: #fafafa;
+  line-height: 1.5;
+}
+header {
+  background: var(--green);
+  color: white;
+  padding: 32px 24px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+header h1 { font-size: 2em; margin-bottom: 4px; }
+header .subtitle { font-size: 1.2em; opacity: 0.9; }
+header .meta { opacity: 0.8; margin-top: 4px; }
+header .sheet-link a { color: var(--green-light); text-decoration: underline; }
+section {
+  background: white;
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+h2 {
+  color: var(--green);
+  font-size: 1.3em;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--green-light);
+}
+h3 { color: var(--bark); margin: 12px 0 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+th { background: var(--green-light); color: var(--green); font-weight: 600; }
+tr.needed { background: #fff3e0; }
+tr.bringing { background: var(--green-light); }
+ul { padding-left: 20px; }
+li { margin-bottom: 4px; }
+.btn {
+  display: inline-block;
+  background: var(--green);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-top: 12px;
+  font-weight: 500;
+}
+.btn:hover { opacity: 0.9; }
+.day-block { margin-bottom: 16px; }
+.event { padding: 4px 0; }
+.time { color: var(--green); font-weight: 600; min-width: 70px; display: inline-block; }
+.note { color: var(--muted); font-style: italic; }
+.activity-list { display: grid; gap: 10px; }
+.activity-card {
+  background: var(--tan);
+  padding: 12px;
+  border-radius: 8px;
+}
+.activity-card p { margin-top: 6px; color: var(--muted); font-size: 0.9em; }
+.badge {
+  display: inline-block;
+  background: var(--green-light);
+  color: var(--green);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  margin-right: 4px;
+}
+.total { margin-top: 8px; font-size: 1.1em; }
+.pack-category { margin-bottom: 12px; }
+.check-item {
+  display: block;
+  padding: 4px 0;
+  cursor: pointer;
+}
+.check-item input { margin-right: 8px; }
+.check-item:has(input:checked) { color: var(--muted); text-decoration: line-through; }
+.hint { color: var(--muted); font-size: 0.85em; margin-bottom: 8px; }
+footer {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+.weather-grid { display: flex; gap: 10px; overflow-x: auto; }
+.weather-card {
+  background: var(--tan);
+  border-radius: 10px;
+  padding: 12px 16px;
+  min-width: 120px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.weather-icon { font-size: 1.8em; }
+.weather-date { font-weight: 600; font-size: 0.85em; margin-top: 4px; }
+.weather-temp { font-size: 1.1em; color: var(--green); font-weight: 600; }
+.weather-desc { font-size: 0.8em; color: var(--muted); }
+.precip { font-size: 0.8em; color: #1565c0; }
+.route-timeline { padding-left: 8px; }
+.route-stop { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; }
+.route-marker { font-size: 1.4em; flex-shrink: 0; }
+.route-details { flex: 1; }
+.route-lake { display: inline-block; background: #e3f2fd; color: #1565c0; padding: 1px 8px; border-radius: 10px; font-size: 0.85em; margin-left: 4px; }
+.route-travel { color: var(--muted); font-size: 0.9em; font-style: italic; }
+.route-connector { border-left: 2px dashed var(--border); height: 16px; margin-left: 17px; }
+footer a { color: var(--green); }
+@media (max-width: 600px) {
+  body { padding: 8px; }
+  header { padding: 20px 16px; }
+  header h1 { font-size: 1.5em; }
+  section { padding: 16px; }
+  table { font-size: 0.8em; }
+  th, td { padding: 6px; }
+}
+@media print {
+  body { max-width: none; background: white; }
+  header { background: none; color: black; border: 2px solid black; }
+  header .sheet-link { display: none; }
+  section { break-inside: avoid; border: 1px solid #ccc; }
+  .btn { display: none; }
+  .check-item input { appearance: none; border: 1px solid #999; width: 12px; height: 12px; display: inline-block; }
+}
+
+</style>
+</head>
+<body>
+<header>
+<h1>Killarney</h1>
+<p class="subtitle">2026-07-10 to 2026-07-12</p>
+<p class="meta">
+George Lake · Site 42
+· 4 people
+</p>
+<p class="sheet-link"><a href="https://docs.google.com/spreadsheets/d/19QepLT0lo64gmSDSH0xL7_8ot8WMXpY19GZndR5IyeI/edit" target="_blank">Edit Trip Sheet</a></p>
+</header>
+<main>
+<section id="participants">
+<h2>Who's Coming</h2>
+<table>
+<thead><tr><th>Name</th><th>Driving?</th><th>Dietary</th><th>Phone</th><th>Notes</th></tr></thead>
+<tbody><tr>
+<td>Alex</td>
+<td>Yes</td>
+<td>Vegetarian</td>
+<td>416-555-0001</td>
+<td>Has roof rack for canoe</td>
+</tr><tr>
+<td>Jordan</td>
+<td>No</td>
+<td>None</td>
+<td>647-555-0002</td>
+<td>Needs ride</td>
+</tr><tr>
+<td>Sam</td>
+<td>Yes</td>
+<td>Nut allergy</td>
+<td>905-555-0003</td>
+<td></td>
+</tr><tr>
+<td>Riley</td>
+<td>No</td>
+<td>None</td>
+<td>416-555-0004</td>
+<td>First time camping!</td>
+</tr></tbody>
+</table>
+</section>
+<section id="getting-there">
+<h2>Getting There</h2>
+<ul><li><strong>Meeting point:</strong> Ajax GO Station parking lot</li><li><strong>Departure:</strong> 7:00 AM</li><li><strong>Drive time:</strong> 4.5 hrs</li><li><strong>Check-in:</strong> 2:00 PM</li><li><strong>Check-out:</strong> 11:00 AM</li></ul>
+<a href="https://www.google.com/maps/dir/Ajax,+ON/Killarney+Ontario+Provincial+Park" target="_blank" class="btn">Open in Google Maps</a>
+</section>
+<section id="weather">
+<h2>Historical Averages</h2>
+<p class="hint"> (typical conditions for these dates)</p>
+<div class="weather-grid"><div class="weather-card">
+<div class="weather-icon"></div>
+<div class="weather-date">Fri Jul 10</div>
+<div class="weather-temp">23.4° / 18.5°C</div>
+<div class="weather-desc">Historical average</div>
+
+</div><div class="weather-card">
+<div class="weather-icon"></div>
+<div class="weather-date">Sat Jul 11</div>
+<div class="weather-temp">24.6° / 21.2°C</div>
+<div class="weather-desc">Historical average</div>
+
+</div><div class="weather-card">
+<div class="weather-icon"></div>
+<div class="weather-date">Sun Jul 12</div>
+<div class="weather-temp">21.6° / 15.8°C</div>
+<div class="weather-desc">Historical average</div>
+
+</div></div>
+</section>
+<section id="route">
+<h2>Route</h2>
+<div class="route-timeline"><div class="route-stop">
+<div class="route-marker">🚗</div>
+<div class="route-details">
+<strong>Day 1</strong> — George Lake Campsite 42
+<span class="route-lake">George Lake</span>
+<div class="route-travel">Drive from Ajax (4.5 hrs)</div>
+<div class="note">Check in at gate by 2 PM</div>
+</div>
+</div>
+<div class="route-connector"></div><div class="route-stop">
+<div class="route-marker">🏕️</div>
+<div class="route-details">
+<strong>Day 2</strong> — George Lake Campsite 42
+<span class="route-lake">George Lake</span>
+<div class="route-travel">Stay put</div>
+<div class="note">Day hike + canoe</div>
+</div>
+</div>
+<div class="route-connector"></div><div class="route-stop">
+<div class="route-marker">🏁</div>
+<div class="route-details">
+<strong>Day 3</strong> — George Lake Campsite 42
+<span class="route-lake">George Lake</span>
+<div class="route-travel">Pack up, drive home</div>
+<div class="note">Check out by 11 AM</div>
+</div>
+</div>
+</div>
+</section>
+<section id="map">
+<h2>Route Map</h2>
+<ul><li><strong>Canoe Route - Day 1</strong>: 5.3 km</li><li><strong>Canoe Route - Day 2</strong>: 4.7 km</li><li><strong>Return Route - Day 3</strong>: 9.8 km</li></ul>
+<p>5 waypoint(s) marked</p>
+<div class="map-online">
+<div id="route-map" style="height:400px;border-radius:10px;z-index:0"></div>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function() {
+  var map = L.map('route-map').setView([46.043064, -81.373992], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 18
+  }).addTo(map);
+
+  var geojson = {"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.3974, 46.0127], [-81.39, 46.015], [-81.385, 46.018], [-81.378, 46.022], [-81.3652, 46.0285], [-81.36, 46.032], [-81.355, 46.038], [-81.35, 46.045]]}, "properties": {"name": "Canoe Route - Day 1", "distance_km": 5.3}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.35, 46.045], [-81.355, 46.05], [-81.365, 46.055], [-81.378, 46.061], [-81.383, 46.065], [-81.387, 46.07], [-81.39, 46.075]]}, "properties": {"name": "Canoe Route - Day 2", "distance_km": 4.7}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.39, 46.075], [-81.378, 46.061], [-81.35, 46.045], [-81.3652, 46.0285], [-81.3974, 46.0127]]}, "properties": {"name": "Return Route - Day 3", "distance_km": 9.8}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [-81.3974, 46.0127]}, "properties": {"name": "George Lake (Start/End)", "desc": "Put-in and take-out point"}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [-81.3652, 46.0285]}, "properties": {"name": "Portage 1 (300m)", "desc": "George Lake to Freeland Lake"}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [-81.35, 46.045]}, "properties": {"name": "Campsite - Freeland Lake", "desc": "Night 1 campsite"}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [-81.378, 46.061]}, "properties": {"name": "Portage 2 (500m)", "desc": "Freeland Lake to Killarney Lake"}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [-81.39, 46.075]}, "properties": {"name": "Campsite - Killarney Lake", "desc": "Night 2 campsite - turquoise water!"}}]};
+  var colors = ['#2d5016', '#1565c0', '#c62828', '#6a1b9a'];
+  var colorIdx = 0;
+
+  L.geoJSON(geojson, {
+    style: function(feature) {
+      return {color: colors[colorIdx++ % colors.length], weight: 4, opacity: 0.8};
+    },
+    pointToLayer: function(feature, latlng) {
+      return L.circleMarker(latlng, {radius: 7, fillColor: '#c62828', color: 'white', weight: 2, fillOpacity: 1});
+    },
+    onEachFeature: function(feature, layer) {
+      var props = feature.properties;
+      var popup = props.name || '';
+      if (props.distance_km) popup += ' (' + props.distance_km + ' km)';
+      if (props.desc) popup += '<br>' + props.desc;
+      if (popup) layer.bindPopup(popup);
+    }
+  }).addTo(map);
+
+  // Fit bounds
+  map.fitBounds([[46.0127, -81.3974], [46.075, -81.35]], {padding: [30, 30]});
+})();
+</script></div>
+<noscript><svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:700px;height:auto;background:#e8f4f8;border-radius:10px">
+<polyline points="228.3,360.0 266.3,348.2 292.0,332.8 327.9,312.2 393.7,278.8 420.4,260.9 446.1,230.0 471.7,194.1" fill="none" stroke="#2d5016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="393.7" y="268.8" text-anchor="middle" font-size="11" fill="#2d5016" font-weight="600">Canoe Route - Day 1 (5.3 km)</text>
+<polyline points="471.7,194.1 446.1,168.4 394.7,142.7 327.9,111.9 302.2,91.4 281.7,65.7 266.3,40.0" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="327.9" y="101.9" text-anchor="middle" font-size="11" fill="#1565c0" font-weight="600">Canoe Route - Day 2 (4.7 km)</text>
+<polyline points="266.3,40.0 327.9,111.9 471.7,194.1 393.7,278.8 228.3,360.0" fill="none" stroke="#c62828" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="471.7" y="184.1" text-anchor="middle" font-size="11" fill="#c62828" font-weight="600">Return Route - Day 3 (9.8 km)</text>
+<circle cx="228.3" cy="360.0" r="5" fill="#c62828" stroke="white" stroke-width="2"/>
+<text x="236.3" y="364.0" font-size="11" fill="#333">George Lake (Start/End)</text>
+<circle cx="393.7" cy="278.8" r="5" fill="#c62828" stroke="white" stroke-width="2"/>
+<text x="401.7" y="282.8" font-size="11" fill="#333">Portage 1 (300m)</text>
+<circle cx="471.7" cy="194.1" r="5" fill="#c62828" stroke="white" stroke-width="2"/>
+<text x="479.7" y="198.1" font-size="11" fill="#333">Campsite - Freeland Lake</text>
+<circle cx="327.9" cy="111.9" r="5" fill="#c62828" stroke="white" stroke-width="2"/>
+<text x="335.9" y="115.9" font-size="11" fill="#333">Portage 2 (500m)</text>
+<circle cx="266.3" cy="40.0" r="5" fill="#c62828" stroke="white" stroke-width="2"/>
+<text x="274.3" y="44.0" font-size="11" fill="#333">Campsite - Killarney Lake</text>
+<line x1="40" y1="385" x2="104.0" y2="385" stroke="#666" stroke-width="2"/>
+<text x="72.0" y="381" text-anchor="middle" font-size="10" fill="#666">1.4 km</text>
+</svg></noscript>
+<details class="map-offline">
+<summary>Offline map (no internet needed)</summary>
+<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:700px;height:auto;background:#e8f4f8;border-radius:10px">
+<polyline points="228.3,360.0 266.3,348.2 292.0,332.8 327.9,312.2 393.7,278.8 420.4,260.9 446.1,230.0 471.7,194.1" fill="none" stroke="#2d5016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="393.7" y="268.8" text-anchor="middle" font-size="11" fill="#2d5016" font-weight="600">Canoe Route - Day 1 (5.3 km)</text>
+<polyline points="471.7,194.1 446.1,168.4 394.7,142.7 327.9,111.9 302.2,91.4 281.7,65.7 266.3,40.0" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="327.9" y="101.9" text-anchor="middle" font-size="11" fill="#1565c0" font-weight="600">Canoe Route - Day 2 (4.7 km)</text>
+<polyline points="266.3,40.0 327.9,111.9 471.7,194.1 393.7,278.8 228.3,360.0" fill="none" stroke="#c62828" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="471.7" y="184.1" text-anchor="middle" font-size="11" fill="#c62828" font-weight="600">Return Route - Day 3 (9.8 km)</text>
+<circle cx="228.3" cy="360.0" r="5" fill="#c62828" stroke="white" stroke-width="2"/>
+<text x="236.3" y="364.0" font-size="11" fill="#333">George Lake (Start/End)</text>
+<circle cx="393.7" cy="278.8" r="5" fill="#c62828" stroke="white" stroke-width="2"/>
+<text x="401.7" y="282.8" font-size="11" fill="#333">Portage 1 (300m)</text>
+<circle cx="471.7" cy="194.1" r="5" fill="#c62828" stroke="white" stroke-width="2"/>
+<text x="479.7" y="198.1" font-size="11" fill="#333">Campsite - Freeland Lake</text>
+<circle cx="327.9" cy="111.9" r="5" fill="#c62828" stroke="white" stroke-width="2"/>
+<text x="335.9" y="115.9" font-size="11" fill="#333">Portage 2 (500m)</text>
+<circle cx="266.3" cy="40.0" r="5" fill="#c62828" stroke="white" stroke-width="2"/>
+<text x="274.3" y="44.0" font-size="11" fill="#333">Campsite - Killarney Lake</text>
+<line x1="40" y1="385" x2="104.0" y2="385" stroke="#666" stroke-width="2"/>
+<text x="72.0" y="381" text-anchor="middle" font-size="10" fill="#666">1.4 km</text>
+</svg>
+</details>
+</section>
+<section id="itinerary">
+<h2>Itinerary</h2>
+<div class="day-block"><h3>Day 1 (Fri)</h3><div class="event"><span class="time">7:00 AM</span> <strong>Depart Ajax</strong> <span class="note">— Meet at GO station parking lot</span></div><div class="event"><span class="time">9:30 AM</span> <strong>Pit stop — Huntsville</strong> <span class="note">— Tim Hortons + gas at Esso on Hwy 11</span></div><div class="event"><span class="time">12:00 PM</span> <strong>Arrive at Killarney</strong> <span class="note">— Check in at gate</span></div><div class="event"><span class="time">12:30 PM</span> <strong>Set up camp</strong> <span class="note">— Site 42, George Lake</span></div><div class="event"><span class="time">2:30 PM</span> <strong>Swim at George Lake</strong> <span class="note">— Beach is a 5 min walk</span></div><div class="event"><span class="time">5:00 PM</span> <strong>Start fire + cook dinner</strong> <span class="note">— Hot dogs + veggie burgers</span></div><div class="event"><span class="time">8:00 PM</span> <strong>Campfire + smores</strong></div></div><div class="day-block"><h3>Day 2 (Sat)</h3><div class="event"><span class="time">7:30 AM</span> <strong>Breakfast</strong> <span class="note">— Eggs + bacon, coffee</span></div><div class="event"><span class="time">9:00 AM</span> <strong>Hike — The Crack (6km, 3-4 hrs)</strong> <span class="note">— Bring water + snacks, wear hiking boots</span></div><div class="event"><span class="time">1:30 PM</span> <strong>Lunch at campsite</strong></div><div class="event"><span class="time">3:00 PM</span> <strong>Canoe on George Lake</strong> <span class="note">— Rent at park store — book morning of</span></div><div class="event"><span class="time">5:30 PM</span> <strong>Dinner — pasta</strong> <span class="note">— Vegetarian marinara</span></div><div class="event"><span class="time">8:00 PM</span> <strong>Stargazing</strong> <span class="note">— Low light pollution here!</span></div></div><div class="day-block"><h3>Day 3 (Sun)</h3><div class="event"><span class="time">8:00 AM</span> <strong>Breakfast — pancakes</strong></div><div class="event"><span class="time">9:30 AM</span> <strong>Chikanishing Trail (3km, 1.5 hrs)</strong> <span class="note">— Easy Georgian Bay shoreline walk</span></div><div class="event"><span class="time">11:00 AM</span> <strong>Pack up camp</strong> <span class="note">— Check-out by 11 AM</span></div><div class="event"><span class="time">11:30 AM</span> <strong>Depart Killarney</strong> <span class="note">— Stop in Parry Sound for lunch?</span></div></div>
+</section>
+<section id="activities">
+<h2>Activities</h2>
+<h3>Hikes</h3><div class='activity-list'><div class="activity-card">
+<strong>The Crack</strong>
+<span class="badge">Moderate</span>
+<span class="badge">6 km return</span>
+<span class="badge">3-4 hrs</span>
+<p>Iconic Killarney hike — scramble through a crack in the quartzite ridge with views of Georgian Bay</p>
+</div><div class="activity-card">
+<strong>Granite Ridge Trail</strong>
+<span class="badge">Easy</span>
+<span class="badge">2 km loop</span>
+<span class="badge">1 hr</span>
+<p>Short trail with great panoramic views of the La Cloche Mountains</p>
+</div><div class="activity-card">
+<strong>Cranberry Bog Trail</strong>
+<span class="badge">Easy</span>
+<span class="badge">4 km loop</span>
+<span class="badge">1.5 hrs</span>
+<p>Boardwalk trail through a floating bog — unique ecosystem</p>
+</div><div class="activity-card">
+<strong>Chikanishing Trail</strong>
+<span class="badge">Easy-Moderate</span>
+<span class="badge">3 km loop</span>
+<span class="badge">1.5 hrs</span>
+<p>Beautiful Georgian Bay shoreline walk over smooth granite</p>
+</div></div><h3>Swimming</h3><ul><li>George Lake beach (at campground)</li><li>Topaz Lake (accessed via The Crack trail)</li></ul><h3>Paddling</h3><ul><li>George Lake — easy paddle, canoe/kayak rentals available</li><li>Killarney Lake — stunning turquoise water, portage required from George Lake</li></ul><h3>Tips</h3><ul><li>The Crack parking lot fills up early in summer — go before 9 AM</li><li>Bugs are intense in June/early July, bring DEET or permethrin</li><li>Park store at George Lake has firewood, ice, basic supplies</li><li>Cell service is spotty — download offline maps</li><li>Nearest full grocery: Killarney village (20 min from park gate)</li></ul>
+</section>
+<section id="gear">
+<h2>Gear Assignments</h2>
+<table>
+<thead><tr><th>Item</th><th>Assigned To</th><th>Status</th><th>Notes</th></tr></thead>
+<tbody><tr class="bringing">
+<td>4-person tent</td>
+<td>Alex</td>
+<td>Bringing</td>
+<td>MSR Habitude 4</td>
+</tr><tr class="bringing">
+<td>2-person tent</td>
+<td>Sam</td>
+<td>Bringing</td>
+<td></td>
+</tr><tr class="bringing">
+<td>Camp stove + propane</td>
+<td>Jordan</td>
+<td>Bringing</td>
+<td>2 burner Coleman</td>
+</tr><tr class="bringing">
+<td>Large cooler</td>
+<td>Alex</td>
+<td>Bringing</td>
+<td>52qt Yeti</td>
+</tr><tr class="bringing">
+<td>Water filter</td>
+<td>Sam</td>
+<td>Bringing</td>
+<td>Sawyer Squeeze</td>
+</tr><tr class="bringing">
+<td>Tarp + poles</td>
+<td>Alex</td>
+<td>Bringing</td>
+<td>10x12 tarp</td>
+</tr><tr class="bringing">
+<td>First aid kit</td>
+<td>Riley</td>
+<td>Bringing</td>
+<td></td>
+</tr><tr class="needed">
+<td>Canoe</td>
+<td></td>
+<td>Needed</td>
+<td>Rent at George Lake store?</td>
+</tr><tr class="bringing">
+<td>Axe / hatchet</td>
+<td>Jordan</td>
+<td>Bringing</td>
+<td></td>
+</tr></tbody>
+</table>
+</section>
+<section id="food">
+<h2>Shared Food</h2>
+<table>
+<thead><tr><th>Item</th><th>Brought By</th><th>Meal</th><th>Serves</th><th>Notes</th></tr></thead>
+<tbody><tr>
+<td>Hot dogs + buns</td>
+<td>Jordan</td>
+<td>Dinner 1</td>
+<td>6</td>
+<td></td>
+</tr><tr>
+<td>Veggie burgers</td>
+<td>Alex</td>
+<td>Dinner 1</td>
+<td>4</td>
+<td>For Alex + anyone</td>
+</tr><tr>
+<td>Eggs + bacon</td>
+<td>Sam</td>
+<td>Breakfast 1</td>
+<td>6</td>
+<td>NUT FREE</td>
+</tr><tr>
+<td>Pancake mix + syrup</td>
+<td>Riley</td>
+<td>Breakfast 2</td>
+<td>6</td>
+<td></td>
+</tr><tr>
+<td>Pasta + sauce</td>
+<td>Alex</td>
+<td>Dinner 2</td>
+<td>6</td>
+<td>Vegetarian marinara</td>
+</tr><tr>
+<td>Trail mix</td>
+<td>Sam</td>
+<td>Snacks</td>
+<td>6</td>
+<td>NUT FREE — sunflower seed mix</td>
+</tr><tr>
+<td>Marshmallows + chocolate + graham crackers</td>
+<td>Riley</td>
+<td>Dessert</td>
+<td>6</td>
+<td>Smores!</td>
+</tr><tr>
+<td>Coffee + filters</td>
+<td>Jordan</td>
+<td>Breakfast</td>
+<td>—</td>
+<td>Percolator coffee</td>
+</tr><tr>
+<td>Water bottles (24 pack)</td>
+<td>Alex</td>
+<td>All</td>
+<td>—</td>
+<td></td>
+</tr></tbody>
+</table>
+</section>
+<section id="costs">
+<h2>Costs</h2>
+<table>
+<thead><tr><th>Expense</th><th>Paid By</th><th>Amount</th><th>Split Between</th><th>Per Person</th></tr></thead>
+<tbody><tr>
+<td>Campsite reservation (2 nights)</td>
+<td>Alex</td>
+<td>$90.00</td>
+<td>Everyone</td>
+<td>$22.50</td>
+</tr><tr>
+<td>Firewood (2 bundles)</td>
+<td>Jordan</td>
+<td>$16.00</td>
+<td>Everyone</td>
+<td>$4.00</td>
+</tr><tr>
+<td>Canoe rental (2 hrs)</td>
+<td>Sam</td>
+<td>$60.00</td>
+<td>Everyone</td>
+<td>$15.00</td>
+</tr><tr>
+<td>Gas — Alex car</td>
+<td>Alex</td>
+<td>$85.00</td>
+<td>Alex, Jordan</td>
+<td>$42.50</td>
+</tr><tr>
+<td>Gas — Sam car</td>
+<td>Sam</td>
+<td>$85.00</td>
+<td>Sam, Riley</td>
+<td>$42.50</td>
+</tr></tbody>
+</table>
+<p class="total"><strong>Total: $336.00</strong></p>
+</section>
+<section id="packing">
+<h2>Packing Checklist</h2>
+<p class="hint">Checkboxes are saved on this device.</p>
+<div class="pack-category"><h3>Shelter</h3><label class="check-item"><input type="checkbox" data-pack="pack-shelter-tent"> Tent</label><label class="check-item"><input type="checkbox" data-pack="pack-shelter-sleeping-bag"> Sleeping bag</label><label class="check-item"><input type="checkbox" data-pack="pack-shelter-sleeping-pad-/-air-mattress"> Sleeping pad / air mattress</label><label class="check-item"><input type="checkbox" data-pack="pack-shelter-pillow"> Pillow</label></div><div class="pack-category"><h3>Clothing</h3><label class="check-item"><input type="checkbox" data-pack="pack-clothing-rain-jacket"> Rain jacket</label><label class="check-item"><input type="checkbox" data-pack="pack-clothing-warm-layers-/-fleece"> Warm layers / fleece</label><label class="check-item"><input type="checkbox" data-pack="pack-clothing-hiking-boots"> Hiking boots</label><label class="check-item"><input type="checkbox" data-pack="pack-clothing-sandals-/-camp-shoes"> Sandals / camp shoes</label><label class="check-item"><input type="checkbox" data-pack="pack-clothing-extra-socks"> Extra socks</label><label class="check-item"><input type="checkbox" data-pack="pack-clothing-swimsuit"> Swimsuit</label><label class="check-item"><input type="checkbox" data-pack="pack-clothing-hat-/-sunglasses"> Hat / sunglasses</label></div><div class="pack-category"><h3>Cooking</h3><label class="check-item"><input type="checkbox" data-pack="pack-cooking-plates-/-bowls-/-cups"> Plates / bowls / cups</label><label class="check-item"><input type="checkbox" data-pack="pack-cooking-utensils-(fork,-knife,-spoon)"> Utensils (fork, knife, spoon)</label><label class="check-item"><input type="checkbox" data-pack="pack-cooking-pot-/-pan"> Pot / pan</label><label class="check-item"><input type="checkbox" data-pack="pack-cooking-lighter-/-matches"> Lighter / matches</label><label class="check-item"><input type="checkbox" data-pack="pack-cooking-dish-soap-+-sponge"> Dish soap + sponge</label><label class="check-item"><input type="checkbox" data-pack="pack-cooking-trash-bags"> Trash bags</label><label class="check-item"><input type="checkbox" data-pack="pack-cooking-water-bottles"> Water bottles</label></div><div class="pack-category"><h3>Hygiene</h3><label class="check-item"><input type="checkbox" data-pack="pack-hygiene-toothbrush-+-toothpaste"> Toothbrush + toothpaste</label><label class="check-item"><input type="checkbox" data-pack="pack-hygiene-sunscreen"> Sunscreen</label><label class="check-item"><input type="checkbox" data-pack="pack-hygiene-bug-spray"> Bug spray</label><label class="check-item"><input type="checkbox" data-pack="pack-hygiene-toilet-paper"> Toilet paper</label><label class="check-item"><input type="checkbox" data-pack="pack-hygiene-hand-sanitizer"> Hand sanitizer</label><label class="check-item"><input type="checkbox" data-pack="pack-hygiene-towel"> Towel</label></div><div class="pack-category"><h3>Safety</h3><label class="check-item"><input type="checkbox" data-pack="pack-safety-first-aid-kit"> First aid kit</label><label class="check-item"><input type="checkbox" data-pack="pack-safety-headlamp-/-flashlight"> Headlamp / flashlight</label><label class="check-item"><input type="checkbox" data-pack="pack-safety-pocket-knife-/-multi-tool"> Pocket knife / multi-tool</label><label class="check-item"><input type="checkbox" data-pack="pack-safety-whistle"> Whistle</label></div><div class="pack-category"><h3>Misc</h3><label class="check-item"><input type="checkbox" data-pack="pack-misc-camp-chair"> Camp chair</label><label class="check-item"><input type="checkbox" data-pack="pack-misc-firewood-/-firestarter"> Firewood / firestarter</label><label class="check-item"><input type="checkbox" data-pack="pack-misc-cards-/-games"> Cards / games</label><label class="check-item"><input type="checkbox" data-pack="pack-misc-phone-charger-/-battery-pack"> Phone charger / battery pack</label><label class="check-item"><input type="checkbox" data-pack="pack-misc-cash-(for-park-store)"> Cash (for park store)</label><label class="check-item"><input type="checkbox" data-pack="pack-misc-park-reservation-confirmation"> Park reservation confirmation</label></div>
+</section>
+</main>
+<footer>
+<p>Generated Mar 24, 2026 · <a href="https://docs.google.com/spreadsheets/d/19QepLT0lo64gmSDSH0xL7_8ot8WMXpY19GZndR5IyeI/edit" target="_blank">Edit in Google Sheets</a></p>
+</footer>
+<script>
+
+// Persist packing checklist in localStorage
+const KEY = 'camping-trip-' + document.title.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+
+function loadChecks() {
+  try {
+    return JSON.parse(localStorage.getItem(KEY)) || {};
+  } catch { return {}; }
+}
+
+function saveChecks(state) {
+  localStorage.setItem(KEY, JSON.stringify(state));
+}
+
+const state = loadChecks();
+document.querySelectorAll('[data-pack]').forEach(cb => {
+  const id = cb.dataset.pack;
+  if (state[id]) cb.checked = true;
+  cb.addEventListener('change', () => {
+    state[id] = cb.checked;
+    saveChecks(state);
+  });
+});
+
+</script>
+</body>
+</html>

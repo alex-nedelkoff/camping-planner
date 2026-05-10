@@ -1,0 +1,200 @@
+{
+  "parks": {
+    "darlington": {
+      "name": "Darlington",
+      "resourceLocationId": -2147483622,
+      "mapId": null,
+      "driveFromAjax": "0.25 hrs"
+    },
+    "sibbald-point": {
+      "name": "Sibbald Point",
+      "resourceLocationId": -2147483544,
+      "mapId": null,
+      "driveFromAjax": "0.75 hrs"
+    },
+    "balsam-lake": {
+      "name": "Balsam Lake",
+      "resourceLocationId": -2147483638,
+      "mapId": null,
+      "driveFromAjax": "1.25 hrs"
+    },
+    "presquile": {
+      "name": "Presqu'ile",
+      "resourceLocationId": -2147483563,
+      "mapId": null,
+      "driveFromAjax": "1.75 hrs"
+    },
+    "wasaga-beach": {
+      "name": "Wasaga Beach",
+      "resourceLocationId": -2147483463,
+      "mapId": null,
+      "driveFromAjax": "1.75 hrs",
+      "_note": "Multiple beach areas — resourceLocationId may vary"
+    },
+    "awenda": {
+      "name": "Awenda",
+      "resourceLocationId": -2147483639,
+      "mapId": null,
+      "driveFromAjax": "2.0 hrs"
+    },
+    "silent-lake": {
+      "name": "Silent Lake",
+      "resourceLocationId": -2147483543,
+      "mapId": null,
+      "driveFromAjax": "2.0 hrs"
+    },
+    "kawartha-highlands": {
+      "name": "Kawartha Highlands",
+      "resourceLocationId": -2147483603,
+      "mapId": null,
+      "driveFromAjax": "2.25 hrs"
+    },
+    "sandbanks": {
+      "name": "Sandbanks",
+      "resourceLocationId": -2147483549,
+      "mapId": null,
+      "driveFromAjax": "2.25 hrs"
+    },
+    "bon-echo": {
+      "name": "Bon Echo",
+      "resourceLocationId": -2147483634,
+      "mapId": null,
+      "driveFromAjax": "2.5 hrs"
+    },
+    "long-point": {
+      "name": "Long Point",
+      "resourceLocationId": -2147483593,
+      "mapId": null,
+      "driveFromAjax": "2.5 hrs"
+    },
+    "frontenac": {
+      "name": "Frontenac",
+      "resourceLocationId": -2147483611,
+      "mapId": null,
+      "driveFromAjax": "3.0 hrs"
+    },
+    "arrowhead": {
+      "name": "Arrowhead",
+      "resourceLocationId": -2147483641,
+      "mapId": null,
+      "driveFromAjax": "3.0 hrs"
+    },
+    "killbear": {
+      "name": "Killbear",
+      "resourceLocationId": -2147483600,
+      "mapId": null,
+      "driveFromAjax": "3.0 hrs"
+    },
+    "massasauga": {
+      "name": "Massasauga",
+      "resourceLocationId": -2147483587,
+      "mapId": null,
+      "driveFromAjax": "3.0 hrs"
+    },
+    "algonquin-canisbay": {
+      "name": "Algonquin - Canisbay Lake",
+      "resourceLocationId": -2147483627,
+      "mapId": null,
+      "driveFromAjax": "3.5 hrs"
+    },
+    "algonquin-pog": {
+      "name": "Algonquin - Pog Lake / Kearney Lake",
+      "resourceLocationId": -2147483567,
+      "mapId": null,
+      "driveFromAjax": "3.5 hrs"
+    },
+    "algonquin-rock-lake": {
+      "name": "Algonquin - Rock Lake / Raccoon Lake",
+      "resourceLocationId": -2147483555,
+      "mapId": null,
+      "driveFromAjax": "3.5 hrs"
+    },
+    "algonquin-mew-lake": {
+      "name": "Algonquin - Mew Lake",
+      "resourceLocationId": -2147483585,
+      "mapId": null,
+      "driveFromAjax": "3.5 hrs"
+    },
+    "algonquin-two-rivers": {
+      "name": "Algonquin - Lake of Two Rivers",
+      "resourceLocationId": -2147483596,
+      "mapId": null,
+      "driveFromAjax": "3.5 hrs"
+    },
+    "algonquin-backcountry": {
+      "name": "Algonquin Backcountry",
+      "resourceLocationId": -2147483644,
+      "mapId": null,
+      "driveFromAjax": "3.5 hrs"
+    },
+    "pinery": {
+      "name": "Pinery",
+      "resourceLocationId": -2147483568,
+      "mapId": null,
+      "driveFromAjax": "3.25 hrs"
+    },
+    "grundy-lake": {
+      "name": "Grundy Lake",
+      "resourceLocationId": -2147483609,
+      "mapId": null,
+      "driveFromAjax": "3.25 hrs"
+    },
+    "macgregor-point": {
+      "name": "MacGregor Point",
+      "resourceLocationId": -2147483592,
+      "mapId": null,
+      "driveFromAjax": "3.25 hrs"
+    },
+    "rondeau": {
+      "name": "Rondeau",
+      "resourceLocationId": -2147483553,
+      "mapId": null,
+      "driveFromAjax": "3.5 hrs"
+    },
+    "french-river": {
+      "name": "French River",
+      "resourceLocationId": -2147483612,
+      "mapId": null,
+      "driveFromAjax": "3.75 hrs"
+    },
+    "killarney": {
+      "name": "Killarney",
+      "resourceLocationId": -2147483601,
+      "mapId": -2147483434,
+      "bookingCategoryId": 0,
+      "driveFromAjax": "4.5 hrs"
+    },
+    "pancake-bay": {
+      "name": "Pancake Bay",
+      "resourceLocationId": -2147483569,
+      "mapId": null,
+      "driveFromAjax": "4.75 hrs"
+    },
+    "lake-superior": {
+      "name": "Lake Superior",
+      "resourceLocationId": -2147483646,
+      "mapId": null,
+      "driveFromAjax": "5.5 hrs"
+    },
+    "sleeping-giant": {
+      "name": "Sleeping Giant",
+      "resourceLocationId": -2147483538,
+      "mapId": null,
+      "driveFromAjax": "7.0 hrs"
+    },
+    "quetico": {
+      "name": "Quetico",
+      "resourceLocationId": -2147483562,
+      "mapId": null,
+      "driveFromAjax": "7.5 hrs"
+    }
+  },
+  "campgroundNames": {
+    "-2147483433": "George Lake - A",
+    "-2147483432": "George Lake - B",
+    "-2147483431": "George Lake - C",
+    "-2147483430": "Killarney Backcountry",
+    "-2147483429": "Killarney Group Sites"
+  },
+  "_instructions": "To find the correct mapId for a park: go to reservations.ontarioparks.com, navigate to the park's campground map, and extract the mapId from the URL. Or run: python ontario_parks.py list-all"
+}

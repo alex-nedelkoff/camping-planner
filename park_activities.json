@@ -1,0 +1,153 @@
+{
+  "killarney": {
+    "hikes": [
+      {"name": "The Crack", "difficulty": "Moderate", "distance": "6 km return", "time": "3-4 hrs", "notes": "Iconic Killarney hike — scramble through a crack in the quartzite ridge with views of Georgian Bay"},
+      {"name": "Granite Ridge Trail", "difficulty": "Easy", "distance": "2 km loop", "time": "1 hr", "notes": "Short trail with great panoramic views of the La Cloche Mountains"},
+      {"name": "Cranberry Bog Trail", "difficulty": "Easy", "distance": "4 km loop", "time": "1.5 hrs", "notes": "Boardwalk trail through a floating bog — unique ecosystem"},
+      {"name": "Chikanishing Trail", "difficulty": "Easy-Moderate", "distance": "3 km loop", "time": "1.5 hrs", "notes": "Beautiful Georgian Bay shoreline walk over smooth granite"}
+    ],
+    "swimming": [
+      "George Lake beach (at campground)",
+      "Topaz Lake (accessed via The Crack trail)"
+    ],
+    "paddling": [
+      "George Lake — easy paddle, canoe/kayak rentals available",
+      "Killarney Lake — stunning turquoise water, portage required from George Lake"
+    ],
+    "tips": [
+      "The Crack parking lot fills up early in summer — go before 9 AM",
+      "Bugs are intense in June/early July, bring DEET or permethrin",
+      "Park store at George Lake has firewood, ice, basic supplies",
+      "Cell service is spotty — download offline maps",
+      "Nearest full grocery: Killarney village (20 min from park gate)"
+    ]
+  },
+  "bon-echo": {
+    "hikes": [
+      {"name": "Abes and Essens Trail", "difficulty": "Moderate", "distance": "17 km loop", "time": "5-7 hrs", "notes": "Challenging day hike with views of Mazinaw Lake — can do shorter sections"},
+      {"name": "Shield Trail", "difficulty": "Easy", "distance": "3.5 km loop", "time": "1.5 hrs", "notes": "Interpretive trail through Canadian Shield landscape"},
+      {"name": "High Pines Trail", "difficulty": "Easy", "distance": "2 km loop", "time": "45 min", "notes": "Nice walk through towering white pines"}
+    ],
+    "swimming": [
+      "Mazinaw Lake — at the beach near the campground",
+      "Joeperry Lake — quieter swimming option"
+    ],
+    "paddling": [
+      "Mazinaw Rock — paddle right up to the 100m cliff face to see 260+ Indigenous pictographs",
+      "Upper and Lower Mazinaw Lake — full day canoe trip"
+    ],
+    "tips": [
+      "Take the canoe to Mazinaw Rock early morning for the best light on the pictographs",
+      "The Mugwump ferry (free) takes you to the cliff base trail",
+      "Nearest town: Cloyne (15 min) or Northbrook (20 min) for basics",
+      "Fire ban status varies — check before you go"
+    ]
+  },
+  "algonquin-canisbay": {
+    "hikes": [
+      {"name": "Lookout Trail", "difficulty": "Moderate", "distance": "1.9 km loop", "time": "1 hr", "notes": "Short steep climb to a stunning lookout — one of Algonquin's best views"},
+      {"name": "Track and Tower Trail", "difficulty": "Moderate-Hard", "distance": "7.7 km loop", "time": "3-4 hrs", "notes": "Abandoned railway, lookout tower, great fall colours"},
+      {"name": "Booth's Rock Trail", "difficulty": "Moderate", "distance": "5.1 km loop", "time": "2-3 hrs", "notes": "Rock Lake views, old homestead ruins, cliff-top lookout"},
+      {"name": "Centennial Ridges Trail", "difficulty": "Hard", "distance": "10 km loop", "time": "5-6 hrs", "notes": "Two high ridges with panoramic views — arguably the best hike in the park"}
+    ],
+    "swimming": [
+      "Canisbay Lake — sandy beach at the campground",
+      "Lake of Two Rivers beach — popular swimming spot on Hwy 60"
+    ],
+    "paddling": [
+      "Canisbay Lake — calm, good for beginners",
+      "Canoe Lake — access to iconic Algonquin backcountry",
+      "The Portage Store at Canoe Lake for canoe/kayak rentals"
+    ],
+    "tips": [
+      "Algonquin Visitor Centre on Hwy 60 is worth a stop — great exhibits and bookstore",
+      "Algonquin Outfitters for gear rental",
+      "Best chance of moose: dawn/dusk along Hwy 60 corridor",
+      "Gallery Café in Dwight (20 min west) is a local favourite",
+      "Huntsville (45 min west) for full grocery/supplies"
+    ]
+  },
+  "sandbanks": {
+    "hikes": [
+      {"name": "Cedar Sands Trail", "difficulty": "Easy", "distance": "3.5 km loop", "time": "1.5 hrs", "notes": "Walk through rare freshwater dune ecosystem"},
+      {"name": "Outlet River Trail", "difficulty": "Easy", "distance": "2.4 km one-way", "time": "45 min", "notes": "Flat trail along the Outlet River — good for birding"}
+    ],
+    "swimming": [
+      "Outlet Beach — shallow, calm, family-friendly",
+      "Sandbanks Beach (Dunes Beach) — massive sand dunes, bigger waves",
+      "Lakeshore Beach — also known as North Beach, just outside the park"
+    ],
+    "paddling": [
+      "East Lake — calm water, good for kayaking",
+      "West Lake — a bit bigger, also calm"
+    ],
+    "tips": [
+      "Sandbanks is the hardest park to book in Ontario — plan way ahead",
+      "Prince Edward County wineries are nearby — great for a day off",
+      "Picton (15 min) has great restaurants and shops",
+      "Beach gets packed on weekends — go early for parking"
+    ]
+  },
+  "killbear": {
+    "hikes": [
+      {"name": "Lookout Point Trail", "difficulty": "Moderate", "distance": "3.5 km loop", "time": "1.5 hrs", "notes": "Views over Georgian Bay from rocky outcrops"},
+      {"name": "Twin Points Trail", "difficulty": "Easy", "distance": "2.5 km loop", "time": "1 hr", "notes": "Shoreline trail through windswept pines — the classic Killbear experience"},
+      {"name": "Lighthouse Point Trail", "difficulty": "Easy", "distance": "3 km loop", "time": "1 hr", "notes": "Beautiful coastal walk with swimming access"}
+    ],
+    "swimming": [
+      "Harold Point Beach — the main sandy beach",
+      "Lighthouse Point — rocky shoreline, great for snorkelling"
+    ],
+    "paddling": [
+      "Georgian Bay shoreline — stunning but watch for wind/waves",
+      "Killbear to Parry Sound for advanced paddlers"
+    ],
+    "tips": [
+      "Killbear is famous for its windswept white pines and Georgian Bay sunsets",
+      "Watch out for Massasauga rattlesnakes — Ontario's only venomous snake (rare, shy)",
+      "Parry Sound (25 min) for groceries and supplies",
+      "Bobby Orr Hall of Fame in Parry Sound if it rains"
+    ]
+  },
+  "arrowhead": {
+    "hikes": [
+      {"name": "Stubb's Falls Trail", "difficulty": "Easy", "distance": "2 km return", "time": "30 min", "notes": "Scenic waterfall on the Big East River — great any season"},
+      {"name": "Homesteader's Trail", "difficulty": "Easy-Moderate", "distance": "4 km loop", "time": "1.5 hrs", "notes": "Walk through old homestead area with interpretive signs"},
+      {"name": "Beaver Meadow Trail", "difficulty": "Easy", "distance": "3 km loop", "time": "1 hr", "notes": "Wetland boardwalk — good for wildlife and birding"}
+    ],
+    "swimming": [
+      "Arrowhead Lake beach — sandy beach with shallow entry"
+    ],
+    "paddling": [
+      "Arrowhead Lake — small, calm, good for beginners",
+      "Big East River — gentle current, good for a lazy paddle"
+    ],
+    "tips": [
+      "Huntsville (15 min south) for all supplies and restaurants",
+      "The fire tower lookout is accessible in summer for panoramic views",
+      "Great base camp for exploring the Muskoka region"
+    ]
+  },
+  "grundy-lake": {
+    "hikes": [
+      {"name": "Gut Lake Trail", "difficulty": "Easy-Moderate", "distance": "2.5 km loop", "time": "1 hr", "notes": "Beautiful trail connecting small lakes"},
+      {"name": "Swan Lake Trail", "difficulty": "Easy", "distance": "3 km loop", "time": "1.5 hrs", "notes": "Scenic walk past beaver dams and marshes"},
+      {"name": "Beaver Dam Trail", "difficulty": "Easy", "distance": "3 km loop", "time": "1 hr", "notes": "Family-friendly trail through wetlands"}
+    ],
+    "swimming": [
+      "Grundy Lake — clear water, smooth rock shoreline",
+      "Gut Lake — smaller, quieter swimming",
+      "Natural rock waterslides between Gut Lake and Grundy Lake — very popular!"
+    ],
+    "paddling": [
+      "Grundy Lake — good for casual paddling",
+      "Canoe route connecting multiple lakes in the park"
+    ],
+    "tips": [
+      "The natural waterslides are a highlight — smooth granite channels between lakes",
+      "Campground is very family-friendly",
+      "Britt (15 min) has a gas station; Parry Sound (30 min) for full groceries",
+      "Excellent stargazing — relatively low light pollution"
+    ]
+  }
+}
