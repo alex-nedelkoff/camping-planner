@@ -107,8 +107,15 @@ def _point_in_polygon(point: list, polygon: list) -> bool:
 
 
 def _line_inside_polygon(p1: list, p2: list, polygon: list,
-                         samples: int = 20) -> bool:
-    """True if the line from p1 to p2 stays inside polygon (sampled)."""
+                         samples: int = 50) -> bool:
+    """True if the line from p1 to p2 stays inside polygon (sampled).
+
+    Sampling density (`samples=50`) is calibrated so a typical Killarney
+    paddle leg (a few hundred meters between samples) won't skip past a
+    thin peninsula or shoreline crinkle. The polygon passed here should
+    be the FULL high-resolution polygon — not a decimated one — so the
+    in-water test is accurate.
+    """
     for i in range(samples + 1):
         t = i / samples
         lat = p1[0] + t * (p2[0] - p1[0])
@@ -158,22 +165,27 @@ def _polygon_aware_paddle(start: list, end: list, lake: dict) -> list:
     """
     if not lake or not lake.get("polygon"):
         return [start, end]
-    # Simplify once; reuse for both line tests and graph nodes.
-    polygon = _decimate_polygon(lake["polygon"], _PADDLE_MAX_POLYGON_VERTICES)
+    # FULL polygon for line-in-water tests (accuracy).
+    full_polygon = lake["polygon"]
+    # DECIMATED polygon for graph nodes (perf — visibility check is O(V²)).
+    graph_vertices = _decimate_polygon(full_polygon, _PADDLE_MAX_POLYGON_VERTICES)
 
-    # Fast path: straight line works.
-    if _line_inside_polygon(start, end, polygon):
+    # Fast path: straight line works against the full-resolution polygon.
+    if _line_inside_polygon(start, end, full_polygon):
         return [start, end]
 
-    # Build node list: start (0), end (1), then polygon vertices.
-    nodes = [list(start), list(end)] + [[v[0], v[1]] for v in polygon]
+    # Build node list: start (0), end (1), then decimated polygon vertices.
+    nodes = [list(start), list(end)] + [[v[0], v[1]] for v in graph_vertices]
     n = len(nodes)
 
-    # Adjacency list with line-of-sight check.
+    # Adjacency list with line-of-sight check against the FULL polygon.
+    # Decimated graph_vertices give us a small node set; the visibility
+    # test still uses full_polygon so we can't shave a corner across a
+    # peninsula that the decimation flattened away.
     adj: list = [[] for _ in range(n)]
     for i in range(n):
         for j in range(i + 1, n):
-            if _line_inside_polygon(nodes[i], nodes[j], polygon):
+            if _line_inside_polygon(nodes[i], nodes[j], full_polygon):
                 w = _haversine_km(nodes[i], nodes[j])
                 adj[i].append((j, w))
                 adj[j].append((i, w))
