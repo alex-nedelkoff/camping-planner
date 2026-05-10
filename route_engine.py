@@ -261,9 +261,17 @@ def _polygon_aware_paddle(start: list, end: list, lake: dict,
 
     if dist[1] == INF:
         # No graph path (start or end outside polygon, or polygon is broken).
+        # Inject lake centroid as midpoint, but only if it's distinct from
+        # both start and end — otherwise we produce a degenerate
+        # zero-length segment that breaks downstream spline rendering.
         centroid = lake.get("centroid")
         if centroid:
-            return [list(start), list(centroid), list(end)]
+            same_as_start = (abs(centroid[0] - start[0]) < 1e-9 and
+                             abs(centroid[1] - start[1]) < 1e-9)
+            same_as_end = (abs(centroid[0] - end[0]) < 1e-9 and
+                           abs(centroid[1] - end[1]) < 1e-9)
+            if not (same_as_start or same_as_end):
+                return [list(start), list(centroid), list(end)]
         return [list(start), list(end)]
 
     # Reconstruct path from end back to start.

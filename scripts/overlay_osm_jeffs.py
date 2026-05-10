@@ -284,6 +284,18 @@ function _centripetalCatmullRom(p0, p1, p2, p3, t /* in [0,1] */) {
 
 function smoothPolyline(points, stepsPerSegment) {
   if (!Array.isArray(points) || points.length < 3) return points;
+  // Defensive: drop consecutive duplicate vertices. Zero-length chords
+  // give centripetal Catmull-Rom a knot interval of 0 → division blows up.
+  const deduped = [points[0]];
+  for (let k = 1; k < points.length; k++) {
+    const prev = deduped[deduped.length - 1];
+    if (Math.abs(points[k][0] - prev[0]) > 1e-9 ||
+        Math.abs(points[k][1] - prev[1]) > 1e-9) {
+      deduped.push(points[k]);
+    }
+  }
+  if (deduped.length < 3) return deduped;
+  points = deduped;
   const steps = stepsPerSegment || 12;
 
   // Synthesize phantom endpoints by mirroring the first/last interior
