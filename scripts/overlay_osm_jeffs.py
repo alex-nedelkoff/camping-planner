@@ -1,12 +1,15 @@
 """
-Render an HTML map overlaying OSM polygons, Jeff's Maps polygons, AND
-(optionally) Jeff's raster mosaic — all GPS-aligned and toggleable.
+Render an HTML map overlaying OSM polygons, Jeff's Maps polygons, Jeff's
+raster mosaic, and a trip's waypoints + route — all GPS-aligned and
+toggleable via Leaflet's layer control.
 
 Usage:
     python3 scripts/overlay_osm_jeffs.py
     python3 scripts/overlay_osm_jeffs.py --bbox 46.00,-81.45,46.10,-81.30
     python3 scripts/overlay_osm_jeffs.py --kmz path/to/jeffs.kmz \\
         --bbox 46.00,-81.45,46.10,-81.30
+    python3 scripts/overlay_osm_jeffs.py --trip trips/killarney-2026-05/ \\
+        --kmz path/to/jeffs.kmz --bbox 46.00,-81.45,46.10,-81.32
 
 Layers (each toggleable in the layer control top-right):
   - OSM named lakes:         blue outline + fill, clickable
@@ -14,6 +17,10 @@ Layers (each toggleable in the layer control top-right):
   - Jeff's unnamed lakes:    orange dashed (off by default — toggle to declutter)
   - Jeff's raster mosaic:    underlay of the source PNG/JPG tiles aligned to
                              their KMZ LatLonBox bounds (only with --kmz)
+  - Trip waypoints:          access-point + per-night markers from --trip
+  - Trip route (paddle):     paddle segments — blue solid lines
+  - Trip route (portage):    portage segments — orange solid lines
+  - Trip route (approx):     approx-fallback legs — red dashed lines
 
 The output is a single HTML file plus, when --kmz is provided, a sibling JPG
 of the mosaic. Open the HTML via `python3 -m http.server` so the JPG loads.
@@ -107,6 +114,12 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
   .legend .unnamed { background: rgba(255,152,0,0.18); border-color: #f57c00;
                      border-style: dashed; }
   .legend .raster { background: #999; border-color: #555; }
+  .legend .waypoint { background: #6b1fb1; border-color: #4a0d8a;
+                      border-radius: 50%; }
+  .legend .paddle { background: #1565c0; border-color: #0d47a1; }
+  .legend .portage { background: #ef6c00; border-color: #b53d00; }
+  .legend .approx { background: #c62828; border-color: #8a0000;
+                    border-style: dashed; }
   .stats { position: absolute; top: 1rem; right: 1rem; z-index: 1000;
            background: white; padding: 0.6rem 0.8rem; border-radius: 6px;
            box-shadow: 0 1px 3px rgba(0,0,0,0.2); font-size: 0.85rem;
@@ -124,6 +137,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
   <div><span class="legend-swatch jeffs"></span>Jeff's named lakes</div>
   <div><span class="legend-swatch unnamed"></span>Jeff's unnamed lakes</div>
   __RASTER_LEGEND__
+  __TRIP_LEGEND__
   __RASTER_OPACITY_CONTROL__
 </div>
 <div class="stats">
@@ -135,6 +149,8 @@ const jeffsNamedFeatures = __JEFFS_NAMED_GEOJSON__;
 const jeffsUnnamedFeatures = __JEFFS_UNNAMED_GEOJSON__;
 const rasterUrl = __RASTER_URL__;
 const rasterBounds = __RASTER_BOUNDS__;
+const tripMarkers = __TRIP_MARKERS__;
+const tripSegments = __TRIP_SEGMENTS__;
 const center = __MAP_CENTER__;
 
 const map = L.map('map', { center: center, zoom: 11 });
@@ -186,11 +202,76 @@ if (rasterUrl && rasterBounds) {
   }
 }
 
+// --- Trip layers (waypoints + segmented route) ---
+let tripWaypointLayer = null;
+let tripPaddleLayer = null;
+let tripPortageLayer = null;
+let tripApproxLayer = null;
+
+if (tripMarkers && tripMarkers.length) {
+  tripWaypointLayer = L.layerGroup(tripMarkers.map(function(m) {
+    const isAccess = m.kind === 'access';
+    return L.circleMarker([m.lat, m.lon], {
+      radius: isAccess ? 9 : 7,
+      color: isAccess ? '#000' : '#4a0d8a',
+      weight: 2,
+      fillColor: isAccess ? '#ffeb3b' : '#9c27b0',
+      fillOpacity: 0.9,
+    }).bindPopup(m.label || '(unnamed)');
+  })).addTo(map);
+  layerOverlays['Trip waypoints'] = tripWaypointLayer;
+}
+
+if (tripSegments && tripSegments.length) {
+  const paddleLines = [];
+  const portageLines = [];
+  const approxLines = [];
+  tripSegments.forEach(function(s) {
+    const coords = (s.geometry || []).filter(function(p) {
+      return Array.isArray(p) && p.length === 2;
+    });
+    if (coords.length < 2) return;
+    const popup = s.from + ' → ' + s.to + ' (' + s.distance_km + ' km)';
+    if (s.kind === 'paddle') {
+      paddleLines.push(L.polyline(coords, {
+        color: '#0d47a1', weight: 4, opacity: 0.85,
+      }).bindPopup(popup));
+    } else if (s.kind === 'portage') {
+      portageLines.push(L.polyline(coords, {
+        color: '#b53d00', weight: 4, opacity: 0.95,
+      }).bindPopup(popup));
+    } else if (s.kind === 'approx') {
+      approxLines.push(L.polyline(coords, {
+        color: '#c62828', weight: 3, opacity: 0.85,
+        dashArray: '8 6',
+      }).bindPopup(popup + ' (approx)'));
+    }
+  });
+  if (paddleLines.length) {
+    tripPaddleLayer = L.layerGroup(paddleLines).addTo(map);
+    layerOverlays['Trip route — paddle'] = tripPaddleLayer;
+  }
+  if (portageLines.length) {
+    tripPortageLayer = L.layerGroup(portageLines).addTo(map);
+    layerOverlays['Trip route — portage'] = tripPortageLayer;
+  }
+  if (approxLines.length) {
+    tripApproxLayer = L.layerGroup(approxLines).addTo(map);
+    layerOverlays['Trip route — approx'] = tripApproxLayer;
+  }
+}
+
 L.control.layers(null, layerOverlays, { collapsed: false }).addTo(map);
 
 // Fit bounds to whatever's loaded.
 const all = [osmLayer.getBounds(), jeffsNamedLayer.getBounds()];
 if (rasterLayer) all.push(L.latLngBounds(rasterBounds));
+if (tripWaypointLayer) {
+  // layerGroup doesn't have getBounds; expand from markers.
+  tripMarkers.forEach(function(m) {
+    all.push(L.latLngBounds([[m.lat, m.lon], [m.lat, m.lon]]));
+  });
+}
 const valid = all.filter(b => b.isValid());
 if (valid.length) {
   const merged = valid.reduce((a, b) => a.extend(b));
@@ -200,6 +281,37 @@ if (valid.length) {
 </body>
 </html>
 """
+
+
+def _load_trip_route(trip_dir: Path) -> dict:
+    """Load a trip and return {'markers': [...], 'segments': [...]}.
+
+    Reuses build_trip.load_trip + osm_data.load_killarney_features +
+    route_engine.build_route so the overlay matches what the trip page
+    renders.
+    """
+    import build_trip
+    import osm_data
+    import route_engine
+    import gpx_library
+
+    trip = build_trip.load_trip(trip_dir)
+    fm = trip.get("frontmatter") or {}
+    nights = fm.get("nights") or []
+    access_point = fm.get("access_point")
+    if not (nights and access_point):
+        return {"markers": [], "segments": []}
+    osm = osm_data.load_killarney_features()
+    library = gpx_library.load_library_index(
+        Path(__file__).resolve().parent.parent / "routes" / "killarney" / "library"
+    )
+    route = route_engine.build_route(
+        nights=nights, access_point=access_point, osm=osm, library=library,
+    )
+    return {
+        "markers": route.get("markers") or [],
+        "segments": route.get("segments") or [],
+    }
 
 
 def _build_raster_mosaic(kmz_path: Path, bbox, zoom: int, out_jpg: Path) -> tuple:
@@ -271,6 +383,10 @@ def main(argv=None) -> int:
                              "toggleable Leaflet imageOverlay.")
     parser.add_argument("--zoom-raster", type=int, default=6,
                         help="Pyramid level for the raster mosaic (default 6).")
+    parser.add_argument("--trip",
+                        help="Optional trip directory. When provided, the "
+                             "trip's waypoints and route segments are added "
+                             "as toggleable layers.")
     parser.add_argument("--out", default=str(REPO_ROOT / "jeffs_osm_overlay.html"))
     args = parser.parse_args(argv)
 
@@ -335,6 +451,25 @@ def main(argv=None) -> int:
             'step="0.05" value="0.7"></div>'
         )
 
+    trip_markers = []
+    trip_segments = []
+    trip_legend = ""
+    if args.trip:
+        trip_data = _load_trip_route(Path(args.trip))
+        trip_markers = trip_data["markers"]
+        trip_segments = trip_data["segments"]
+        if trip_markers or trip_segments:
+            trip_legend = (
+                '<div><span class="legend-swatch waypoint"></span>'
+                'Trip waypoints</div>'
+                '<div><span class="legend-swatch paddle"></span>'
+                'Trip route — paddle</div>'
+                '<div><span class="legend-swatch portage"></span>'
+                'Trip route — portage</div>'
+                '<div><span class="legend-swatch approx"></span>'
+                'Trip route — approx</div>'
+            )
+
     center = _features_center(osm_named + jeffs_named + jeffs_unnamed)
 
     html = (
@@ -345,7 +480,10 @@ def main(argv=None) -> int:
         .replace("__RASTER_URL__", raster_url_js)
         .replace("__RASTER_BOUNDS__", raster_bounds_js)
         .replace("__RASTER_LEGEND__", raster_legend)
+        .replace("__TRIP_LEGEND__", trip_legend)
         .replace("__RASTER_OPACITY_CONTROL__", raster_opacity_html)
+        .replace("__TRIP_MARKERS__", json.dumps(trip_markers))
+        .replace("__TRIP_SEGMENTS__", json.dumps(trip_segments))
         .replace("__MAP_CENTER__", json.dumps(center))
         .replace("__OSM_COUNT__", str(len(osm_named)))
         .replace("__JEFFS_NAMED_COUNT__", str(len(jeffs_named)))
@@ -356,6 +494,9 @@ def main(argv=None) -> int:
     print(f"  OSM named lakes: {len(osm_named)}")
     print(f"  Jeff's named lakes: {len(jeffs_named)}")
     print(f"  Jeff's unnamed lakes: {len(jeffs_unnamed)}")
+    if args.trip:
+        print(f"  Trip waypoints: {len(trip_markers)}")
+        print(f"  Trip segments:  {len(trip_segments)}")
     if args.kmz:
         print(f"  Raster mosaic:    {jpg_name} (zoom {args.zoom_raster})")
         print(f"  Open via:         python3 -m http.server  →  "
