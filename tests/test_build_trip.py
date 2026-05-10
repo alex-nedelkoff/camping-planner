@@ -132,3 +132,57 @@ def test_render_section_handles_headings_and_paragraphs():
     html = render_section(md, "intro")
     assert "<h2>Hello</h2>" in html
     assert "<p>A paragraph.</p>" in html
+
+
+from unittest.mock import patch
+
+from build_trip import build_html
+
+
+_FAKE_WEATHER = {
+    "source": "forecast",
+    "days": [
+        {
+            "date": "2026-05-15",
+            "high": 18.0,
+            "low": 5.0,
+            "precip_mm": 0.0,
+            "precip_chance": 10,
+            "code": 1,
+            "description": "Mainly clear",
+            "icon": "☀️",
+        }
+    ],
+}
+
+
+def test_build_html_assembles_full_page():
+    fixture = Path(__file__).parent / "fixtures" / "sample-trip"
+    with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER):
+        html = build_html(fixture)
+
+    # Sections present in expected order.
+    for marker in ("Welcome to the test trip", "Day 1", "Canoe", "Friday dinner",
+                   "Tent", "Permit"):
+        assert marker in html, f"missing: {marker}"
+
+    # Weather table populated from the mocked data.
+    assert "Mainly clear" in html
+    assert "18" in html and "5" in html
+
+    # Frontmatter rendered into header.
+    assert "Killarney" in html or "killarney" in html
+    assert "2026-05-15" in html
+    assert "Alex" in html
+
+    # Task list became real checkboxes with stable keys.
+    assert 'type="checkbox"' in html
+    assert 'data-cb-key="packing--tent"' in html
+    assert 'data-cb-key="packing--stove"' in html
+
+    # Self-contained: contains its own <style> and <script> blocks.
+    assert "<style>" in html
+    assert "<script>" in html
+
+    # No route file in fixture → no map section.
+    assert "Route Map" not in html

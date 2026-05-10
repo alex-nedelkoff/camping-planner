@@ -1,0 +1,2 @@
+- [ ] Tent
+- [x] Stove
