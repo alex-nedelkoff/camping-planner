@@ -21,7 +21,7 @@ def tmp_catalog(tmp_path, monkeypatch):
         ],
     }), encoding="utf-8")
     monkeypatch.setattr(foods_svc, "FOODS_JSON", path)
-    foods_svc._reset_cache_for_tests()
+    foods_svc._invalidate_cache()
     yield path
 
 
@@ -61,7 +61,7 @@ def test_search_combines_query_and_category(tmp_catalog):
 def test_load_catalog_rejects_unknown_version(tmp_catalog, tmp_path):
     bad = tmp_path / "foods.json"
     bad.write_text(json.dumps({"version": 99, "categories": [], "foods": []}), encoding="utf-8")
-    foods_svc._reset_cache_for_tests()
+    foods_svc._invalidate_cache()
     with pytest.raises(RuntimeError, match="unknown.*version"):
         foods_svc.load_catalog()
 
@@ -156,3 +156,30 @@ def test_find_references_returns_trip_slugs(tmp_catalog, tmp_path, monkeypatch):
     refs = foods_svc.find_references("tuna-pouch")
     assert refs == ["killarney-2026-07"]
     assert foods_svc.find_references("instant-mash") == []
+
+
+def test_find_references_does_not_prefix_match(tmp_catalog, tmp_path, monkeypatch):
+    """`tuna` must NOT match `tuna-pouch` — a previous bug."""
+    trips_dir = tmp_path / "trips"
+    (trips_dir / "trip-a").mkdir(parents=True)
+    (trips_dir / "trip-a" / "food.md").write_text(
+        "---\ndays:\n  - meals:\n      - items:\n          - food_id: tuna-pouch\n"
+        "            servings: 2\n---\n", encoding="utf-8",
+    )
+    monkeypatch.setattr(foods_svc, "TRIPS_DIR", trips_dir)
+    # `tuna` is a prefix of `tuna-pouch` but is not the same id
+    assert foods_svc.find_references("tuna") == []
+    # Confirm the full id still matches
+    assert foods_svc.find_references("tuna-pouch") == ["trip-a"]
+
+
+def test_find_references_matches_quoted_form(tmp_catalog, tmp_path, monkeypatch):
+    """Frontmatter with quoted food_id values should still match."""
+    trips_dir = tmp_path / "trips"
+    (trips_dir / "trip-q").mkdir(parents=True)
+    (trips_dir / "trip-q" / "food.md").write_text(
+        "---\ndays:\n  - meals:\n      - items:\n          - food_id: 'tuna-pouch'\n"
+        "            servings: 1\n---\n", encoding="utf-8",
+    )
+    monkeypatch.setattr(foods_svc, "TRIPS_DIR", trips_dir)
+    assert foods_svc.find_references("tuna-pouch") == ["trip-q"]

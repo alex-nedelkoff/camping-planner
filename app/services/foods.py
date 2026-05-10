@@ -22,8 +22,13 @@ _cache: dict | None = None
 _cache_mtime: float | None = None
 
 
-def _reset_cache_for_tests() -> None:
-    """Clear the in-memory cache. Tests call this when swapping FOODS_JSON."""
+def _invalidate_cache() -> None:
+    """Clear the in-memory cache so the next load_catalog() reads from disk.
+
+    In production, mtime invalidation handles this automatically after
+    _atomic_write. In tests, monkeypatch.setattr(FOODS_JSON, ...) swaps the
+    path entirely, which mtime alone cannot detect — hence this explicit hook.
+    """
     global _cache, _cache_mtime
     _cache = None
     _cache_mtime = None
@@ -154,7 +159,7 @@ def upsert(food: dict) -> str:
         food_id = _next_unique_slug(_slugify(cleaned["name"]), existing_ids)
         foods_list.append({"id": food_id, **cleaned})
     _atomic_write(FOODS_JSON, cat)
-    _reset_cache_for_tests()
+    _invalidate_cache()
     return food_id
 
 
@@ -166,7 +171,7 @@ def delete(food_id: str) -> None:
         if f["id"] == food_id:
             del foods_list[i]
             _atomic_write(FOODS_JSON, cat)
-            _reset_cache_for_tests()
+            _invalidate_cache()
             return
     raise KeyError(f"foods: no food with id {food_id!r}")
 
@@ -175,7 +180,9 @@ def find_references(food_id: str) -> list[str]:
     """Scan trips/*/food.md frontmatter for occurrences of food_id."""
     if not TRIPS_DIR.exists():
         return []
-    pattern = re.compile(r"food_id:\s*['\"]?" + re.escape(food_id) + r"['\"]?")
+    pattern = re.compile(
+        r"food_id:\s*['\"]?" + re.escape(food_id) + r"['\"]?(?=[\s,\n]|$)"
+    )
     refs: list[str] = []
     for trip_dir in sorted(TRIPS_DIR.iterdir()):
         if not trip_dir.is_dir():
