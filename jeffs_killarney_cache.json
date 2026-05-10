@@ -52667,7 +52667,8 @@
       "centroid": [
         46.06367296531613,
         -81.36876003085457
-      ]
+      ],
+      "name": "Killarney Lake"
     },
     {
       "polygon": [
@@ -93737,7 +93738,7 @@
   "campsites": [],
   "_meta": {
     "source_kmz": "Maps by Jeff - Full French River and Killarney Paddling Map v4.0 - Google Earth.kmz",
-    "extracted_at": "2026-05-10T05:00:58.381299+00:00",
+    "extracted_at": "2026-05-10T05:12:10.178955+00:00",
     "bbox": [
       45.92,
       -81.6,

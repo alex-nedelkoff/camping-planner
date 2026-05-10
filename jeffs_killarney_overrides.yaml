@@ -2,6 +2,14 @@
 # Add entries for lakes/campsites where automatic detection or naming fails.
 
 lakes:
+  # OSM's "Killarney Lake" is a giant relation polygon (1394 verts) that
+  # over-extends into adjacent swamp / waterways. Jeff's closest polygon
+  # at this centroid is tighter and accurate (123 verts, the main lake
+  # basin) — name it so _find_lake returns Jeff's instead of OSM's. Other
+  # unnamed Jeff polygons (other arms of Killarney) participate via the
+  # corridor-union line check.
+  - centroid_near: [46.064, -81.369]
+    name: Killarney Lake
   # Example: name a polygon Jeff has but OSM doesn't know.
   # - centroid_near: [46.012, -81.540]
   #   name: Baie Fine
