@@ -29,6 +29,11 @@ def create_food(food: FoodIn):
     return FoodCreatedResponse(id=new_id)
 
 
+@router.get("/refs/{food_id}", response_model=FoodReferencesResponse)
+def food_references(food_id: str):
+    return FoodReferencesResponse(references=foods_svc.find_references(food_id))
+
+
 @router.put("/{food_id}", response_model=OkResponse)
 def update_food(food_id: str, food: FoodIn):
     try:
@@ -53,8 +58,3 @@ def delete_food(food_id: str, force: bool = Query(default=False)):
             )
     foods_svc.delete(food_id)
     return OkResponse()
-
-
-@router.get("/refs/{food_id}", response_model=FoodReferencesResponse)
-def food_references(food_id: str):
-    return FoodReferencesResponse(references=foods_svc.find_references(food_id))
