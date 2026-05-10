@@ -108,3 +108,46 @@ def test_find_connector_picks_shortest_portage_and_orients_correctly():
     # When reversed, what WAS the departure becomes the approach.
     assert c["approach"] == [[30, 30]]
     assert c["departure"] == [[10, 10]]
+
+
+def test_validate_connector_rejects_noise_and_accepts_real():
+    from gpx_library import _validate_connector
+    osm_index = {
+        frozenset({"Alpha Lake", "Beta Lake"}): [
+            {"length_km": 0.4},  # OSM has a real ~400m portage between them
+        ],
+    }
+
+    # Real-looking portage: ~400m, plenty of points, OSM corroborates.
+    real = {
+        "lake_a": "Alpha Lake", "lake_b": "Beta Lake",
+        "portage_km": 0.39, "portage": [[1, 1]] * 12,
+    }
+    trusted, _ = _validate_connector(real, osm_index)
+    assert trusted is True
+
+    # Too-short portage: <50m, segmentation noise.
+    short = {**real, "portage_km": 0.018, "portage": [[1, 1]] * 2}
+    trusted, reason = _validate_connector(short, osm_index)
+    assert trusted is False
+    assert "short" in reason.lower()
+
+    # Zero portage_km: GPS skipped land entirely.
+    zero = {**real, "portage_km": 0.0, "portage": [[1, 1]]}
+    trusted, _ = _validate_connector(zero, osm_index)
+    assert trusted is False
+
+    # OSM doesn't know this lake-pair: reject.
+    novel = {
+        "lake_a": "Gamma Lake", "lake_b": "Delta Lake",
+        "portage_km": 0.4, "portage": [[1, 1]] * 12,
+    }
+    trusted, reason = _validate_connector(novel, osm_index)
+    assert trusted is False
+    assert "no osm portage" in reason.lower()
+
+    # Length way off from OSM: reject.
+    way_off = {**real, "portage_km": 2.5}  # OSM says 0.4, this says 2.5 (6x ratio)
+    trusted, reason = _validate_connector(way_off, osm_index)
+    assert trusted is False
+    assert "length" in reason.lower()

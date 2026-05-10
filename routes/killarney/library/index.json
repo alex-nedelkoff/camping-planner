@@ -328,7 +328,9 @@
       "approach_km": 3.296,
       "portage_km": 0.018,
       "departure_km": 2.07,
-      "source": "killarney-1.gpx"
+      "source": "killarney-1.gpx",
+      "trusted": false,
+      "trust_reason": "portage too short (18m)"
     },
     {
       "lake_a": "Freeland Lake",
@@ -594,7 +596,9 @@
       "approach_km": 2.07,
       "portage_km": 0.389,
       "departure_km": 2.701,
-      "source": "killarney-1.gpx"
+      "source": "killarney-1.gpx",
+      "trusted": true,
+      "trust_reason": "ok"
     },
     {
       "lake_a": "Killarney Lake",
@@ -688,7 +692,9 @@
       "approach_km": 0.206,
       "portage_km": 0.301,
       "departure_km": 1.875,
-      "source": "killarney-3.gpx"
+      "source": "killarney-3.gpx",
+      "trusted": true,
+      "trust_reason": "ok"
     },
     {
       "lake_a": "Freeland Lake",
@@ -774,7 +780,9 @@
       "approach_km": 1.875,
       "portage_km": 0.0,
       "departure_km": 0.374,
-      "source": "killarney-3.gpx"
+      "source": "killarney-3.gpx",
+      "trusted": false,
+      "trust_reason": "portage too short (0m)"
     }
   ]
 }

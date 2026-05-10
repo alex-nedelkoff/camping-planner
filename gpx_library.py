@@ -116,6 +116,60 @@ def segment_gpx(gpx_path: Path, lakes: list) -> list:
     return connectors
 
 
+def _osm_portage_lake_pairs(osm: dict) -> dict:
+    """Pre-classify each OSM portage by the lake pair its endpoints sit on.
+
+    Returns {frozenset({lake_a, lake_b}): [portage_dict, ...]}. Same-lake and
+    unmatched portages are dropped. Uses the same classification helper as
+    route_engine's path search so behavior stays consistent.
+    """
+    from route_engine import _classify_portage_endpoints
+    lakes = osm["lakes"] + LAKE_SUPPLEMENT
+    pairs: dict = {}
+    for p in osm.get("portages", []):
+        ends = _classify_portage_endpoints(p, lakes)
+        if ends[0] is None or ends[1] is None:
+            continue
+        if ends[0]["name"] == ends[1]["name"]:
+            continue
+        key = frozenset({ends[0]["name"], ends[1]["name"]})
+        pairs.setdefault(key, []).append(p)
+    return pairs
+
+
+def _validate_connector(conn: dict, osm_pair_index: dict) -> tuple:
+    """Return (trusted: bool, reason: str) for a library connector.
+
+    Trust requires: plausible portage length, enough portage points, an OSM
+    portage connecting the same lake pair, and OSM/GPX portage lengths within
+    a factor of 0.4 to 2.5 of each other.
+    """
+    portage_km = conn.get("portage_km", 0.0)
+    portage_pts = conn.get("portage", [])
+
+    if portage_km < 0.05:
+        return False, f"portage too short ({portage_km * 1000:.0f}m)"
+    if portage_km > 3.0:
+        return False, f"portage too long ({portage_km:.2f}km)"
+    if len(portage_pts) < 4:
+        return False, f"only {len(portage_pts)} portage points"
+
+    key = frozenset({conn["lake_a"], conn["lake_b"]})
+    osm_portages = osm_pair_index.get(key, [])
+    if not osm_portages:
+        return False, "no OSM portage between these lakes"
+
+    closest = min(osm_portages,
+                  key=lambda p: abs(p.get("length_km", 0.0) - portage_km))
+    osm_km = closest.get("length_km", 0.0) or 0.001
+    ratio = portage_km / osm_km
+    if not (0.4 <= ratio <= 2.5):
+        return (False,
+                f"length differs from OSM ({portage_km:.2f}km vs {osm_km:.2f}km)")
+
+    return True, "ok"
+
+
 def build_library_index(library_dir: Path, osm: dict) -> dict:
     """Walk all *.gpx in library_dir, segment each, combine into an index.
 
@@ -133,9 +187,13 @@ def build_library_index(library_dir: Path, osm: dict) -> dict:
     connectors: list = []
     if not library_dir.exists():
         return {"connectors": connectors}
+    osm_pair_index = _osm_portage_lake_pairs(osm)
     for gpx in sorted(library_dir.glob("*.gpx")):
         for c in segment_gpx(gpx, lakes):
             c["source"] = gpx.name
+            trusted, reason = _validate_connector(c, osm_pair_index)
+            c["trusted"] = trusted
+            c["trust_reason"] = reason
             connectors.append(c)
     return {"connectors": connectors}
 
@@ -157,9 +215,16 @@ def load_library_index(library_dir: Path) -> dict:
 
 
 def _build_library_graph(library: dict) -> dict:
-    """Adjacency: {lake_name: [(neighbor_name, connector), ...]}."""
+    """Adjacency: {lake_name: [(neighbor_name, connector), ...]}.
+
+    Only TRUSTED connectors are included. Untrusted ones are kept in the
+    index for transparency (so users can see why something was rejected) but
+    they don't influence routing.
+    """
     graph: dict = {}
     for c in library.get("connectors", []):
+        if not c.get("trusted", True):  # default True for backward compat
+            continue
         a, b = c["lake_a"], c["lake_b"]
         graph.setdefault(a, []).append((b, c))
         graph.setdefault(b, []).append((a, c))

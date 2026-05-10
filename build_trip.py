@@ -609,7 +609,13 @@ def main(argv=None) -> int:
         library_dir = Path(__file__).parent / "routes" / "killarney" / "library"
         out = _gpx_library.write_library_index(library_dir, osm)
         idx = _gpx_library.load_library_index(library_dir)
+        trusted = [c for c in idx["connectors"] if c.get("trusted")]
+        rejected = [c for c in idx["connectors"] if not c.get("trusted")]
         print(f"Wrote {len(idx['connectors'])} connectors to {out}")
+        print(f"  trusted: {len(trusted)}, rejected: {len(rejected)}")
+        for c in rejected:
+            print(f"  REJECTED  {c['lake_a']} -> {c['lake_b']}  "
+                  f"({c['source']})  reason: {c['trust_reason']}")
 
     trip_dir = Path(args.trip_dir)
     html = build_html(trip_dir)
