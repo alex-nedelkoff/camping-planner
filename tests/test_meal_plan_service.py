@@ -92,3 +92,68 @@ def test_load_handles_crlf_line_endings(tmp_trips):
     assert plan["calorie_target"]["activity_level"] == "bikepacking"
     assert plan["legacy_body"] == ""
     assert plan["participants"] == ["Tom"]
+
+
+SAMPLE_CATALOG = {
+    "version": 1,
+    "categories": ["meal", "snack"],
+    "foods": [
+        {"id": "tuna-pouch", "name": "Tuna pouch", "category": "snack",
+         "kcal_per_serving": 110, "serving_size": "1 pouch", "url": None},
+        {"id": "instant-mash", "name": "Instant mashed potatoes", "category": "meal",
+         "kcal_per_serving": 160, "serving_size": "1/2 cup dry", "url": None},
+    ],
+}
+
+
+SAMPLE_PLAN = {
+    "calorie_target": {"activity_level": "backcountry", "kcal_per_person_per_day": 4000},
+    "participants": ["Tom", "Alex", "Jordan"],
+    "days": [
+        {"date": "2026-07-10", "label": "Friday", "meals": [
+            {"meal": "dinner", "items": [
+                {"food_id": "tuna-pouch", "servings": 4, "who": "shared"},
+                {"food_id": "instant-mash", "servings": 6, "who": "shared"},
+            ]},
+        ]},
+        {"date": "2026-07-11", "label": "Saturday", "meals": [
+            {"meal": "breakfast", "items": [
+                {"food_id": "tuna-pouch", "servings": 3, "who": "Tom"},
+            ]},
+        ]},
+    ],
+    "legacy_body": "",
+}
+
+
+def test_compute_totals_per_meal_and_day():
+    totals = mp.compute_totals(SAMPLE_PLAN, SAMPLE_CATALOG)
+    # Day 0 dinner = 4*110 + 6*160 = 440 + 960 = 1400
+    assert totals["days"][0]["meals"][0]["kcal"] == 1400
+    assert totals["days"][0]["kcal"] == 1400
+    # Day 1 breakfast = 3*110 = 330
+    assert totals["days"][1]["kcal"] == 330
+    assert totals["trip_kcal"] == 1730
+
+
+def test_compute_totals_target_and_delta():
+    totals = mp.compute_totals(SAMPLE_PLAN, SAMPLE_CATALOG)
+    # 2 days × 3 ppl × 4000 = 24,000
+    assert totals["target_kcal"] == 24_000
+    assert totals["delta_kcal"] == 1730 - 24_000
+
+
+def test_compute_totals_unknown_food_id_marked_as_none():
+    plan = {
+        "calorie_target": {"activity_level": "backcountry", "kcal_per_person_per_day": 4000},
+        "participants": ["X"],
+        "days": [{"date": "2026-07-10", "label": "F", "meals": [
+            {"meal": "dinner", "items": [{"food_id": "ghost", "servings": 1, "who": "X"}]},
+        ]}],
+        "legacy_body": "",
+    }
+    totals = mp.compute_totals(plan, SAMPLE_CATALOG)
+    assert totals["days"][0]["meals"][0]["items"][0]["kcal"] is None
+    assert totals["days"][0]["meals"][0]["items"][0]["unknown_food"] is True
+    assert totals["days"][0]["meals"][0]["kcal"] == 0
+    assert totals["trip_kcal"] == 0

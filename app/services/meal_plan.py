@@ -111,3 +111,44 @@ def load(slug: str) -> dict:
         "legacy_body": "",
     }
     return plan
+
+
+def compute_totals(plan: dict, catalog: dict) -> dict:
+    """Compute per-meal / per-day / trip kcal + target + delta.
+
+    Returns a parallel structure: {days: [{...meals: [{...items: [{kcal,
+    unknown_food}], kcal}], kcal}], trip_kcal, target_kcal, delta_kcal}.
+    """
+    by_id = {f["id"]: f for f in catalog.get("foods", [])}
+    out_days = []
+    trip_kcal = 0
+    for day in plan.get("days", []):
+        out_meals = []
+        day_kcal = 0
+        for meal in day.get("meals", []):
+            out_items = []
+            meal_kcal = 0
+            for item in meal.get("items", []):
+                food = by_id.get(item.get("food_id"))
+                if food is None:
+                    out_items.append({**item, "kcal": None, "unknown_food": True})
+                    continue
+                servings = int(item.get("servings") or 0)
+                kcal = servings * int(food["kcal_per_serving"])
+                meal_kcal += kcal
+                out_items.append({**item, "kcal": kcal, "unknown_food": False})
+            out_meals.append({**meal, "items": out_items, "kcal": meal_kcal})
+            day_kcal += meal_kcal
+        out_days.append({**day, "meals": out_meals, "kcal": day_kcal})
+        trip_kcal += day_kcal
+    target_kcal = (
+        len(plan.get("days", []))
+        * len(plan.get("participants") or [])
+        * int(plan.get("calorie_target", {}).get("kcal_per_person_per_day") or 0)
+    )
+    return {
+        "days": out_days,
+        "trip_kcal": trip_kcal,
+        "target_kcal": target_kcal,
+        "delta_kcal": trip_kcal - target_kcal,
+    }
