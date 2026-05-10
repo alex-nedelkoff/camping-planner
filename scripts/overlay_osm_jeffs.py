@@ -222,26 +222,67 @@ if (tripMarkers && tripMarkers.length) {
   layerOverlays['Trip waypoints'] = tripWaypointLayer;
 }
 
-// Catmull-Rom interpolation: subdivide a polyline into many smooth-curve
-// points that pass through every original vertex. Used to render route
-// segments as splines instead of jagged straight-line connections.
-function _catmullRomPoint(p0, p1, p2, p3, t) {
-  const t2 = t * t;
-  const t3 = t2 * t;
+// Centripetal Catmull-Rom interpolation. Standard Catmull-Rom (uniform
+// parameterization) tends to overshoot — the curve can bulge outside the
+// straight line between two consecutive vertices, which falsely makes the
+// rendered line look like it crosses land. Centripetal (α=0.5) is the
+// well-known fix: smooth, passes through all original vertices, and
+// guarantees no overshoot or self-intersection.
+function _knotInterval(p0, p1, alpha) {
+  const dx = p1[0] - p0[0];
+  const dy = p1[1] - p0[1];
+  return Math.pow(Math.sqrt(dx * dx + dy * dy), alpha);
+}
+
+function _centripetalCatmullRom(p0, p1, p2, p3, t /* in [0,1] */) {
+  const ALPHA = 0.5;
+  const t0 = 0;
+  const t1 = t0 + _knotInterval(p0, p1, ALPHA);
+  const t2 = t1 + _knotInterval(p1, p2, ALPHA);
+  const t3 = t2 + _knotInterval(p2, p3, ALPHA);
+  // Map t in [0,1] onto [t1, t2].
+  const tEval = t1 + t * (t2 - t1);
+
+  const epsilon = 1e-12;
+  const a1 = [
+    (t1 - tEval) / Math.max(t1 - t0, epsilon) * p0[0]
+      + (tEval - t0) / Math.max(t1 - t0, epsilon) * p1[0],
+    (t1 - tEval) / Math.max(t1 - t0, epsilon) * p0[1]
+      + (tEval - t0) / Math.max(t1 - t0, epsilon) * p1[1],
+  ];
+  const a2 = [
+    (t2 - tEval) / Math.max(t2 - t1, epsilon) * p1[0]
+      + (tEval - t1) / Math.max(t2 - t1, epsilon) * p2[0],
+    (t2 - tEval) / Math.max(t2 - t1, epsilon) * p1[1]
+      + (tEval - t1) / Math.max(t2 - t1, epsilon) * p2[1],
+  ];
+  const a3 = [
+    (t3 - tEval) / Math.max(t3 - t2, epsilon) * p2[0]
+      + (tEval - t2) / Math.max(t3 - t2, epsilon) * p3[0],
+    (t3 - tEval) / Math.max(t3 - t2, epsilon) * p2[1]
+      + (tEval - t2) / Math.max(t3 - t2, epsilon) * p3[1],
+  ];
+  const b1 = [
+    (t2 - tEval) / Math.max(t2 - t0, epsilon) * a1[0]
+      + (tEval - t0) / Math.max(t2 - t0, epsilon) * a2[0],
+    (t2 - tEval) / Math.max(t2 - t0, epsilon) * a1[1]
+      + (tEval - t0) / Math.max(t2 - t0, epsilon) * a2[1],
+  ];
+  const b2 = [
+    (t3 - tEval) / Math.max(t3 - t1, epsilon) * a2[0]
+      + (tEval - t1) / Math.max(t3 - t1, epsilon) * a3[0],
+    (t3 - tEval) / Math.max(t3 - t1, epsilon) * a2[1]
+      + (tEval - t1) / Math.max(t3 - t1, epsilon) * a3[1],
+  ];
   return [
-    0.5 * ((2 * p1[0]) +
-           (-p0[0] + p2[0]) * t +
-           (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 +
-           (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
-    0.5 * ((2 * p1[1]) +
-           (-p0[1] + p2[1]) * t +
-           (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 +
-           (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3),
+    (t2 - tEval) / Math.max(t2 - t1, epsilon) * b1[0]
+      + (tEval - t1) / Math.max(t2 - t1, epsilon) * b2[0],
+    (t2 - tEval) / Math.max(t2 - t1, epsilon) * b1[1]
+      + (tEval - t1) / Math.max(t2 - t1, epsilon) * b2[1],
   ];
 }
 
 function smoothPolyline(points, stepsPerSegment) {
-  // Need at least 3 points to interpolate; otherwise return as-is.
   if (!Array.isArray(points) || points.length < 3) return points;
   const steps = stepsPerSegment || 12;
   const out = [points[0]];
@@ -251,7 +292,7 @@ function smoothPolyline(points, stepsPerSegment) {
     const p2 = points[i + 1];
     const p3 = points[i + 2] || points[i + 1];
     for (let s = 1; s <= steps; s++) {
-      out.push(_catmullRomPoint(p0, p1, p2, p3, s / steps));
+      out.push(_centripetalCatmullRom(p0, p1, p2, p3, s / steps));
     }
   }
   return out;
