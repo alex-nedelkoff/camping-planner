@@ -79,19 +79,44 @@
             <span class="mp-day-total">${day.kcal.toLocaleString()} kcal</span>
           </summary>
           <div class="mp-meals" data-date="${escapeHtml(day.date)}">
-            ${(day.meals || []).map(m => renderMeal(day.date, m)).join('')}
+            ${(day.meals || []).map((m, i) => renderMeal(day.date, m, i)).join('')}
             <button class="mp-add-meal" data-date="${escapeHtml(day.date)}">+ add meal</button>
           </div>
         </details>
       `;
     }
 
-    function renderMeal(date, meal) {
-      // Item rows added in Task 13.
+    function renderMeal(date, meal, mealIdx) {
       return `
-        <div class="mp-meal" data-meal="${escapeHtml(meal.meal)}">
-          <h4>${escapeHtml(meal.meal[0].toUpperCase() + meal.meal.slice(1))}</h4>
-          <div class="mp-items"><!-- item rows in Task 13 --></div>
+        <div class="mp-meal" data-date="${escapeHtml(date)}" data-meal-idx="${mealIdx}">
+          <h4>${escapeHtml(meal.meal[0].toUpperCase() + meal.meal.slice(1))}
+            <button class="mp-remove-meal" title="Remove this meal">×</button>
+          </h4>
+          <div class="mp-items">
+            ${meal.items.map((it, i) => renderItemRow(date, mealIdx, i, it)).join('')}
+          </div>
+          <button class="mp-add-item" type="button">+ add item</button>
+        </div>
+      `;
+    }
+
+    function renderItemRow(date, mealIdx, itemIdx, item) {
+      const food = catalog.foods.find(f => f.id === item.food_id);
+      const display = food ? food.name : (item.food_id || '');
+      const kcalDisplay = item.kcal === null || item.kcal === undefined ? '?' : item.kcal;
+      const unknownClass = item.unknown_food ? ' mp-unknown' : '';
+      const whoOptions = ['shared', ...plan.participants]
+        .map(p => `<option value="${escapeHtml(p)}"${item.who === p ? ' selected' : ''}>${escapeHtml(p)}</option>`).join('');
+      return `
+        <div class="mp-item${unknownClass}" data-date="${escapeHtml(date)}" data-meal-idx="${mealIdx}" data-item-idx="${itemIdx}">
+          <div class="mp-food-cell">
+            <input type="text" class="mp-food-input" value="${escapeHtml(display)}" placeholder="Type to search foods…" autocomplete="off">
+            <ul class="mp-food-suggestions" hidden></ul>
+          </div>
+          <input type="number" class="mp-servings" min="0" step="1" value="${item.servings || 0}">
+          <span class="mp-kcal">${kcalDisplay} kcal</span>
+          <select class="mp-who">${whoOptions}</select>
+          <button class="mp-remove-item" title="Remove">×</button>
         </div>
       `;
     }
@@ -156,7 +181,133 @@
     }
 
     function wireDayChrome() {
-      // Item-row + add-meal wiring in Task 13.
+      // + add meal
+      sectionEl.querySelectorAll('.mp-add-meal').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const date = btn.dataset.date;
+          const day = plan.days.find(d => d.date === date);
+          if (!day) return;
+          const choice = prompt('Meal type? (breakfast / lunch / dinner / snack)', 'dinner');
+          if (!choice) return;
+          day.meals = day.meals || [];
+          day.meals.push({ meal: choice, items: [] });
+          recomputeTotals();
+          renderAll();
+        });
+      });
+
+      // - remove meal
+      sectionEl.querySelectorAll('.mp-remove-meal').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const mealEl = btn.closest('.mp-meal');
+          const date = mealEl.dataset.date;
+          const idx = parseInt(mealEl.dataset.mealIdx, 10);
+          const day = plan.days.find(d => d.date === date);
+          day.meals.splice(idx, 1);
+          recomputeTotals();
+          renderAll();
+        });
+      });
+
+      // + add item to meal
+      sectionEl.querySelectorAll('.mp-add-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const mealEl = btn.closest('.mp-meal');
+          const date = mealEl.dataset.date;
+          const idx = parseInt(mealEl.dataset.mealIdx, 10);
+          const day = plan.days.find(d => d.date === date);
+          day.meals[idx].items = day.meals[idx].items || [];
+          day.meals[idx].items.push({ food_id: '', servings: 1, who: 'shared', note: '' });
+          recomputeTotals();
+          renderAll();
+        });
+      });
+
+      // remove item
+      sectionEl.querySelectorAll('.mp-remove-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const itemEl = btn.closest('.mp-item');
+          const date = itemEl.dataset.date;
+          const mealIdx = parseInt(itemEl.dataset.mealIdx, 10);
+          const itemIdx = parseInt(itemEl.dataset.itemIdx, 10);
+          const day = plan.days.find(d => d.date === date);
+          day.meals[mealIdx].items.splice(itemIdx, 1);
+          recomputeTotals();
+          renderAll();
+        });
+      });
+
+      // servings input
+      sectionEl.querySelectorAll('.mp-servings').forEach(inp => {
+        inp.addEventListener('change', (e) => {
+          const itemEl = inp.closest('.mp-item');
+          const date = itemEl.dataset.date;
+          const mealIdx = parseInt(itemEl.dataset.mealIdx, 10);
+          const itemIdx = parseInt(itemEl.dataset.itemIdx, 10);
+          const day = plan.days.find(d => d.date === date);
+          day.meals[mealIdx].items[itemIdx].servings = parseInt(e.target.value, 10) || 0;
+          recomputeTotals();
+          renderAll();
+        });
+      });
+
+      // who select
+      sectionEl.querySelectorAll('.mp-who').forEach(sel => {
+        sel.addEventListener('change', (e) => {
+          const itemEl = sel.closest('.mp-item');
+          const date = itemEl.dataset.date;
+          const mealIdx = parseInt(itemEl.dataset.mealIdx, 10);
+          const itemIdx = parseInt(itemEl.dataset.itemIdx, 10);
+          const day = plan.days.find(d => d.date === date);
+          day.meals[mealIdx].items[itemIdx].who = e.target.value;
+        });
+      });
+
+      // food autocomplete
+      sectionEl.querySelectorAll('.mp-food-input').forEach(inp => wireAutocomplete(inp));
+    }
+
+    function wireAutocomplete(inp) {
+      const itemEl = inp.closest('.mp-item');
+      const date = itemEl.dataset.date;
+      const mealIdx = parseInt(itemEl.dataset.mealIdx, 10);
+      const itemIdx = parseInt(itemEl.dataset.itemIdx, 10);
+      const sugs = itemEl.querySelector('.mp-food-suggestions');
+
+      function close() { sugs.hidden = true; sugs.innerHTML = ''; }
+
+      inp.addEventListener('input', () => {
+        const q = inp.value.toLowerCase().trim();
+        const matches = catalog.foods
+          .filter(f => f.name.toLowerCase().includes(q))
+          .slice(0, 8);
+        const exact = catalog.foods.some(f => f.name.toLowerCase() === q);
+        sugs.innerHTML = matches.map(f =>
+          `<li data-id="${escapeHtml(f.id)}">${escapeHtml(f.name)} <span class="mp-cat">${escapeHtml(f.category)}</span></li>`
+        ).join('');
+        if (q && !exact) {
+          sugs.innerHTML += `<li class="mp-create" data-create="${escapeHtml(inp.value)}">+ Create "${escapeHtml(inp.value)}" as new food</li>`;
+        }
+        sugs.hidden = sugs.innerHTML === '';
+        sugs.querySelectorAll('li[data-id]').forEach(li => {
+          li.addEventListener('click', () => {
+            const day = plan.days.find(d => d.date === date);
+            day.meals[mealIdx].items[itemIdx].food_id = li.dataset.id;
+            close();
+            recomputeTotals();
+            renderAll();
+          });
+        });
+        sugs.querySelectorAll('li.mp-create').forEach(li => {
+          li.addEventListener('click', () => openCreateFoodModal(li.dataset.create, date, mealIdx, itemIdx));
+        });
+      });
+      inp.addEventListener('blur', () => setTimeout(close, 150));
+    }
+
+    // openCreateFoodModal full implementation in Task 14.
+    function openCreateFoodModal(name, date, mealIdx, itemIdx) {
+      alert('Create-food modal added in next task.');
     }
 
     fetchCatalog().then(() => {
