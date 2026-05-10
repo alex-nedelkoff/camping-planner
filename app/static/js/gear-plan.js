@@ -167,8 +167,160 @@
     }
 
     function wireRows() {
-      // Row interactivity (autocomplete, qty, who, notes, remove, override-weight)
-      // is added in Task 15.
+      // qty input
+      sectionEl.querySelectorAll('.gp-qty').forEach(inp => {
+        inp.addEventListener('change', (e) => {
+          const idx = parseInt(inp.closest('.gp-row').dataset.idx, 10);
+          plan.items[idx].qty = parseInt(e.target.value, 10) || 0;
+          recomputeTotals();
+          renderAll();
+        });
+      });
+      // who select
+      sectionEl.querySelectorAll('.gp-who').forEach(sel => {
+        sel.addEventListener('change', (e) => {
+          const idx = parseInt(sel.closest('.gp-row').dataset.idx, 10);
+          plan.items[idx].who = e.target.value;
+          recomputeTotals();
+          renderAll();
+        });
+      });
+      // notes input
+      sectionEl.querySelectorAll('.gp-notes').forEach(inp => {
+        inp.addEventListener('change', (e) => {
+          const idx = parseInt(inp.closest('.gp-row').dataset.idx, 10);
+          plan.items[idx].notes = e.target.value;
+        });
+      });
+      // remove row
+      sectionEl.querySelectorAll('.gp-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.closest('.gp-row').dataset.idx, 10);
+          plan.items.splice(idx, 1);
+          recomputeTotals();
+          renderAll();
+        });
+      });
+      // weight-override toggle: enter override mode
+      sectionEl.querySelectorAll('.gp-edit-wt').forEach(a => {
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          const idx = parseInt(a.closest('.gp-row').dataset.idx, 10);
+          // Seed override with the current effective weight (or 0 if unknown).
+          const current = totals.items[idx].weight_g_each;
+          plan.items[idx].override_weight_g = current === null ? 0 : current;
+          recomputeTotals();
+          renderAll();
+        });
+      });
+      // weight-override revert
+      sectionEl.querySelectorAll('.gp-revert').forEach(a => {
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          const idx = parseInt(a.closest('.gp-row').dataset.idx, 10);
+          plan.items[idx].override_weight_g = null;
+          recomputeTotals();
+          renderAll();
+        });
+      });
+      // weight-override input
+      sectionEl.querySelectorAll('.gp-wt-override').forEach(inp => {
+        inp.addEventListener('change', (e) => {
+          const idx = parseInt(inp.closest('.gp-row').dataset.idx, 10);
+          const v = parseInt(e.target.value, 10);
+          plan.items[idx].override_weight_g = isNaN(v) ? 0 : v;
+          recomputeTotals();
+          renderAll();
+        });
+      });
+      // item autocomplete
+      sectionEl.querySelectorAll('.gp-item-input').forEach(inp => wireAutocomplete(inp));
+    }
+
+    function wireAutocomplete(inp) {
+      const row = inp.closest('.gp-row');
+      const idx = parseInt(row.dataset.idx, 10);
+      const sugs = row.querySelector('.gp-item-suggestions');
+      function close() { sugs.hidden = true; sugs.innerHTML = ''; }
+
+      inp.addEventListener('input', () => {
+        const q = inp.value.toLowerCase().trim();
+        const matches = catalog.items
+          .filter(it => it.name.toLowerCase().includes(q))
+          .slice(0, 8);
+        const exact = catalog.items.some(it => it.name.toLowerCase() === q);
+        sugs.innerHTML = matches.map(it => {
+          const catPill = `<span class="gear-pill" style="background:${pillColor(it.category)}">${escapeHtml(it.category)}</span>`;
+          return `<li data-id="${escapeHtml(it.id)}">${escapeHtml(it.name)} ${catPill}</li>`;
+        }).join('');
+        if (q && !exact) {
+          sugs.innerHTML += `<li class="gp-create" data-create="${escapeHtml(inp.value)}">+ Create "${escapeHtml(inp.value)}" as new item</li>`;
+        }
+        sugs.hidden = sugs.innerHTML === '';
+        sugs.querySelectorAll('li[data-id]').forEach(li => {
+          li.addEventListener('click', () => {
+            plan.items[idx].item_id = li.dataset.id;
+            close();
+            recomputeTotals();
+            renderAll();
+          });
+        });
+        sugs.querySelectorAll('li.gp-create').forEach(li => {
+          li.addEventListener('click', () => openCreateItemModal(li.dataset.create, idx));
+        });
+      });
+      inp.addEventListener('blur', () => setTimeout(close, 150));
+    }
+
+    function openCreateItemModal(name, rowIdx) {
+      const overlay = document.createElement('div');
+      overlay.className = 'gp-modal-overlay';
+      const catOpts = catalog.categories
+        .map(c => `<option value="${c}">${c}</option>`).join('');
+      overlay.innerHTML = `
+        <div class="gp-modal">
+          <h3>Create new gear item</h3>
+          <div class="gp-modal-error" hidden></div>
+          <label>Name <input type="text" id="gpf-name" value="${escapeHtml(name)}"></label>
+          <label>Category <select id="gpf-category">${catOpts}</select></label>
+          <label>Weight (g) <input type="number" id="gpf-weight" min="0" step="1" placeholder="(leave blank for unknown)"></label>
+          <div class="gp-modal-actions">
+            <button class="btn" id="gpf-create">Create + select</button>
+            <button class="btn secondary" id="gpf-cancel">Cancel</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      const close = () => overlay.remove();
+      overlay.querySelector('#gpf-cancel').addEventListener('click', close);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+      overlay.querySelector('#gpf-create').addEventListener('click', async () => {
+        const wRaw = overlay.querySelector('#gpf-weight').value.trim();
+        const payload = {
+          name: overlay.querySelector('#gpf-name').value.trim(),
+          category: overlay.querySelector('#gpf-category').value,
+          weight_g: wRaw === '' ? null : (parseInt(wRaw, 10) || 0),
+        };
+        const r = await fetch('/api/gear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          const err = overlay.querySelector('.gp-modal-error');
+          err.textContent = (j.detail && j.detail.error) || `HTTP ${r.status}`;
+          err.hidden = false;
+          return;
+        }
+        const { id: newId } = await r.json();
+        const cr = await fetch('/api/gear');
+        catalog = await cr.json();
+        plan.items[rowIdx].item_id = newId;
+        close();
+        recomputeTotals();
+        renderAll();
+      });
     }
 
     function wireFooter() {
@@ -178,7 +330,35 @@
         recomputeTotals();
         renderAll();
       });
-      // Save flow added in Task 15.
+      const saveBtn = sectionEl.querySelector('.gp-save');
+      if (!saveBtn) return;
+      const status = sectionEl.querySelector('.gp-status');
+      saveBtn.addEventListener('click', async () => {
+        status.textContent = 'Saving…';
+        const cleanItems = plan.items.map(it => ({
+          item_id: it.item_id || '',
+          qty: parseInt(it.qty, 10) || 0,
+          who: it.who || '',
+          notes: it.notes || '',
+          override_weight_g: it.override_weight_g === null || it.override_weight_g === undefined
+                              ? null : (parseInt(it.override_weight_g, 10) || 0),
+        }));
+        const payload = { items: cleanItems };
+        const r = await fetch(`/api/trip/${encodeURIComponent(slug)}/gear-plan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          status.textContent = 'Error: ' + ((j.detail && j.detail.error) || `HTTP ${r.status}`);
+          return;
+        }
+        status.textContent = 'Saved.';
+        plan.legacy_body = '';
+        renderAll();
+        setTimeout(() => { status.textContent = ''; }, 2000);
+      });
     }
 
     fetchCatalog().then(() => {
