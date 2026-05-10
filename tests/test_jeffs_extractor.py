@@ -140,3 +140,48 @@ def test_extract_lakes_finds_synthetic_blue_blob(tmp_path):
     assert -81.6 < cy < -81.4
     # Polygon has at least 4 vertices.
     assert len(lake["polygon"]) >= 4
+
+
+from jeffs_extractor import assign_lake_names
+
+
+def test_assign_lake_names_uses_osm_within_500m():
+    jeffs_lakes = [
+        {"polygon": [[1, 1]], "centroid": [46.05, -81.40]},  # near OSM
+        {"polygon": [[1, 1]], "centroid": [46.06, -81.30]},  # near OSM
+        {"polygon": [[1, 1]], "centroid": [50.00, -70.00]},  # nowhere near anything
+    ]
+    osm_lakes = [
+        {"name": "Killarney Lake", "centroid": [46.05, -81.40]},
+        {"name": "Freeland Lake",  "centroid": [46.06, -81.30]},
+    ]
+    overrides = {"lakes": []}
+    named = assign_lake_names(jeffs_lakes, osm_lakes, overrides)
+    names = sorted(l.get("name", "?") for l in named)
+    # First two get OSM names; third is unnamed.
+    assert "Killarney Lake" in names
+    assert "Freeland Lake" in names
+    assert "?" in names  # third polygon unnamed
+
+
+def test_assign_lake_names_uses_overrides_for_unmatched():
+    jeffs_lakes = [
+        {"polygon": [[1, 1]], "centroid": [46.022, -81.510]},  # not in OSM
+    ]
+    osm_lakes = []
+    overrides = {"lakes": [
+        {"centroid_near": [46.020, -81.510], "name": "Baie Fine"},
+    ]}
+    named = assign_lake_names(jeffs_lakes, osm_lakes, overrides)
+    assert named[0]["name"] == "Baie Fine"
+
+
+def test_assign_lake_names_osm_wins_over_override_when_both_match():
+    """If OSM has a match within 500m, use it. Overrides are for unmatched only."""
+    jeffs_lakes = [
+        {"polygon": [[1, 1]], "centroid": [46.05, -81.40]},
+    ]
+    osm_lakes = [{"name": "Killarney Lake", "centroid": [46.05, -81.40]}]
+    overrides = {"lakes": [{"centroid_near": [46.05, -81.40], "name": "Wrong Override"}]}
+    named = assign_lake_names(jeffs_lakes, osm_lakes, overrides)
+    assert named[0]["name"] == "Killarney Lake"

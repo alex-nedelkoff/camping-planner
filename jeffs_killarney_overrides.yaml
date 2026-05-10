@@ -1,0 +1,12 @@
+# Manual overrides for the Jeff's Maps extractor.
+# Add entries for lakes/campsites where automatic detection or naming fails.
+
+lakes:
+  # Example: name a polygon Jeff has but OSM doesn't know.
+  # - centroid_near: [46.012, -81.540]
+  #   name: Baie Fine
+
+campsites:
+  # Example: force a ref when OCR fails on a particular icon.
+  # - centroid_near: [46.044, -81.503]
+  #   ref: '82'

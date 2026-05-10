@@ -220,6 +220,67 @@ def extract_lakes_from_mosaic(mosaic, mosaic_bounds: tuple, palette: dict) -> li
     return lakes
 
 
+import math
+
+
+def _haversine_km(a, b):
+    """Distance in km between (lat, lon) tuples or [lat, lon] lists."""
+    R = 6371.0
+    p1 = math.radians(a[0])
+    p2 = math.radians(b[0])
+    dp = math.radians(b[0] - a[0])
+    dl = math.radians(b[1] - a[1])
+    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return R * 2 * math.asin(math.sqrt(h))
+
+
+_NAME_MATCH_TOLERANCE_KM = 0.5
+_OVERRIDE_MATCH_TOLERANCE_KM = 0.5
+
+
+def assign_lake_names(jeffs_lakes: list, osm_lakes: list, overrides: dict) -> list:
+    """Tag each Jeff's polygon with a name using OSM auto-match + overrides.
+
+    Resolution order:
+      1. Closest OSM lake centroid within 0.5 km wins.
+      2. Override entry whose centroid_near is within 0.5 km wins.
+      3. Otherwise, polygon stays unnamed (no `name` key).
+
+    Returns the polygon list with `name` keys added where matched.
+    """
+    out = []
+    override_entries = (overrides or {}).get("lakes", []) or []
+
+    for poly in jeffs_lakes:
+        new_poly = dict(poly)
+        centroid = poly["centroid"]
+
+        # Try OSM auto-match first.
+        best_name = None
+        best_dist = _NAME_MATCH_TOLERANCE_KM
+        for osm in osm_lakes:
+            d = _haversine_km(centroid, osm["centroid"])
+            if d < best_dist:
+                best_dist = d
+                best_name = osm["name"]
+
+        # If no OSM match, try overrides.
+        if best_name is None:
+            for ov in override_entries:
+                near = ov.get("centroid_near")
+                if near is None or "name" not in ov:
+                    continue
+                if _haversine_km(centroid, near) <= _OVERRIDE_MATCH_TOLERANCE_KM:
+                    best_name = ov["name"]
+                    break
+
+        if best_name is not None:
+            new_poly["name"] = best_name
+        out.append(new_poly)
+
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(description="Extract vector data from Jeff's Maps KMZ")
     parser.add_argument("kmz", help="Path to KMZ file")
