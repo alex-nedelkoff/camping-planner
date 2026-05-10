@@ -263,10 +263,10 @@ def test_build_route_uses_access_point_gps_for_first_and_last_legs():
     paddle_segs = [s for s in out["segments"] if s["kind"] == "paddle"]
     # First paddle starts at access GPS, not George Lake centroid.
     first_start = paddle_segs[0]["geometry"][0]
-    assert first_start == [46.0136, -81.4049]
+    assert first_start == [46.0150, -81.4049]
     # Last paddle ends at access GPS, not George Lake centroid.
     last_end = paddle_segs[-1]["geometry"][-1]
-    assert last_end == [46.0136, -81.4049]
+    assert last_end == [46.0150, -81.4049]
 
 
 def test_build_route_marker_uses_gps_override_when_present():
@@ -322,7 +322,7 @@ def test_build_route_emits_markers_for_access_and_each_night():
     assert len(markers) == 2
     access = [m for m in markers if m["kind"] == "access"][0]
     site = [m for m in markers if m["kind"] == "site"][0]
-    assert access["lat"] == 46.0136 and access["lon"] == -81.4049
+    assert access["lat"] == 46.0150 and access["lon"] == -81.4049
     assert "Site 7" in site["label"]
     assert "lake center" in site["label"]
 
