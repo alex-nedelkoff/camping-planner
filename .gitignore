@@ -7,3 +7,4 @@ private/
 .pytest_cache/
 *.kmz
 templates/jeffs_*.png
+jeffs_review.html

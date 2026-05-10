@@ -1,11 +1,60 @@
-# HSV thresholds for Jeff's campsite icon color (typically red/orange).
-# Tune empirically against the actual KMZ on first run.
-hue:        [0, 15]
-saturation: [120, 255]
-value:      [120, 255]
+# HSV thresholds for Jeff's Maps campsite icons.
+#
+# OpenCV HSV ranges: H ∈ [0,180], S ∈ [0,255], V ∈ [0,255].
+#
+# Jeff's legend color-codes campsite triangles by access mode:
+#   - Paddling          → BLACK triangles
+#   - Backpacking/walk  → RED triangles
+#   - Drive-in          → TAN/BROWN triangles
+#   - Horsepacking      → GREEN triangles
+#
+# This file targets PADDLING (black) — the relevant mode for the
+# Killarney canoe trip. To extract a different access mode, swap the
+# active block below with one of the commented alternatives.
+#
+# Note on black: hue is meaningless for grayscale, so we threshold
+# on (low saturation + low value). The map has lots of other black
+# ink — text labels, contour lines, portage symbols, road outlines —
+# which will all pass the color filter. The blob area + aspect-ratio
+# filters in detect_icons_in_image() do the real work of isolating
+# triangles. If false positives are excessive after Task 11 review:
+#   1. Tighten min_area_px upward (icons are bigger than text strokes).
+#   2. Tighten aspect ratio (filled triangles are ~1.0–1.2 wide:tall).
+#   3. Consider the template-matching fallback mentioned in the spec
+#      (Stage C1) — drop a 24×24px icon crop into templates/jeffs_*.png.
 
-# Connected-component blob filter
-min_area_px: 50
-max_area_px: 2000
-min_aspect:  0.5    # min width/height ratio
-max_aspect:  2.0    # max width/height ratio
+# --- Paddling (BLACK) — active ---
+hue:        [0, 180]      # any hue; black has no meaningful hue
+saturation: [0, 80]       # near-grayscale
+value:      [0, 90]       # dark
+min_area_px: 80           # higher than red-icon default to reject text strokes
+max_area_px: 1200
+min_aspect:  0.7          # filled triangles are ~1.0 wide:tall
+max_aspect:  1.4
+
+# --- Backpacking/walk-in (RED) — swap in if needed ---
+# hue:        [0, 12]
+# saturation: [120, 255]
+# value:      [100, 255]
+# min_area_px: 50
+# max_area_px: 2000
+# min_aspect:  0.5
+# max_aspect:  2.0
+
+# --- Drive-in (TAN/BROWN) ---
+# hue:        [12, 25]
+# saturation: [60, 180]
+# value:      [120, 220]
+# min_area_px: 50
+# max_area_px: 2000
+# min_aspect:  0.5
+# max_aspect:  2.0
+
+# --- Horsepacking (GREEN) ---
+# hue:        [40, 80]
+# saturation: [80, 220]
+# value:      [80, 220]
+# min_area_px: 50
+# max_area_px: 2000
+# min_aspect:  0.5
+# max_aspect:  2.0

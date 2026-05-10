@@ -126,6 +126,8 @@ def _find_lake(name: str, lakes: list) -> Optional[dict]:
     """Look up a lake by name (normalized). Returns lake dict or None."""
     target = _norm_lake_name(name)
     for lake in lakes:
+        if "name" not in lake:
+            continue
         if _norm_lake_name(lake["name"]) == target:
             return lake
     return None
@@ -202,10 +204,12 @@ def _find_connecting_portage(lake_a: dict, lake_b: dict, portages: list) -> Opti
 
 def _build_lake_graph(lakes: list, portages: list) -> dict:
     """Build adjacency: {lake_name: [(neighbor_name, portage_dict, ends), ...]}."""
-    graph: dict = {l["name"]: [] for l in lakes}
+    graph: dict = {l["name"]: [] for l in lakes if "name" in l}
     for p in portages:
         ends = _classify_portage_endpoints(p, lakes)
         if ends[0] is None or ends[1] is None:
+            continue
+        if "name" not in ends[0] or "name" not in ends[1]:
             continue
         a_name = ends[0]["name"]
         b_name = ends[1]["name"]
@@ -426,7 +430,7 @@ def build_route(nights: list, access_point: str, osm: dict,
                         d_paddle, [current_pt, entry],
                     ))
                     # Portage.
-                    next_lake = next((l for l in lakes if l["name"] == next_name), None)
+                    next_lake = next((l for l in lakes if "name" in l and l["name"] == next_name), None)
                     segments.append(_segment(
                         day_label, "portage",
                         f"{current_lake['name']} portage",
