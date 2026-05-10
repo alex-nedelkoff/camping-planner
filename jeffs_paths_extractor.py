@@ -176,3 +176,165 @@ def _trace_skeleton_polylines(skel: np.ndarray, min_length_px: int = 30) -> list
             polylines.append(path)
 
     return polylines
+
+
+import yaml
+from PIL import Image
+
+# Reuse existing infrastructure.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from jeffs_extractor import walk_kmz, build_mosaic
+
+
+def _polyline_pixel_to_gps(polyline_px, mosaic_bounds, mosaic_shape):
+    """Project a list of (col, row) pixel coords through the mosaic transform."""
+    n, s, e, w = mosaic_bounds
+    h, mosaic_w = mosaic_shape[:2]
+    out = []
+    for col, row in polyline_px:
+        lon = w + (col / mosaic_w) * (e - w)
+        lat = n - (row / h) * (n - s)
+        out.append([lat, lon])
+    return out
+
+
+def _polyline_length_km(polyline_gps):
+    """Sum haversine distances along a GPS polyline."""
+    R = 6371.0
+    total = 0.0
+    for i in range(1, len(polyline_gps)):
+        a, b = polyline_gps[i - 1], polyline_gps[i]
+        import math
+        p1 = math.radians(a[0])
+        p2 = math.radians(b[0])
+        dp = math.radians(b[0] - a[0])
+        dl = math.radians(b[1] - a[1])
+        h = (math.sin(dp / 2) ** 2
+             + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2)
+        total += R * 2 * math.asin(math.sqrt(h))
+    return total
+
+
+def _extract_paths_from_mosaic(mosaic_bgr: np.ndarray, palette: dict) -> list:
+    """Run the full HSV → morphology → skeletonize → trace → simplify pipeline.
+    Returns list of (col, row) pixel polylines.
+    """
+    hsv = cv2.cvtColor(mosaic_bgr, cv2.COLOR_BGR2HSV)
+    low = np.array([palette["hue"][0], palette["saturation"][0], palette["value"][0]])
+    high = np.array([palette["hue"][1], palette["saturation"][1], palette["value"][1]])
+    mask = cv2.inRange(hsv, low, high)
+
+    open_px = int(palette.get("open_kernel_px", 0) or 0)
+    if open_px > 0:
+        mask = cv2.morphologyEx(
+            mask, cv2.MORPH_OPEN,
+            cv2.getStructuringElement(cv2.MORPH_RECT, (open_px, open_px)),
+        )
+    close_px = int(palette.get("close_kernel_px", 0) or 0)
+    if close_px > 0:
+        mask = cv2.morphologyEx(
+            mask, cv2.MORPH_CLOSE,
+            cv2.getStructuringElement(cv2.MORPH_RECT, (close_px, close_px)),
+        )
+
+    skel = _skeletonize(mask)
+    min_len = int(palette.get("min_length_px", 30))
+    polylines_px = _trace_skeleton_polylines(skel, min_length_px=min_len)
+    eps = float(palette.get("simplify_eps_px", 3))
+    simplified = []
+    for poly in polylines_px:
+        arr = np.array([[[p[0], p[1]]] for p in poly], dtype=np.int32)
+        approx = cv2.approxPolyDP(arr, eps, closed=False)
+        simplified.append([(int(pt[0][0]), int(pt[0][1])) for pt in approx])
+    return simplified
+
+
+def _write_review_html(out_path: Path, paths: list) -> None:
+    """Minimal review listing: counts + per-path centroid + length."""
+    rows = "".join(
+        f"<tr><td>{p['id']}</td><td>{p['length_km']:.2f}</td>"
+        f"<td>{p['points'][0][0]:.4f}, {p['points'][0][1]:.4f}</td>"
+        f"<td>{len(p['points'])}</td></tr>"
+        for p in paths
+    )
+    html = (
+        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+        "<title>Jeff's path extractor review</title>"
+        "<style>body{font-family:sans-serif;max-width:900px;margin:2rem auto;"
+        "padding:1rem}table{border-collapse:collapse;width:100%}"
+        "th,td{border-bottom:1px solid #ddd;padding:0.4rem 0.6rem;text-align:left}"
+        "th{background:#f0f4ee}</style></head><body>"
+        f"<h1>Yellow paths ({len(paths)})</h1>"
+        "<table><thead><tr><th>id</th><th>length_km</th>"
+        "<th>first GPS</th><th>vertices</th></tr></thead>"
+        f"<tbody>{rows}</tbody></table></body></html>"
+    )
+    out_path.write_text(html)
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("kmz", help="Path to Jeff's KMZ")
+    parser.add_argument("--bbox", required=True,
+                        help="south,west,north,east")
+    parser.add_argument("--paths-palette", required=True)
+    parser.add_argument("--out", required=True)
+    parser.add_argument("--zoom", type=int, default=7)
+    parser.add_argument("--review-html")
+    args = parser.parse_args(argv)
+
+    bbox = tuple(float(x) for x in args.bbox.split(","))
+    if len(bbox) != 4:
+        print("--bbox needs 4 comma-separated values", file=sys.stderr)
+        return 2
+
+    palette = yaml.safe_load(Path(args.paths_palette).read_text()) or {}
+
+    import shutil
+    import tempfile
+    extract_dir = Path(tempfile.mkdtemp(prefix="jeffs_paths_"))
+    try:
+        tiles = list(walk_kmz(Path(args.kmz), bbox=bbox,
+                              zoom_level=args.zoom, extract_dir=extract_dir))
+        if not tiles:
+            print(f"No tiles in bbox {bbox} at zoom {args.zoom}",
+                  file=sys.stderr)
+            return 3
+        print(f"  walking KMZ at zoom {args.zoom}: {len(tiles)} tiles",
+              file=sys.stderr)
+        mosaic, mosaic_bounds = build_mosaic(tiles)
+        polylines_px = _extract_paths_from_mosaic(mosaic, palette)
+    finally:
+        shutil.rmtree(extract_dir, ignore_errors=True)
+
+    paths = []
+    for i, poly_px in enumerate(polylines_px):
+        gps = _polyline_pixel_to_gps(poly_px, mosaic_bounds, mosaic.shape)
+        paths.append({
+            "id": i,
+            "points": gps,
+            "length_km": round(_polyline_length_km(gps), 3),
+        })
+
+    out_data = {
+        "paths": paths,
+        "_meta": {
+            "source_kmz": Path(args.kmz).name,
+            "extracted_at": datetime.now(timezone.utc).isoformat(),
+            "zoom": args.zoom,
+            "bbox": list(bbox),
+            "count": len(paths),
+        },
+    }
+    Path(args.out).write_text(json.dumps(out_data, indent=2))
+    print(f"Wrote {args.out} with {len(paths)} polylines", file=sys.stderr)
+
+    if args.review_html:
+        _write_review_html(Path(args.review_html), paths)
+        print(f"Wrote {args.review_html}", file=sys.stderr)
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
