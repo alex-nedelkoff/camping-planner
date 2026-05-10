@@ -305,3 +305,51 @@ def test_aggregate_campsites_applies_override_for_failed_ocr():
     ]}
     out = aggregate_campsites(icons, lakes=[], overrides=overrides)
     assert out[0]["ref"] == "82"
+
+
+import json as _json
+
+from jeffs_extractor import main as extractor_main
+
+
+def test_extractor_main_writes_cache_with_lake_polygon(tmp_path, monkeypatch):
+    """End-to-end: tiny synthetic KMZ with a blue blob → cache JSON with one lake."""
+    kmz = tmp_path / "synthetic.kmz"
+    write_synthetic_kmz(kmz, level=6, tiles=[
+        {"filename": "a.png",
+         "bounds": (46.0, 45.0, -81.0, -82.0),
+         "image": _solid_blue_tile_bytes(200, 200)},
+    ])
+    overrides_yaml = tmp_path / "overrides.yaml"
+    overrides_yaml.write_text("lakes: []\ncampsites: []\n")
+    lakes_palette_yaml = tmp_path / "lakes_palette.yaml"
+    lakes_palette_yaml.write_text(
+        "hue: [90, 130]\nsaturation: [80, 255]\nvalue: [80, 255]\n"
+        "min_area_px: 100\n"
+    )
+    campsites_palette_yaml = tmp_path / "campsites_palette.yaml"
+    campsites_palette_yaml.write_text(
+        "hue: [0, 15]\nsaturation: [120, 255]\nvalue: [120, 255]\n"
+        "min_area_px: 50\nmax_area_px: 2000\n"
+        "min_aspect: 0.5\nmax_aspect: 2.0\n"
+    )
+    out_json = tmp_path / "out.json"
+
+    rc = extractor_main([
+        str(kmz),
+        "--bbox", "45.0,-82.0,46.0,-81.0",
+        "--overrides", str(overrides_yaml),
+        "--lakes-palette", str(lakes_palette_yaml),
+        "--campsites-palette", str(campsites_palette_yaml),
+        "--out", str(out_json),
+        "--zoom-lakes", "6",
+        "--lakes-only",  # synthetic KMZ has no campsite icons; skip stage C
+    ])
+    assert rc == 0
+    data = _json.loads(out_json.read_text())
+    assert "lakes" in data
+    assert len(data["lakes"]) == 1
+    # The blue blob centroid should be near the tile's center (45.5, -81.5).
+    cx, cy = data["lakes"][0]["centroid"]
+    assert 45.4 < cx < 45.6
+    assert -81.6 < cy < -81.4

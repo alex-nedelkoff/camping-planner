@@ -436,23 +436,189 @@ def aggregate_campsites(icons: list, lakes: list, overrides: dict) -> list:
     return out
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Extract vector data from Jeff's Maps KMZ")
-    parser.add_argument("kmz", help="Path to KMZ file")
+import json
+from datetime import datetime, timezone
+
+import yaml
+
+
+def _load_yaml(path: Path) -> dict:
+    if path is None:
+        return {}
+    p = Path(path)
+    if not p.exists():
+        return {}
+    return yaml.safe_load(p.read_text()) or {}
+
+
+def _load_osm_lakes_for_naming() -> list:
+    """Load OSM cache for naming Jeff's polygons (best-effort)."""
+    repo_root = Path(__file__).parent
+    osm_path = repo_root / "osm_killarney_cache.json"
+    if not osm_path.exists():
+        return []
+    osm = json.loads(osm_path.read_text())
+    return list(osm.get("lakes", []))
+
+
+def _extract_lakes_pipeline(kmz_path: Path, bbox: tuple, zoom: int,
+                            lakes_palette: dict, overrides: dict) -> list:
+    """Full lake extraction: walk KMZ → mosaic → segment → name."""
+    import shutil
+    extract_dir = Path(tempfile.mkdtemp(prefix="jeffs_lakes_"))
+    try:
+        tiles = list(walk_kmz(kmz_path, bbox=bbox, zoom_level=zoom,
+                              extract_dir=extract_dir))
+        if not tiles:
+            return []
+        mosaic, mosaic_bounds = build_mosaic(tiles)
+        raw = extract_lakes_from_mosaic(mosaic, mosaic_bounds, lakes_palette)
+    finally:
+        shutil.rmtree(extract_dir, ignore_errors=True)
+    osm_lakes = _load_osm_lakes_for_naming()
+    named = assign_lake_names(raw, osm_lakes, overrides)
+    # Warn about polygons that didn't resolve to a name (keep them in output).
+    out = []
+    for poly in named:
+        if "name" not in poly:
+            print(
+                f"  Unnamed polygon at {poly['centroid']} "
+                f"({len(poly['polygon'])} vertices) — add to overrides.lakes",
+                file=sys.stderr,
+            )
+        out.append(poly)
+    return out
+
+
+def _extract_campsites_pipeline(kmz_path: Path, bbox: tuple, zoom: int,
+                                campsites_palette: dict, lakes: list,
+                                overrides: dict) -> list:
+    """Full campsite extraction: walk KMZ → per-tile detect+OCR → aggregate."""
+    raw_icons: list = []
+    for tile in walk_kmz(kmz_path, bbox=bbox, zoom_level=zoom):
+        image = np.array(_PIL_Image.open(tile.image_path).convert("RGB"))
+        image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        h, w = image_bgr.shape[:2]
+        icons = detect_icons_in_image(image_bgr, campsites_palette)
+        for icon in icons:
+            cx, cy = icon["pixel_center"]
+            lat, lon = tile_pixel_to_gps(tile, cx, cy, img_w=w, img_h=h)
+            # OCR on the bbox region.
+            x, y, bw, bh = icon["bbox"]
+            x0 = max(0, x - 30)
+            y0 = max(0, y - 30)
+            x1 = min(w, x + bw + 30)
+            y1 = min(h, y + bh + 30)
+            crop = image_bgr[y0:y1, x0:x1]
+            ref = ocr_icon_number(crop) if crop.size else None
+            raw_icons.append({"gps": [lat, lon], "ref": ref})
+    return aggregate_campsites(raw_icons, lakes, overrides)
+
+
+def _write_review_html(out_path: Path, lakes: list, campsites: list) -> None:
+    """Minimal review page: lists what was extracted with counts and centroids."""
+    rows_lakes = "".join(
+        f"<tr><td>{l.get('name', '<i>(unnamed)</i>')}</td>"
+        f"<td>{l['centroid'][0]:.4f}, {l['centroid'][1]:.4f}</td>"
+        f"<td>{len(l['polygon'])}</td></tr>"
+        for l in lakes
+    )
+    rows_sites = "".join(
+        f"<tr><td>{c.get('ref') or '<i>?</i>'}</td>"
+        f"<td>{c.get('lake') or '<i>(unassigned)</i>'}</td>"
+        f"<td>{c['gps'][0]:.4f}, {c['gps'][1]:.4f}</td></tr>"
+        for c in campsites
+    )
+    html = (
+        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+        "<title>Jeff's extractor review</title>"
+        "<style>body{font-family:sans-serif;max-width:900px;margin:2rem auto;padding:1rem}"
+        "table{border-collapse:collapse;width:100%;margin:1rem 0}"
+        "th,td{border-bottom:1px solid #ddd;padding:0.4rem 0.6rem;text-align:left}"
+        "th{background:#f0f4ee}"
+        "</style></head><body>"
+        f"<h1>Jeff's extractor — review</h1>"
+        f"<h2>Lakes ({len(lakes)})</h2>"
+        "<table><thead><tr><th>Name</th><th>Centroid</th><th>Vertices</th>"
+        f"</tr></thead><tbody>{rows_lakes}</tbody></table>"
+        f"<h2>Campsites ({len(campsites)})</h2>"
+        "<table><thead><tr><th>Ref</th><th>Lake</th><th>GPS</th>"
+        f"</tr></thead><tbody>{rows_sites}</tbody></table>"
+        "</body></html>"
+    )
+    out_path.write_text(html)
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("kmz", help="Path to Jeff's KMZ")
     parser.add_argument("--bbox", required=True,
-                        help="Bounding box: south,west,north,east")
-    parser.add_argument("--out", default="jeffs_killarney_cache.json",
-                        help="Output JSON file")
-    parser.add_argument("--zoom", type=int, default=6,
-                        help="Zoom level directory to use (default: 6)")
-    args = parser.parse_args()
+                        help="Target bbox as 'south,west,north,east'")
+    parser.add_argument("--overrides", help="overrides YAML path")
+    parser.add_argument("--lakes-palette", required=True)
+    parser.add_argument("--campsites-palette", required=True)
+    parser.add_argument("--out", required=True, help="output JSON path")
+    parser.add_argument("--review-html", help="optional review HTML output path")
+    parser.add_argument("--zoom-lakes", type=int, default=6)
+    parser.add_argument("--zoom-campsites", type=int, default=7)
+    parser.add_argument("--lakes-only", action="store_true")
+    parser.add_argument("--campsites-only", action="store_true")
+    args = parser.parse_args(argv)
 
-    south, west, north, east = map(float, args.bbox.split(","))
-    bbox = (south, west, north, east)
+    bbox = tuple(float(x) for x in args.bbox.split(","))
+    if len(bbox) != 4:
+        print("--bbox must have 4 comma-separated values", file=sys.stderr)
+        return 2
 
-    tiles = list(walk_kmz(Path(args.kmz), bbox=bbox, zoom_level=args.zoom))
-    print(f"Found {len(tiles)} tiles in bbox at zoom level {args.zoom}")
+    overrides = _load_yaml(Path(args.overrides)) if args.overrides else {}
+    lakes_palette = _load_yaml(Path(args.lakes_palette))
+    campsites_palette = _load_yaml(Path(args.campsites_palette))
+    kmz_path = Path(args.kmz)
+
+    lakes: list = []
+    campsites: list = []
+
+    if not args.campsites_only:
+        print(f"Extracting lakes at zoom {args.zoom_lakes}...", file=sys.stderr)
+        lakes = _extract_lakes_pipeline(
+            kmz_path, bbox, args.zoom_lakes, lakes_palette, overrides,
+        )
+        print(f"  {len(lakes)} lakes extracted", file=sys.stderr)
+
+    if not args.lakes_only:
+        print(f"Extracting campsites at zoom {args.zoom_campsites}...", file=sys.stderr)
+        campsites = _extract_campsites_pipeline(
+            kmz_path, bbox, args.zoom_campsites, campsites_palette,
+            lakes, overrides,
+        )
+        ocr_failed = sum(1 for c in campsites if c.get("ref") is None)
+        print(f"  {len(campsites)} campsites ({ocr_failed} OCR failed)",
+              file=sys.stderr)
+
+    out = {
+        "lakes": lakes,
+        "campsites": campsites,
+        "_meta": {
+            "source_kmz": kmz_path.name,
+            "extracted_at": datetime.now(timezone.utc).isoformat(),
+            "bbox": list(bbox),
+            "lakes_zoom": args.zoom_lakes,
+            "campsites_zoom": args.zoom_campsites,
+            "lakes_count": len(lakes),
+            "campsites_count": len(campsites),
+            "campsites_ocr_failed": sum(1 for c in campsites
+                                        if c.get("ref") is None),
+        },
+    }
+    Path(args.out).write_text(json.dumps(out, indent=2))
+    print(f"Wrote {args.out}", file=sys.stderr)
+
+    if args.review_html:
+        _write_review_html(Path(args.review_html), lakes, campsites)
+        print(f"Wrote {args.review_html}", file=sys.stderr)
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
