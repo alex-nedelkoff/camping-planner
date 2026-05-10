@@ -167,9 +167,7 @@ def _polygons_overlapping_corridor(start: list, end: list, lakes: list,
 # Cap polygon vertex count for visibility graph computation. Jeff's
 # extracted polygons typically have 80-180 vertices; the visibility graph
 # is O(V²) over polygon vertices and each edge does an O(V) line-inside
-# test, so working on the raw polygons explodes to minutes per trip.
-# Decimating to ≤ this many vertices keeps the geometry good enough for
-# routing-around-peninsulas while making the algorithm sub-second.
+# test. 25 vertices keeps the algorithm sub-second.
 _PADDLE_MAX_POLYGON_VERTICES = 25
 
 
