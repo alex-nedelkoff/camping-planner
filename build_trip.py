@@ -40,11 +40,21 @@ _PAGE_CSS = """
 * { box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
        max-width: 900px; margin: 0 auto; padding: 1.5rem; color: #222;
-       line-height: 1.55; background: #fafafa; }
+       line-height: 1.55; background: #f0eee6; }
 h1, h2, h3 { color: #1f3a3a; }
 h1 { border-bottom: 3px solid #2d5016; padding-bottom: 0.3rem; }
-section { background: white; padding: 1.25rem 1.5rem; margin: 1rem 0;
-          border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+section { background: white; padding: 0; margin: 1.5rem 0;
+          border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+          overflow: hidden; border: 1px solid #d8d4c5; }
+.section-header { background: linear-gradient(90deg, #2d5016 0%, #3a6420 100%);
+                  color: white; padding: 0.85rem 1.5rem; display: flex;
+                  justify-content: space-between; align-items: center; gap: 1rem;
+                  border-bottom: 4px solid #1f3a3a; }
+.section-header h2 { color: white; margin: 0; font-size: 1.4rem;
+                     border-bottom: none; font-weight: 700;
+                     letter-spacing: 0.02em; }
+.section-body { padding: 1.25rem 1.5rem; }
+.section-body > h2:first-child { display: none; }
 table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
 th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; }
 th { background: #f0f4ee; }
@@ -65,6 +75,22 @@ input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
                      padding: 0.5rem 0.75rem; }
 .trip-header th { background: rgba(0,0,0,0.28); font-weight: 600; }
 .trip-header tr:last-child td { border-bottom: none; }
+.section-actions { display: flex; gap: 0.4rem; align-items: center; }
+.section-btn { padding: 0.3rem 0.75rem; background: rgba(255,255,255,0.18);
+               color: white; border: 1px solid rgba(255,255,255,0.35);
+               border-radius: 5px; cursor: pointer;
+               font-size: 0.85rem; font-family: inherit; }
+.section-btn:hover { background: rgba(255,255,255,0.3); }
+.section-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.section-status { font-size: 0.85rem; color: rgba(255,255,255,0.85);
+                  margin-left: 0.25rem; }
+.section-status.error { color: #ffd0d0; }
+.section-editor { display: flex; flex-direction: column; gap: 0.6rem; }
+.section-editor textarea { width: 100%; min-height: 14rem;
+                           padding: 0.75rem; border: 1px solid #ccc;
+                           border-radius: 6px; font-family: 'SF Mono',
+                           Menlo, Consolas, monospace; font-size: 0.9rem;
+                           line-height: 1.5; resize: vertical; }
 .gear-edit-toolbar { margin-top: 0.6rem; display: flex; gap: 0.5rem;
                      align-items: center; flex-wrap: wrap; }
 .gear-btn { padding: 0.35rem 0.85rem; background: #2d5016; color: white;
@@ -82,7 +108,10 @@ input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
 .gear-status { font-size: 0.9rem; color: #555; margin-left: 0.25rem; }
 .gear-status.error { color: #c00; }
 @media print { body { background: white; } section { box-shadow: none; }
-               .gear-edit-toolbar { display: none; } }
+               .gear-edit-toolbar, .section-actions { display: none; }
+               .section-header { background: white; color: #1f3a3a;
+                                 border-bottom: 2px solid #2d5016; }
+               .section-header h2 { color: #1f3a3a; } }
 """
 
 _PAGE_JS = r"""
@@ -182,148 +211,266 @@ _PAGE_JS = r"""
   loadUser();
 })();
 
+// --- In-place table row editor (gear, costs, ...) ---
 (function() {
-  var section = document.getElementById('gear');
-  if (!section) return;
-  var table = section.querySelector('table');
-  if (!table) return;
-  var tbody = table.querySelector('tbody');
-  if (!tbody) return;
-
   var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
   var tripSlug = slugMatch ? slugMatch[1] : null;
 
-  var ncols = 0;
-  var firstRow = tbody.querySelector('tr');
-  if (firstRow) ncols = firstRow.cells.length;
-  if (!ncols) {
-    var theadRow = table.querySelector('thead tr');
-    if (theadRow) ncols = theadRow.cells.length;
-  }
-  if (!ncols) return;
-
-  var toolbar = document.createElement('div');
-  toolbar.className = 'gear-edit-toolbar';
-  toolbar.innerHTML =
-    '<button class="gear-btn" id="gear-edit-btn">Edit gear</button>' +
-    '<button class="gear-btn" id="gear-add-btn" hidden>+ Add row</button>' +
-    '<button class="gear-btn" id="gear-save-btn" hidden>Save</button>' +
-    '<button class="gear-btn secondary" id="gear-cancel-btn" hidden>Cancel</button>' +
-    '<span class="gear-status" id="gear-status"></span>';
-  table.after(toolbar);
-
-  var editBtn = toolbar.querySelector('#gear-edit-btn');
-  var addBtn = toolbar.querySelector('#gear-add-btn');
-  var saveBtn = toolbar.querySelector('#gear-save-btn');
-  var cancelBtn = toolbar.querySelector('#gear-cancel-btn');
-  var status = toolbar.querySelector('#gear-status');
-
-  var snapshot = null;
-
-  function addDeleteButtons() {
-    Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
-      if (tr.querySelector('.row-del')) return;
-      var lastCell = tr.cells[tr.cells.length - 1];
-      if (!lastCell) return;
-      var btn = document.createElement('button');
-      btn.className = 'row-del';
-      btn.textContent = '×';
-      btn.title = 'Delete row';
-      btn.hidden = true;
-      btn.contentEditable = 'false';
-      btn.addEventListener('click', function() { tr.remove(); });
-      lastCell.appendChild(btn);
+  Array.from(document.querySelectorAll('button[data-edit][data-edit-mode=table]'))
+    .forEach(function(headerBtn) {
+      var sectionId = headerBtn.dataset.edit;
+      attachTableEditor(sectionId, headerBtn);
     });
-  }
 
-  function setEditing(on) {
-    table.classList.toggle('editing', on);
-    Array.from(tbody.querySelectorAll('td')).forEach(function(td) {
-      td.contentEditable = on ? 'true' : 'false';
-    });
-    Array.from(tbody.querySelectorAll('.row-del')).forEach(function(b) {
-      b.hidden = !on;
-    });
-    editBtn.hidden = on;
-    addBtn.hidden = !on;
-    saveBtn.hidden = !on;
-    cancelBtn.hidden = !on;
-  }
+  function attachTableEditor(sectionId, headerBtn) {
+    var section = document.getElementById(sectionId);
+    if (!section) return;
+    var table = section.querySelector('table');
+    if (!table) return;
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+    var status = section.querySelector('[data-status="' + sectionId + '"]');
 
-  function rowsAsArray() {
-    return Array.from(tbody.querySelectorAll('tr')).map(function(tr) {
-      return Array.from(tr.cells).map(function(td) {
-        var clone = td.cloneNode(true);
-        var del = clone.querySelector('.row-del');
-        if (del) del.remove();
-        return clone.textContent.replace(/\s+/g, ' ').trim();
+    var ncols = 0;
+    var firstRow = tbody.querySelector('tr');
+    if (firstRow) ncols = firstRow.cells.length;
+    if (!ncols) {
+      var theadRow = table.querySelector('thead tr');
+      if (theadRow) ncols = theadRow.cells.length;
+    }
+    if (!ncols) return;
+
+    // Toolbar lives below the table; section-header Edit toggles into edit mode.
+    var toolbar = document.createElement('div');
+    toolbar.className = 'gear-edit-toolbar';
+    toolbar.innerHTML =
+      '<button class="gear-btn" data-act="add" hidden>+ Add row</button>' +
+      '<button class="gear-btn" data-act="save" hidden>Save</button>' +
+      '<button class="gear-btn secondary" data-act="cancel" hidden>Cancel</button>';
+    table.after(toolbar);
+
+    var addBtn = toolbar.querySelector('[data-act=add]');
+    var saveBtn = toolbar.querySelector('[data-act=save]');
+    var cancelBtn = toolbar.querySelector('[data-act=cancel]');
+
+    var snapshot = null;
+
+    function setStatus(text, isError) {
+      if (!status) return;
+      status.textContent = text || '';
+      status.className = 'section-status' + (isError ? ' error' : '');
+    }
+
+    function addDeleteButtons() {
+      Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
+        if (tr.querySelector('.row-del')) return;
+        var lastCell = tr.cells[tr.cells.length - 1];
+        if (!lastCell) return;
+        var btn = document.createElement('button');
+        btn.className = 'row-del';
+        btn.textContent = '×';
+        btn.title = 'Delete row';
+        btn.hidden = true;
+        btn.contentEditable = 'false';
+        btn.addEventListener('click', function() { tr.remove(); });
+        lastCell.appendChild(btn);
       });
+    }
+
+    function setEditing(on) {
+      table.classList.toggle('editing', on);
+      Array.from(tbody.querySelectorAll('td')).forEach(function(td) {
+        td.contentEditable = on ? 'true' : 'false';
+      });
+      Array.from(tbody.querySelectorAll('.row-del')).forEach(function(b) {
+        b.hidden = !on;
+      });
+      headerBtn.hidden = on;
+      addBtn.hidden = !on;
+      saveBtn.hidden = !on;
+      cancelBtn.hidden = !on;
+    }
+
+    function rowsAsArray() {
+      return Array.from(tbody.querySelectorAll('tr')).map(function(tr) {
+        return Array.from(tr.cells).map(function(td) {
+          var clone = td.cloneNode(true);
+          var del = clone.querySelector('.row-del');
+          if (del) del.remove();
+          return clone.textContent.replace(/\s+/g, ' ').trim();
+        });
+      });
+    }
+
+    addDeleteButtons();
+
+    headerBtn.addEventListener('click', function() {
+      snapshot = tbody.innerHTML;
+      setEditing(true);
+      setStatus('', false);
     });
-  }
 
-  addDeleteButtons();
+    cancelBtn.addEventListener('click', function() {
+      if (snapshot != null) tbody.innerHTML = snapshot;
+      addDeleteButtons();
+      setEditing(false);
+      setStatus('', false);
+    });
 
-  editBtn.addEventListener('click', function() {
-    snapshot = tbody.innerHTML;
-    setEditing(true);
-    status.textContent = '';
-    status.className = 'gear-status';
-  });
+    addBtn.addEventListener('click', function() {
+      var tr = document.createElement('tr');
+      for (var i = 0; i < ncols; i++) {
+        var td = document.createElement('td');
+        td.contentEditable = 'true';
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+      addDeleteButtons();
+      Array.from(tr.querySelectorAll('.row-del')).forEach(function(b) { b.hidden = false; });
+      tr.cells[0].focus();
+    });
 
-  cancelBtn.addEventListener('click', function() {
-    if (snapshot != null) tbody.innerHTML = snapshot;
-    addDeleteButtons();
-    setEditing(false);
-    status.textContent = '';
-  });
-
-  addBtn.addEventListener('click', function() {
-    var tr = document.createElement('tr');
-    for (var i = 0; i < ncols; i++) {
-      var td = document.createElement('td');
-      td.contentEditable = 'true';
-      tr.appendChild(td);
-    }
-    tbody.appendChild(tr);
-    addDeleteButtons();
-    Array.from(tr.querySelectorAll('.row-del')).forEach(function(b) { b.hidden = false; });
-    tr.cells[0].focus();
-  });
-
-  saveBtn.addEventListener('click', async function() {
-    if (!tripSlug) {
-      status.textContent = 'Cannot detect trip slug from URL';
-      status.className = 'gear-status error';
-      return;
-    }
-    var rows = rowsAsArray();
-    saveBtn.disabled = true;
-    cancelBtn.disabled = true;
-    status.textContent = 'Saving…';
-    status.className = 'gear-status';
-    try {
-      var r = await fetch('/api/save-gear?trip=' + encodeURIComponent(tripSlug), {
+    saveBtn.addEventListener('click', function() {
+      if (!tripSlug) {
+        setStatus('Cannot detect trip slug from URL', true);
+        return;
+      }
+      var rows = rowsAsArray();
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      setStatus('Saving…', false);
+      var url = '/api/save-section-table?trip=' + encodeURIComponent(tripSlug)
+              + '&section=' + encodeURIComponent(sectionId);
+      fetch(url, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({rows: rows})
-      });
-      var j = await r.json();
-      if (j.ok) {
-        status.textContent = 'Saved ✓ — reloading…';
-        setTimeout(function() { location.reload(); }, 600);
-      } else {
-        status.textContent = 'Error: ' + (j.error || 'unknown');
-        status.className = 'gear-status error';
-        saveBtn.disabled = false;
-        cancelBtn.disabled = false;
-      }
-    } catch (e) {
-      status.textContent = 'Error: ' + e.message + ' (is launch.py running?)';
-      status.className = 'gear-status error';
-      saveBtn.disabled = false;
-      cancelBtn.disabled = false;
-    }
+      })
+        .then(function(r) { return r.json().then(function(j) { return {ok: r.ok, j: j}; }); })
+        .then(function(res) {
+          if (!res.ok || !res.j.ok) {
+            var err = (res.j && res.j.detail && res.j.detail.error) || 'save failed';
+            setStatus('Error: ' + err, true);
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
+            return;
+          }
+          setStatus('Saved ✓ — reloading…', false);
+          setTimeout(function() { location.reload(); }, 500);
+        })
+        .catch(function(e) {
+          setStatus('Error: ' + e.message, true);
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+        });
+    });
+  }
+})();
+
+// --- Generic per-section markdown editor ---
+(function() {
+  var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
+  var tripSlug = slugMatch ? slugMatch[1] : null;
+  if (!tripSlug) return;
+
+  Array.from(document.querySelectorAll('button[data-edit]')).forEach(function(btn) {
+    if (btn.dataset.editMode === 'table') return;  // handled by table-editor IIFE
+    var section = btn.dataset.edit;
+    btn.addEventListener('click', function() { openEditor(section, btn); });
   });
+
+  function statusEl(section) {
+    return document.querySelector('[data-status="' + section + '"]');
+  }
+  function bodyEl(section) {
+    return document.querySelector('[data-section-body="' + section + '"]');
+  }
+  function setStatus(section, text, isError) {
+    var el = statusEl(section);
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'section-status' + (isError ? ' error' : '');
+  }
+
+  function openEditor(section, btn) {
+    var body = bodyEl(section);
+    if (!body) return;
+    btn.disabled = true;
+    setStatus(section, 'Loading…', false);
+    fetch('/api/section?trip=' + encodeURIComponent(tripSlug)
+          + '&section=' + encodeURIComponent(section))
+      .then(function(r) { return r.json().then(function(j) { return {ok: r.ok, j: j}; }); })
+      .then(function(res) {
+        if (!res.ok || !res.j.ok) {
+          var err = (res.j && res.j.detail && res.j.detail.error) || 'load failed';
+          setStatus(section, 'Error: ' + err, true);
+          btn.disabled = false;
+          return;
+        }
+        renderEditor(section, body, btn, res.j.markdown || '');
+      })
+      .catch(function(e) {
+        setStatus(section, 'Error: ' + e.message, true);
+        btn.disabled = false;
+      });
+  }
+
+  function renderEditor(section, body, editBtn, markdown) {
+    var snapshot = body.innerHTML;
+    var wrap = document.createElement('div');
+    wrap.className = 'section-editor';
+    var ta = document.createElement('textarea');
+    ta.value = markdown;
+    ta.spellcheck = false;
+    var actions = document.createElement('div');
+    actions.className = 'gear-edit-toolbar';
+    actions.innerHTML =
+      '<button class="gear-btn" data-act="save">Save</button>' +
+      '<button class="gear-btn secondary" data-act="cancel">Cancel</button>';
+    wrap.appendChild(ta);
+    wrap.appendChild(actions);
+    body.innerHTML = '';
+    body.appendChild(wrap);
+    setStatus(section, '', false);
+
+    var saveBtn = actions.querySelector('[data-act=save]');
+    var cancelBtn = actions.querySelector('[data-act=cancel]');
+
+    cancelBtn.addEventListener('click', function() {
+      body.innerHTML = snapshot;
+      editBtn.disabled = false;
+      setStatus(section, '', false);
+    });
+
+    saveBtn.addEventListener('click', function() {
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      setStatus(section, 'Saving…', false);
+      fetch('/api/save-section?trip=' + encodeURIComponent(tripSlug)
+            + '&section=' + encodeURIComponent(section), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({markdown: ta.value})
+      })
+        .then(function(r) { return r.json().then(function(j) { return {ok: r.ok, j: j}; }); })
+        .then(function(res) {
+          if (!res.ok || !res.j.ok) {
+            var err = (res.j && res.j.detail && res.j.detail.error) || 'save failed';
+            setStatus(section, 'Error: ' + err, true);
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
+            return;
+          }
+          setStatus(section, 'Saved ✓ — reloading…', false);
+          setTimeout(function() { location.reload(); }, 500);
+        })
+        .catch(function(e) {
+          setStatus(section, 'Error: ' + e.message, true);
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+        });
+    });
+  }
 })();
 """
 
@@ -461,7 +608,7 @@ def render_weather_section(park_slug: str, start_date: str, end_date: str) -> st
         park_key=park_slug, start_date=start_date, end_date=end_date,
     )
     if data["source"] == "unavailable" or not data["days"]:
-        return '<section id="weather"><h2>Weather</h2><p>Weather data unavailable.</p></section>'
+        return "<p>Weather data unavailable.</p>"
 
     label = "Forecast" if data["source"] == "forecast" else "Historical averages"
     rows = []
@@ -479,11 +626,10 @@ def render_weather_section(park_slug: str, start_date: str, end_date: str) -> st
         )
 
     return (
-        '<section id="weather"><h2>Weather</h2>'
         f"<p><em>{label}</em></p>"
         '<table><thead><tr><th>Date</th><th>Conditions</th>'
         '<th>High / Low</th><th>Precip</th></tr></thead>'
-        f"<tbody>{''.join(rows)}</tbody></table></section>"
+        f"<tbody>{''.join(rows)}</tbody></table>"
     )
 
 
@@ -618,16 +764,55 @@ def _render_auto_route(route: dict) -> str:
     )
 
     return (
-        f'<section id="route"><h2>Route</h2>'
         f"{warnings_html}"
         f"{map_html}"
         f"{table_html}"
-        f"</section>"
     )
 
 # ---------------------------------------------------------------------------
 # Top-level orchestration
 # ---------------------------------------------------------------------------
+
+EDITABLE_SECTIONS = ("intro", "itinerary", "gear", "food", "packing", "costs")
+# Sections whose Edit button opens the in-place table editor instead of the
+# generic markdown textarea. Must match TABLE_SECTIONS in app/services/trips.py.
+TABLE_EDIT_SECTIONS = ("gear", "costs")
+
+
+def _wrap_section(
+    section_id: str, title: str, body_html: str, edit_mode: str | None,
+) -> str:
+    """Emit a section with a header bar (title + optional Edit button) + body.
+
+    edit_mode:
+      None      — read-only (route, weather)
+      'markdown' — header Edit button opens the markdown textarea editor
+      'table'   — header Edit button opens the in-place table row editor
+    """
+    if edit_mode in ("markdown", "table"):
+        actions = (
+            '<div class="section-actions">'
+            f'<button class="section-btn" data-edit="{section_id}" '
+            f'data-edit-mode="{edit_mode}">Edit</button>'
+            f'<span class="section-status" data-status="{section_id}"></span>'
+            '</div>'
+        )
+    else:
+        actions = ""
+    return (
+        f'<section id="{section_id}">'
+        '<div class="section-header">'
+        f'<h2>{title}</h2>'
+        f'{actions}'
+        '</div>'
+        f'<div class="section-body" data-section-body="{section_id}">{body_html}</div>'
+        '</section>'
+    )
+
+
+def _edit_mode(section_id: str) -> str:
+    return "table" if section_id in TABLE_EDIT_SECTIONS else "markdown"
+
 
 def build_html(trip_dir) -> str:
     """Build the full self-contained HTML page for a trip directory."""
@@ -635,34 +820,42 @@ def build_html(trip_dir) -> str:
     fm = trip["frontmatter"]
 
     sections_html = []
-    if trip["intro"]:
-        sections_html.append(
-            f'<section id="intro">{render_section(trip["intro"], "intro")}</section>'
-        )
-    sections_html.append(
-        f'<section id="itinerary"><h2>Itinerary</h2>'
-        f'{render_section(trip["itinerary"], "itinerary")}</section>'
-    )
-    sections_html.append(render_route_section(trip))
-    sections_html.append(render_weather_section(
-        fm.get("park", ""), fm.get("start_date", ""), fm.get("end_date", ""),
+    sections_html.append(_wrap_section(
+        "intro", "Overview",
+        render_section(trip["intro"], "intro") if trip["intro"] else "",
+        edit_mode=_edit_mode("intro"),
     ))
-    sections_html.append(
-        f'<section id="gear"><h2>Gear</h2>'
-        f'{render_section(trip["gear"], "gear")}</section>'
+    sections_html.append(_wrap_section(
+        "itinerary", "Itinerary",
+        render_section(trip["itinerary"], "itinerary"),
+        edit_mode=_edit_mode("itinerary"),
+    ))
+    route_html = render_route_section(trip)
+    if route_html:
+        sections_html.append(_wrap_section("route", "Route", route_html, edit_mode=None))
+    weather_html = render_weather_section(
+        fm.get("park", ""), fm.get("start_date", ""), fm.get("end_date", ""),
     )
-    sections_html.append(
-        f'<section id="food"><h2>Food</h2>'
-        f'{render_section(trip["food"], "food")}</section>'
-    )
-    sections_html.append(
-        f'<section id="packing"><h2>Packing</h2>'
-        f'{render_section(trip["packing"], "packing")}</section>'
-    )
-    sections_html.append(
-        f'<section id="costs"><h2>Costs</h2>'
-        f'{render_section(trip["costs"], "costs")}</section>'
-    )
+    if weather_html:
+        sections_html.append(_wrap_section(
+            "weather", "Weather", weather_html, edit_mode=None,
+        ))
+    sections_html.append(_wrap_section(
+        "gear", "Gear", render_section(trip["gear"], "gear"),
+        edit_mode=_edit_mode("gear"),
+    ))
+    sections_html.append(_wrap_section(
+        "food", "Food", render_section(trip["food"], "food"),
+        edit_mode=_edit_mode("food"),
+    ))
+    sections_html.append(_wrap_section(
+        "packing", "Packing", render_section(trip["packing"], "packing"),
+        edit_mode=_edit_mode("packing"),
+    ))
+    sections_html.append(_wrap_section(
+        "costs", "Costs", render_section(trip["costs"], "costs"),
+        edit_mode=_edit_mode("costs"),
+    ))
 
     body = _render_header(fm) + "\n".join(s for s in sections_html if s)
     title = (

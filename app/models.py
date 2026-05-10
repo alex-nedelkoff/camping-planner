@@ -16,6 +16,16 @@ class SaveGearRequest(BaseModel):
     rows: list[list[str]]
 
 
+class SaveSectionRequest(BaseModel):
+    markdown: str
+
+
+class SectionResponse(BaseModel):
+    ok: bool = True
+    section: str
+    markdown: str
+
+
 class OkResponse(BaseModel):
     ok: bool = True
     message: str | None = None

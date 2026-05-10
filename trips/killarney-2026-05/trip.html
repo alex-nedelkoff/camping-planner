@@ -2,11 +2,21 @@
 * { box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
        max-width: 900px; margin: 0 auto; padding: 1.5rem; color: #222;
-       line-height: 1.55; background: #fafafa; }
+       line-height: 1.55; background: #f0eee6; }
 h1, h2, h3 { color: #1f3a3a; }
 h1 { border-bottom: 3px solid #2d5016; padding-bottom: 0.3rem; }
-section { background: white; padding: 1.25rem 1.5rem; margin: 1rem 0;
-          border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+section { background: white; padding: 0; margin: 1.5rem 0;
+          border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+          overflow: hidden; border: 1px solid #d8d4c5; }
+.section-header { background: linear-gradient(90deg, #2d5016 0%, #3a6420 100%);
+                  color: white; padding: 0.85rem 1.5rem; display: flex;
+                  justify-content: space-between; align-items: center; gap: 1rem;
+                  border-bottom: 4px solid #1f3a3a; }
+.section-header h2 { color: white; margin: 0; font-size: 1.4rem;
+                     border-bottom: none; font-weight: 700;
+                     letter-spacing: 0.02em; }
+.section-body { padding: 1.25rem 1.5rem; }
+.section-body > h2:first-child { display: none; }
 table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
 th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; }
 th { background: #f0f4ee; }
@@ -27,6 +37,22 @@ input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
                      padding: 0.5rem 0.75rem; }
 .trip-header th { background: rgba(0,0,0,0.28); font-weight: 600; }
 .trip-header tr:last-child td { border-bottom: none; }
+.section-actions { display: flex; gap: 0.4rem; align-items: center; }
+.section-btn { padding: 0.3rem 0.75rem; background: rgba(255,255,255,0.18);
+               color: white; border: 1px solid rgba(255,255,255,0.35);
+               border-radius: 5px; cursor: pointer;
+               font-size: 0.85rem; font-family: inherit; }
+.section-btn:hover { background: rgba(255,255,255,0.3); }
+.section-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.section-status { font-size: 0.85rem; color: rgba(255,255,255,0.85);
+                  margin-left: 0.25rem; }
+.section-status.error { color: #ffd0d0; }
+.section-editor { display: flex; flex-direction: column; gap: 0.6rem; }
+.section-editor textarea { width: 100%; min-height: 14rem;
+                           padding: 0.75rem; border: 1px solid #ccc;
+                           border-radius: 6px; font-family: 'SF Mono',
+                           Menlo, Consolas, monospace; font-size: 0.9rem;
+                           line-height: 1.5; resize: vertical; }
 .gear-edit-toolbar { margin-top: 0.6rem; display: flex; gap: 0.5rem;
                      align-items: center; flex-wrap: wrap; }
 .gear-btn { padding: 0.35rem 0.85rem; background: #2d5016; color: white;
@@ -44,13 +70,16 @@ input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
 .gear-status { font-size: 0.9rem; color: #555; margin-left: 0.25rem; }
 .gear-status.error { color: #c00; }
 @media print { body { background: white; } section { box-shadow: none; }
-               .gear-edit-toolbar { display: none; } }
-</style></head><body><header class="trip-header"><button id="user-pill" class="user-pill unset" onclick="switchUser()" title="Click to set / change name">…</button><h1>Killarney &middot; 2026-05-15 → 2026-05-18</h1><div class="trip-meta"><span><strong>Participants:</strong> Alex, pizza-zip</span><span><strong>Access:</strong> George Lake</span><span><strong>Drive from Ajax:</strong> 4.5 hrs</span></div><table><thead><tr><th>Date</th><th>Site</th><th>Location</th></tr></thead><tbody><tr><td>2026-05-15</td><td>61</td><td>OSA Lake</td></tr><tr><td>2026-05-16</td><td>82</td><td>Baie Fine</td></tr><tr><td>2026-05-17</td><td>12</td><td>Killarney Lake</td></tr></tbody></table></header><section id="intro"><h1>Killarney 2026-05-15 → 2026-05-18</h1>
+               .gear-edit-toolbar, .section-actions { display: none; }
+               .section-header { background: white; color: #1f3a3a;
+                                 border-bottom: 2px solid #2d5016; }
+               .section-header h2 { color: #1f3a3a; } }
+</style></head><body><header class="trip-header"><button id="user-pill" class="user-pill unset" onclick="switchUser()" title="Click to set / change name">…</button><h1>Killarney &middot; 2026-05-15 → 2026-05-18</h1><div class="trip-meta"><span><strong>Participants:</strong> Alex, pizza-zip</span><span><strong>Access:</strong> George Lake</span><span><strong>Drive from Ajax:</strong> 4.5 hrs</span></div><table><thead><tr><th>Date</th><th>Site</th><th>Location</th></tr></thead><tbody><tr><td>2026-05-15</td><td>61</td><td>OSA Lake</td></tr><tr><td>2026-05-16</td><td>82</td><td>Baie Fine</td></tr><tr><td>2026-05-17</td><td>12</td><td>Killarney Lake</td></tr></tbody></table></header><section id="intro"><div class="section-header"><h2>Overview</h2><div class="section-actions"><button class="section-btn" data-edit="intro" data-edit-mode="markdown">Edit</button><span class="section-status" data-status="intro"></span></div></div><div class="section-body" data-section-body="intro"><h1>Killarney 2026-05-15 → 2026-05-18</h1>
 <p>3-night interior canoe trip in Killarney Provincial Park. George Lake put-in,
 moving sites each day: OSA Lake → Baie Fine → Killarney Lake → back to George
 Lake on Monday. La Cloche white quartzite ridges, deep clear lakes, classic
-Group of Seven country.</p></section>
-<section id="itinerary"><h2>Itinerary</h2><h2>Friday 2026-05-15 — Day 1</h2>
+Group of Seven country.</p></div></section>
+<section id="itinerary"><div class="section-header"><h2>Itinerary</h2><div class="section-actions"><button class="section-btn" data-edit="itinerary" data-edit-mode="markdown">Edit</button><span class="section-status" data-status="itinerary"></span></div></div><div class="section-body" data-section-body="itinerary"><h2>Friday 2026-05-15 — Day 1</h2>
 <ul>
 <li>Depart Ajax in the morning (~5h drive to George Lake access)</li>
 <li>Permit pickup at George Lake park office</li>
@@ -73,10 +102,8 @@ Group of Seven country.</p></section>
 <ul>
 <li>Pack up, paddle out to George Lake access</li>
 <li>Drive home to Ajax</li>
-</ul></section>
-<section id="route"><h2>Route</h2><div class="warnings"><ul><li>No portage found between O.S.A. Lake and Baie Fine — leg shown as straight line.</li><li>No portage found between Baie Fine and Killarney Lake — leg shown as straight line.</li></ul></div><section id="map">
-<h2>Route Map</h2>
-<ul><li><strong>George Lake → George Lake portage (paddle)</strong>: 3.0 km</li><li><strong>George Lake portage → Freeland Lake portage (portage)</strong>: 0.1 km</li><li><strong>Freeland Lake → Freeland Lake portage (paddle)</strong>: 2.0 km</li><li><strong>Freeland Lake portage → Killarney Lake portage (portage)</strong>: 0.4 km</li><li><strong>Killarney Lake → Killarney Lake portage (paddle)</strong>: 2.2 km</li><li><strong>Killarney Lake portage → O.S.A. Lake portage (portage)</strong>: 0.1 km</li><li><strong>O.S.A. Lake portage → OSA Lake (site 61) (paddle)</strong>: 1.4 km</li><li><strong>OSA Lake (site 61) → Baie Fine (site 82) (approx)</strong>: 7.9 km</li><li><strong>Baie Fine (site 82) → Killarney Lake (site 12) (approx)</strong>: 11.2 km</li><li><strong>Killarney Lake (site 12) → Killarney Lake portage (paddle)</strong>: 1.7 km</li><li><strong>Killarney Lake portage → Freeland Lake portage (portage)</strong>: 0.4 km</li><li><strong>Freeland Lake → Freeland Lake portage (paddle)</strong>: 2.0 km</li><li><strong>Freeland Lake portage → George Lake portage (portage)</strong>: 0.1 km</li><li><strong>George Lake portage → George Lake (paddle)</strong>: 3.0 km</li></ul>
+</ul></div></section>
+<section id="route"><div class="section-header"><h2>Route</h2></div><div class="section-body" data-section-body="route"><div class="warnings"><ul><li>No portage found between O.S.A. Lake and Baie Fine — leg shown as straight line.</li><li>No portage found between Baie Fine and Killarney Lake — leg shown as straight line.</li></ul></div><ul><li><strong>George Lake → George Lake portage (paddle)</strong>: 3.0 km</li><li><strong>George Lake portage → Freeland Lake portage (portage)</strong>: 0.1 km</li><li><strong>Freeland Lake → Freeland Lake portage (paddle)</strong>: 2.0 km</li><li><strong>Freeland Lake portage → Killarney Lake portage (portage)</strong>: 0.4 km</li><li><strong>Killarney Lake → Killarney Lake portage (paddle)</strong>: 2.2 km</li><li><strong>Killarney Lake portage → O.S.A. Lake portage (portage)</strong>: 0.1 km</li><li><strong>O.S.A. Lake portage → OSA Lake (site 61) (paddle)</strong>: 1.4 km</li><li><strong>OSA Lake (site 61) → Baie Fine (site 82) (approx)</strong>: 7.9 km</li><li><strong>Baie Fine (site 82) → Killarney Lake (site 12) (approx)</strong>: 11.2 km</li><li><strong>Killarney Lake (site 12) → Killarney Lake portage (paddle)</strong>: 1.7 km</li><li><strong>Killarney Lake portage → Freeland Lake portage (portage)</strong>: 0.4 km</li><li><strong>Freeland Lake → Freeland Lake portage (paddle)</strong>: 2.0 km</li><li><strong>Freeland Lake portage → George Lake portage (portage)</strong>: 0.1 km</li><li><strong>George Lake portage → George Lake (paddle)</strong>: 3.0 km</li></ul>
 <p>14 waypoint(s) marked</p>
 <div class="map-online">
 <div id="route-map" style="height:400px;border-radius:10px;z-index:0"></div>
@@ -84,7 +111,7 @@ Group of Seven country.</p></section>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function() {
-  var map = L.map('route-map').setView([46.04323776250055, -81.37375005674473], 12);
+  var map = L.map('route-map').setView([46.043237762500574, -81.37375005674473], 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 18
@@ -236,10 +263,9 @@ Group of Seven country.</p></section>
 <line x1="40" y1="385" x2="104.0" y2="385" stroke="#666" stroke-width="2"/>
 <text x="72.0" y="381" text-anchor="middle" font-size="10" fill="#666">1.0 km</text>
 </svg>
-</details>
-</section><table><thead><tr><th>Day</th><th>Leg</th><th>Paddle</th><th>Portage</th><th>Est. time</th></tr></thead><tbody><tr><td>Fri 2026-05-15</td><td>George Lake → OSA Lake (site 61)</td><td>8.68 km</td><td>0.63 km</td><td>3h 35m</td></tr><tr><td>Sat 2026-05-16</td><td>OSA Lake (site 61) → Baie Fine (site 82) ⚠</td><td>7.95 km</td><td>(approx)</td><td>2h 15m</td></tr><tr><td>Sun 2026-05-17</td><td>Baie Fine (site 82) → Killarney Lake (site 12) ⚠</td><td>11.16 km</td><td>(approx)</td><td>3h 15m</td></tr><tr><td>Mon 2026-05-18</td><td>Killarney Lake (site 12) → George Lake</td><td>6.72 km</td><td>0.5 km</td><td>2h 50m</td></tr><tr><td><strong>Total</strong></td><td></td><td><strong>34.5 km</strong></td><td><strong>1.1 km</strong></td><td><strong>11h 55m</strong></td></tr></tbody></table></section>
-<section id="weather"><h2>Weather</h2><p><em>Forecast</em></p><table><thead><tr><th>Date</th><th>Conditions</th><th>High / Low</th><th>Precip</th></tr></thead><tbody><tr><td>2026-05-15</td><td>🌦 Moderate drizzle</td><td>8.1&deg;C / 3.3&deg;C</td><td>17% rain</td></tr><tr><td>2026-05-16</td><td>☁️ Overcast</td><td>13.4&deg;C / 3.1&deg;C</td><td>22% rain</td></tr><tr><td>2026-05-17</td><td>🌦 Slight rain</td><td>7.5&deg;C / 5.8&deg;C</td><td>22% rain</td></tr><tr><td>2026-05-18</td><td>🌦 Light drizzle</td><td>12.5&deg;C / 5.4&deg;C</td><td>27% rain</td></tr></tbody></table></section>
-<section id="gear"><h2>Gear</h2><h2>Shared gear</h2>
+</details><table><thead><tr><th>Day</th><th>Leg</th><th>Paddle</th><th>Portage</th><th>Est. time</th></tr></thead><tbody><tr><td>Fri 2026-05-15</td><td>George Lake → OSA Lake (site 61)</td><td>8.68 km</td><td>0.63 km</td><td>3h 35m</td></tr><tr><td>Sat 2026-05-16</td><td>OSA Lake (site 61) → Baie Fine (site 82) ⚠</td><td>7.95 km</td><td>(approx)</td><td>2h 15m</td></tr><tr><td>Sun 2026-05-17</td><td>Baie Fine (site 82) → Killarney Lake (site 12) ⚠</td><td>11.16 km</td><td>(approx)</td><td>3h 15m</td></tr><tr><td>Mon 2026-05-18</td><td>Killarney Lake (site 12) → George Lake</td><td>6.72 km</td><td>0.5 km</td><td>2h 50m</td></tr><tr><td><strong>Total</strong></td><td></td><td><strong>34.5 km</strong></td><td><strong>1.1 km</strong></td><td><strong>11h 55m</strong></td></tr></tbody></table></div></section>
+<section id="weather"><div class="section-header"><h2>Weather</h2></div><div class="section-body" data-section-body="weather"><p><em>Forecast</em></p><table><thead><tr><th>Date</th><th>Conditions</th><th>High / Low</th><th>Precip</th></tr></thead><tbody><tr><td>2026-05-15</td><td>🌦 Moderate drizzle</td><td>8.1&deg;C / 3.3&deg;C</td><td>17% rain</td></tr><tr><td>2026-05-16</td><td>☁️ Overcast</td><td>13.4&deg;C / 3.1&deg;C</td><td>22% rain</td></tr><tr><td>2026-05-17</td><td>🌦 Slight rain</td><td>7.5&deg;C / 5.8&deg;C</td><td>22% rain</td></tr><tr><td>2026-05-18</td><td>🌦 Light drizzle</td><td>12.5&deg;C / 5.4&deg;C</td><td>27% rain</td></tr></tbody></table></div></section>
+<section id="gear"><div class="section-header"><h2>Gear</h2><div class="section-actions"><button class="section-btn" data-edit="gear" data-edit-mode="table">Edit</button><span class="section-status" data-status="gear"></span></div></div><div class="section-body" data-section-body="gear"><h2>Shared gear</h2>
 <table>
 <thead>
 <tr>
@@ -256,12 +282,12 @@ Group of Seven country.</p></section>
 </tr>
 <tr>
 <td>Paddles (2-3)</td>
-<td></td>
+<td>At site</td>
 <td></td>
 </tr>
 <tr>
 <td>PFDs (2)</td>
-<td></td>
+<td>At site</td>
 <td></td>
 </tr>
 <tr>
@@ -286,7 +312,7 @@ Group of Seven country.</p></section>
 </tr>
 <tr>
 <td>Water filter / pump</td>
-<td></td>
+<td>Thomas</td>
 <td></td>
 </tr>
 <tr>
@@ -317,8 +343,8 @@ Group of Seven country.</p></section>
 </tbody>
 </table>
 <h2>Personal gear</h2>
-<p>Each person brings their own — see <code>packing.md</code>.</p></section>
-<section id="food"><h2>Food</h2><p>3 breakfasts, 3 lunches, 3 dinners. Backcountry — no cooler, weight matters.</p>
+<p>Each person brings their own — see <code>packing.md</code>.</p></div></section>
+<section id="food"><div class="section-header"><h2>Food</h2><div class="section-actions"><button class="section-btn" data-edit="food" data-edit-mode="markdown">Edit</button><span class="section-status" data-status="food"></span></div></div><div class="section-body" data-section-body="food"><p>3 breakfasts, 3 lunches, 3 dinners. Backcountry — no cooler, weight matters.</p>
 <h2>Friday dinner</h2>
 <ul>
 <li><em>meal idea</em> — <em>who</em></li>
@@ -331,8 +357,8 @@ Group of Seven country.</p></section>
 <h2>Sunday lunch</h2>
 <h2>Sunday dinner</h2>
 <h2>Monday breakfast</h2>
-<p>(Quick — break camp and paddle out.)</p></section>
-<section id="packing"><h2>Packing</h2><h2>Shelter &amp; sleep</h2>
+<p>(Quick — break camp and paddle out.)</p></div></section>
+<section id="packing"><div class="section-header"><h2>Packing</h2><div class="section-actions"><button class="section-btn" data-edit="packing" data-edit-mode="markdown">Edit</button><span class="section-status" data-status="packing"></span></div></div><div class="section-body" data-section-body="packing"><h2>Shelter &amp; sleep</h2>
 <ul>
 <li><input type="checkbox" data-cb-key="packing--tent"> Tent</li>
 <li><input type="checkbox" data-cb-key="packing--sleeping-bag"> Sleeping bag</li>
@@ -372,8 +398,8 @@ Group of Seven country.</p></section>
 <li><input type="checkbox" data-cb-key="packing--pfd"> PFD</li>
 <li><input type="checkbox" data-cb-key="packing--dry-bag"> Dry bag</li>
 <li><input type="checkbox" data-cb-key="packing--quick-dry-towel"> Quick-dry towel</li>
-</ul></section>
-<section id="costs"><h2>Costs</h2><table>
+</ul></div></section>
+<section id="costs"><div class="section-header"><h2>Costs</h2><div class="section-actions"><button class="section-btn" data-edit="costs" data-edit-mode="table">Edit</button><span class="section-status" data-status="costs"></span></div></div><div class="section-body" data-section-body="costs"><table>
 <thead>
 <tr>
 <th>Item</th>
@@ -384,22 +410,22 @@ Group of Seven country.</p></section>
 <tbody>
 <tr>
 <td>Permit / reservation</td>
-<td></td>
-<td></td>
+<td>Thomas</td>
+<td>99</td>
 </tr>
 <tr>
 <td>Gas</td>
-<td></td>
-<td></td>
+<td>Robert</td>
+<td>400</td>
 </tr>
 <tr>
 <td>Groceries</td>
-<td></td>
-<td></td>
+<td>Alex</td>
+<td>122</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Total per person:</strong></p></section><script>
+<p><strong>Total per person:</strong></p></div></section><script>
 (function() {
   var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
   var tripSlug = slugMatch ? slugMatch[1] : null;
@@ -496,147 +522,265 @@ Group of Seven country.</p></section>
   loadUser();
 })();
 
+// --- In-place table row editor (gear, costs, ...) ---
 (function() {
-  var section = document.getElementById('gear');
-  if (!section) return;
-  var table = section.querySelector('table');
-  if (!table) return;
-  var tbody = table.querySelector('tbody');
-  if (!tbody) return;
-
   var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
   var tripSlug = slugMatch ? slugMatch[1] : null;
 
-  var ncols = 0;
-  var firstRow = tbody.querySelector('tr');
-  if (firstRow) ncols = firstRow.cells.length;
-  if (!ncols) {
-    var theadRow = table.querySelector('thead tr');
-    if (theadRow) ncols = theadRow.cells.length;
-  }
-  if (!ncols) return;
-
-  var toolbar = document.createElement('div');
-  toolbar.className = 'gear-edit-toolbar';
-  toolbar.innerHTML =
-    '<button class="gear-btn" id="gear-edit-btn">Edit gear</button>' +
-    '<button class="gear-btn" id="gear-add-btn" hidden>+ Add row</button>' +
-    '<button class="gear-btn" id="gear-save-btn" hidden>Save</button>' +
-    '<button class="gear-btn secondary" id="gear-cancel-btn" hidden>Cancel</button>' +
-    '<span class="gear-status" id="gear-status"></span>';
-  table.after(toolbar);
-
-  var editBtn = toolbar.querySelector('#gear-edit-btn');
-  var addBtn = toolbar.querySelector('#gear-add-btn');
-  var saveBtn = toolbar.querySelector('#gear-save-btn');
-  var cancelBtn = toolbar.querySelector('#gear-cancel-btn');
-  var status = toolbar.querySelector('#gear-status');
-
-  var snapshot = null;
-
-  function addDeleteButtons() {
-    Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
-      if (tr.querySelector('.row-del')) return;
-      var lastCell = tr.cells[tr.cells.length - 1];
-      if (!lastCell) return;
-      var btn = document.createElement('button');
-      btn.className = 'row-del';
-      btn.textContent = '×';
-      btn.title = 'Delete row';
-      btn.hidden = true;
-      btn.contentEditable = 'false';
-      btn.addEventListener('click', function() { tr.remove(); });
-      lastCell.appendChild(btn);
+  Array.from(document.querySelectorAll('button[data-edit][data-edit-mode=table]'))
+    .forEach(function(headerBtn) {
+      var sectionId = headerBtn.dataset.edit;
+      attachTableEditor(sectionId, headerBtn);
     });
-  }
 
-  function setEditing(on) {
-    table.classList.toggle('editing', on);
-    Array.from(tbody.querySelectorAll('td')).forEach(function(td) {
-      td.contentEditable = on ? 'true' : 'false';
-    });
-    Array.from(tbody.querySelectorAll('.row-del')).forEach(function(b) {
-      b.hidden = !on;
-    });
-    editBtn.hidden = on;
-    addBtn.hidden = !on;
-    saveBtn.hidden = !on;
-    cancelBtn.hidden = !on;
-  }
+  function attachTableEditor(sectionId, headerBtn) {
+    var section = document.getElementById(sectionId);
+    if (!section) return;
+    var table = section.querySelector('table');
+    if (!table) return;
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+    var status = section.querySelector('[data-status="' + sectionId + '"]');
 
-  function rowsAsArray() {
-    return Array.from(tbody.querySelectorAll('tr')).map(function(tr) {
-      return Array.from(tr.cells).map(function(td) {
-        var clone = td.cloneNode(true);
-        var del = clone.querySelector('.row-del');
-        if (del) del.remove();
-        return clone.textContent.replace(/\s+/g, ' ').trim();
+    var ncols = 0;
+    var firstRow = tbody.querySelector('tr');
+    if (firstRow) ncols = firstRow.cells.length;
+    if (!ncols) {
+      var theadRow = table.querySelector('thead tr');
+      if (theadRow) ncols = theadRow.cells.length;
+    }
+    if (!ncols) return;
+
+    // Toolbar lives below the table; section-header Edit toggles into edit mode.
+    var toolbar = document.createElement('div');
+    toolbar.className = 'gear-edit-toolbar';
+    toolbar.innerHTML =
+      '<button class="gear-btn" data-act="add" hidden>+ Add row</button>' +
+      '<button class="gear-btn" data-act="save" hidden>Save</button>' +
+      '<button class="gear-btn secondary" data-act="cancel" hidden>Cancel</button>';
+    table.after(toolbar);
+
+    var addBtn = toolbar.querySelector('[data-act=add]');
+    var saveBtn = toolbar.querySelector('[data-act=save]');
+    var cancelBtn = toolbar.querySelector('[data-act=cancel]');
+
+    var snapshot = null;
+
+    function setStatus(text, isError) {
+      if (!status) return;
+      status.textContent = text || '';
+      status.className = 'section-status' + (isError ? ' error' : '');
+    }
+
+    function addDeleteButtons() {
+      Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
+        if (tr.querySelector('.row-del')) return;
+        var lastCell = tr.cells[tr.cells.length - 1];
+        if (!lastCell) return;
+        var btn = document.createElement('button');
+        btn.className = 'row-del';
+        btn.textContent = '×';
+        btn.title = 'Delete row';
+        btn.hidden = true;
+        btn.contentEditable = 'false';
+        btn.addEventListener('click', function() { tr.remove(); });
+        lastCell.appendChild(btn);
       });
+    }
+
+    function setEditing(on) {
+      table.classList.toggle('editing', on);
+      Array.from(tbody.querySelectorAll('td')).forEach(function(td) {
+        td.contentEditable = on ? 'true' : 'false';
+      });
+      Array.from(tbody.querySelectorAll('.row-del')).forEach(function(b) {
+        b.hidden = !on;
+      });
+      headerBtn.hidden = on;
+      addBtn.hidden = !on;
+      saveBtn.hidden = !on;
+      cancelBtn.hidden = !on;
+    }
+
+    function rowsAsArray() {
+      return Array.from(tbody.querySelectorAll('tr')).map(function(tr) {
+        return Array.from(tr.cells).map(function(td) {
+          var clone = td.cloneNode(true);
+          var del = clone.querySelector('.row-del');
+          if (del) del.remove();
+          return clone.textContent.replace(/\s+/g, ' ').trim();
+        });
+      });
+    }
+
+    addDeleteButtons();
+
+    headerBtn.addEventListener('click', function() {
+      snapshot = tbody.innerHTML;
+      setEditing(true);
+      setStatus('', false);
     });
-  }
 
-  addDeleteButtons();
+    cancelBtn.addEventListener('click', function() {
+      if (snapshot != null) tbody.innerHTML = snapshot;
+      addDeleteButtons();
+      setEditing(false);
+      setStatus('', false);
+    });
 
-  editBtn.addEventListener('click', function() {
-    snapshot = tbody.innerHTML;
-    setEditing(true);
-    status.textContent = '';
-    status.className = 'gear-status';
-  });
+    addBtn.addEventListener('click', function() {
+      var tr = document.createElement('tr');
+      for (var i = 0; i < ncols; i++) {
+        var td = document.createElement('td');
+        td.contentEditable = 'true';
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+      addDeleteButtons();
+      Array.from(tr.querySelectorAll('.row-del')).forEach(function(b) { b.hidden = false; });
+      tr.cells[0].focus();
+    });
 
-  cancelBtn.addEventListener('click', function() {
-    if (snapshot != null) tbody.innerHTML = snapshot;
-    addDeleteButtons();
-    setEditing(false);
-    status.textContent = '';
-  });
-
-  addBtn.addEventListener('click', function() {
-    var tr = document.createElement('tr');
-    for (var i = 0; i < ncols; i++) {
-      var td = document.createElement('td');
-      td.contentEditable = 'true';
-      tr.appendChild(td);
-    }
-    tbody.appendChild(tr);
-    addDeleteButtons();
-    Array.from(tr.querySelectorAll('.row-del')).forEach(function(b) { b.hidden = false; });
-    tr.cells[0].focus();
-  });
-
-  saveBtn.addEventListener('click', async function() {
-    if (!tripSlug) {
-      status.textContent = 'Cannot detect trip slug from URL';
-      status.className = 'gear-status error';
-      return;
-    }
-    var rows = rowsAsArray();
-    saveBtn.disabled = true;
-    cancelBtn.disabled = true;
-    status.textContent = 'Saving…';
-    status.className = 'gear-status';
-    try {
-      var r = await fetch('/api/save-gear?trip=' + encodeURIComponent(tripSlug), {
+    saveBtn.addEventListener('click', function() {
+      if (!tripSlug) {
+        setStatus('Cannot detect trip slug from URL', true);
+        return;
+      }
+      var rows = rowsAsArray();
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      setStatus('Saving…', false);
+      var url = '/api/save-section-table?trip=' + encodeURIComponent(tripSlug)
+              + '&section=' + encodeURIComponent(sectionId);
+      fetch(url, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({rows: rows})
-      });
-      var j = await r.json();
-      if (j.ok) {
-        status.textContent = 'Saved ✓ — reloading…';
-        setTimeout(function() { location.reload(); }, 600);
-      } else {
-        status.textContent = 'Error: ' + (j.error || 'unknown');
-        status.className = 'gear-status error';
-        saveBtn.disabled = false;
-        cancelBtn.disabled = false;
-      }
-    } catch (e) {
-      status.textContent = 'Error: ' + e.message + ' (is launch.py running?)';
-      status.className = 'gear-status error';
-      saveBtn.disabled = false;
-      cancelBtn.disabled = false;
-    }
+      })
+        .then(function(r) { return r.json().then(function(j) { return {ok: r.ok, j: j}; }); })
+        .then(function(res) {
+          if (!res.ok || !res.j.ok) {
+            var err = (res.j && res.j.detail && res.j.detail.error) || 'save failed';
+            setStatus('Error: ' + err, true);
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
+            return;
+          }
+          setStatus('Saved ✓ — reloading…', false);
+          setTimeout(function() { location.reload(); }, 500);
+        })
+        .catch(function(e) {
+          setStatus('Error: ' + e.message, true);
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+        });
+    });
+  }
+})();
+
+// --- Generic per-section markdown editor ---
+(function() {
+  var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
+  var tripSlug = slugMatch ? slugMatch[1] : null;
+  if (!tripSlug) return;
+
+  Array.from(document.querySelectorAll('button[data-edit]')).forEach(function(btn) {
+    if (btn.dataset.editMode === 'table') return;  // handled by table-editor IIFE
+    var section = btn.dataset.edit;
+    btn.addEventListener('click', function() { openEditor(section, btn); });
   });
+
+  function statusEl(section) {
+    return document.querySelector('[data-status="' + section + '"]');
+  }
+  function bodyEl(section) {
+    return document.querySelector('[data-section-body="' + section + '"]');
+  }
+  function setStatus(section, text, isError) {
+    var el = statusEl(section);
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'section-status' + (isError ? ' error' : '');
+  }
+
+  function openEditor(section, btn) {
+    var body = bodyEl(section);
+    if (!body) return;
+    btn.disabled = true;
+    setStatus(section, 'Loading…', false);
+    fetch('/api/section?trip=' + encodeURIComponent(tripSlug)
+          + '&section=' + encodeURIComponent(section))
+      .then(function(r) { return r.json().then(function(j) { return {ok: r.ok, j: j}; }); })
+      .then(function(res) {
+        if (!res.ok || !res.j.ok) {
+          var err = (res.j && res.j.detail && res.j.detail.error) || 'load failed';
+          setStatus(section, 'Error: ' + err, true);
+          btn.disabled = false;
+          return;
+        }
+        renderEditor(section, body, btn, res.j.markdown || '');
+      })
+      .catch(function(e) {
+        setStatus(section, 'Error: ' + e.message, true);
+        btn.disabled = false;
+      });
+  }
+
+  function renderEditor(section, body, editBtn, markdown) {
+    var snapshot = body.innerHTML;
+    var wrap = document.createElement('div');
+    wrap.className = 'section-editor';
+    var ta = document.createElement('textarea');
+    ta.value = markdown;
+    ta.spellcheck = false;
+    var actions = document.createElement('div');
+    actions.className = 'gear-edit-toolbar';
+    actions.innerHTML =
+      '<button class="gear-btn" data-act="save">Save</button>' +
+      '<button class="gear-btn secondary" data-act="cancel">Cancel</button>';
+    wrap.appendChild(ta);
+    wrap.appendChild(actions);
+    body.innerHTML = '';
+    body.appendChild(wrap);
+    setStatus(section, '', false);
+
+    var saveBtn = actions.querySelector('[data-act=save]');
+    var cancelBtn = actions.querySelector('[data-act=cancel]');
+
+    cancelBtn.addEventListener('click', function() {
+      body.innerHTML = snapshot;
+      editBtn.disabled = false;
+      setStatus(section, '', false);
+    });
+
+    saveBtn.addEventListener('click', function() {
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      setStatus(section, 'Saving…', false);
+      fetch('/api/save-section?trip=' + encodeURIComponent(tripSlug)
+            + '&section=' + encodeURIComponent(section), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({markdown: ta.value})
+      })
+        .then(function(r) { return r.json().then(function(j) { return {ok: r.ok, j: j}; }); })
+        .then(function(res) {
+          if (!res.ok || !res.j.ok) {
+            var err = (res.j && res.j.detail && res.j.detail.error) || 'save failed';
+            setStatus(section, 'Error: ' + err, true);
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
+            return;
+          }
+          setStatus(section, 'Saved ✓ — reloading…', false);
+          setTimeout(function() { location.reload(); }, 500);
+        })
+        .catch(function(e) {
+          setStatus(section, 'Error: ' + e.message, true);
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+        });
+    });
+  }
 })();
 </script></body></html>
