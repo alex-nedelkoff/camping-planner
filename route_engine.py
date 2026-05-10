@@ -169,6 +169,23 @@ def _polygons_overlapping_corridor(start: list, end: list, lakes: list,
     return out
 
 
+def _yellow_paths_in_lake(lake: dict, all_paths: list,
+                          coverage_threshold: float = 0.7) -> list:
+    """Subset of all_paths whose vertices are >= coverage_threshold inside lake."""
+    if not lake or not lake.get("polygon") or not all_paths:
+        return []
+    polygon = lake["polygon"]
+    out = []
+    for path in all_paths:
+        pts = path.get("points") or []
+        if not pts:
+            continue
+        inside = sum(1 for p in pts if _point_in_polygon(p, polygon))
+        if inside / len(pts) >= coverage_threshold:
+            out.append(path)
+    return out
+
+
 # Cap polygon vertex count for visibility graph computation. Jeff's
 # extracted polygons typically have 80-180 vertices; the visibility graph
 # is O(V²) over polygon vertices and each edge does an O(V) line-inside
@@ -547,8 +564,10 @@ def build_route(nights: list, access_point: str, osm: dict,
 
         if lake_a and lake_b and lake_a["name"] == lake_b["name"]:
             # Same lake — route via yellow path or centroid curve.
+            yellow_in_lake = _yellow_paths_in_lake(lake_a, osm.get("paths", []))
             geom = route_paddle_leg(
-                a_pt_resolved, b_pt_resolved, lake_a, yellow_paths=(),
+                a_pt_resolved, b_pt_resolved, lake_a,
+                yellow_paths=yellow_in_lake,
             )
             segments.append(_segment(
                 day_label, "paddle", a["label"], b["label"],
@@ -613,8 +632,12 @@ def build_route(nights: list, access_point: str, osm: dict,
                         portage_geom = list(reversed(portage["line"]))
                     # Paddle from current point to portage entry, routed around
                     # peninsulas if a straight line would cross outside water.
+                    yellow_in_lake = _yellow_paths_in_lake(
+                        current_lake, osm.get("paths", []),
+                    )
                     paddle_geom = route_paddle_leg(
-                        current_pt, entry, current_lake, yellow_paths=(),
+                        current_pt, entry, current_lake,
+                        yellow_paths=yellow_in_lake,
                     )
                     segments.append(_segment(
                         day_label, "paddle",
@@ -633,8 +656,10 @@ def build_route(nights: list, access_point: str, osm: dict,
                     current_lake = next_lake
                     current_pt = exit_
                 end_pt = b_pt_resolved or lake_b["centroid"]
+                yellow_in_lake = _yellow_paths_in_lake(lake_b, osm.get("paths", []))
                 final_geom = route_paddle_leg(
-                    current_pt, end_pt, lake_b, yellow_paths=(),
+                    current_pt, end_pt, lake_b,
+                    yellow_paths=yellow_in_lake,
                 )
                 segments.append(_segment(
                     day_label, "paddle",

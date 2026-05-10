@@ -194,3 +194,43 @@ def test_load_features_works_without_jeffs(tmp_path, monkeypatch):
     out = _osm_data.load_killarney_features()
     assert len(out["lakes"]) == 1
     assert out["campsites"] == []
+
+
+def test_load_features_includes_yellow_paths_when_cache_present(tmp_path, monkeypatch):
+    """jeffs_canoe_paths.json file (if present) → 'paths' key on the result."""
+    osm_cache = {"lakes": [], "portages": []}
+    paths_cache = {
+        "paths": [
+            {"id": 0, "points": [[46.0, -81.0], [46.01, -81.01]],
+             "length_km": 1.4},
+        ],
+    }
+    osm_path = tmp_path / "osm_killarney_cache.json"
+    paths_path = tmp_path / "jeffs_canoe_paths.json"
+    osm_path.write_text(json.dumps(osm_cache))
+    paths_path.write_text(json.dumps(paths_cache))
+
+    monkeypatch.setattr(_osm_data, "CACHE_PATH", osm_path)
+    monkeypatch.setattr(_osm_data, "JEFFS_CACHE_PATH",
+                        tmp_path / "jeffs_killarney_cache.json")  # absent
+    monkeypatch.setattr(_osm_data, "PATHS_CACHE_PATH", paths_path)
+
+    out = _osm_data.load_killarney_features()
+    assert "paths" in out
+    assert len(out["paths"]) == 1
+    assert out["paths"][0]["id"] == 0
+
+
+def test_load_features_paths_default_empty_when_cache_absent(tmp_path, monkeypatch):
+    """Without jeffs_canoe_paths.json, paths key is an empty list."""
+    osm_cache = {"lakes": [], "portages": []}
+    osm_path = tmp_path / "osm_killarney_cache.json"
+    osm_path.write_text(json.dumps(osm_cache))
+    monkeypatch.setattr(_osm_data, "CACHE_PATH", osm_path)
+    monkeypatch.setattr(_osm_data, "JEFFS_CACHE_PATH",
+                        tmp_path / "jeffs_killarney_cache.json")  # absent
+    monkeypatch.setattr(_osm_data, "PATHS_CACHE_PATH",
+                        tmp_path / "jeffs_canoe_paths.json")  # absent
+
+    out = _osm_data.load_killarney_features()
+    assert out.get("paths") == []

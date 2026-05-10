@@ -19,6 +19,7 @@ import requests
 
 CACHE_PATH = Path(__file__).parent / "osm_killarney_cache.json"
 JEFFS_CACHE_PATH = Path(__file__).parent / "jeffs_killarney_cache.json"
+PATHS_CACHE_PATH = Path(__file__).parent / "jeffs_canoe_paths.json"
 
 # Killarney Provincial Park bounding box (south, west, north, east).
 KILLARNEY_BBOX = (45.92, -81.60, 46.12, -81.25)
@@ -190,6 +191,11 @@ def load_killarney_features() -> dict:
         # OSM lakes preserved → portage point-in-polygon still resolves.
         out["lakes"] = list(jeffs_lakes) + out["lakes"]
         out["campsites"] = jeffs.get("campsites", [])
+
+    out["paths"] = []
+    if PATHS_CACHE_PATH.exists():
+        paths_cache = json.loads(PATHS_CACHE_PATH.read_text(encoding="utf-8"))
+        out["paths"] = paths_cache.get("paths", [])
 
     return out
 
