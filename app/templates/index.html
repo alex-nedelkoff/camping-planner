@@ -1,84 +1,87 @@
 {% extends "base.html" %}
 {% block title %}Camping Trips{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/trip.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<script src="/static/js/trip.js" defer></script>
+{% endblock %}
 {% block body %}
-<header class="trip-header">
-  <h1>🏕 Camping Trips</h1>
-  <div class="header-actions">
-    <button id="user-pill" class="user-pill unset" onclick="switchUser()" title="Click to set / change name">…</button>
-    <button class="btn" onclick="toggleNewTrip()">+ New Trip</button>
-  </div>
-</header>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>🏕 Trips</h1>
+      <button id="user-pill" class="user-pill unset" onclick="App.switchUser()" title="Click to set / change name">…</button>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-btn" data-route="/">Home</button>
+      <button class="nav-btn" data-route="/new">+ New Trip</button>
+      <button class="nav-btn" data-route="/availability">Check Availability</button>
+    </nav>
+    <div class="sidebar-section-label">Upcoming</div>
+    <ul id="trips-upcoming" class="trip-list"></ul>
+    <div class="sidebar-section-label">Past</div>
+    <ul id="trips-past" class="trip-list"></ul>
+    <div class="sidebar-section-label" id="broken-label" hidden>Broken</div>
+    <ul id="trips-broken" class="trip-list"></ul>
+  </aside>
 
-<section id="new-trip" hidden>
-  <h2>New Trip</h2>
-  <form onsubmit="createTrip(event)">
-    <label>Park
-      <select name="park" required>
-        <option value="">— select —</option>
-        {% for slug, name in park_options %}
-        <option value="{{ slug }}">{{ name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label>Start date <input type="date" name="start" required></label>
-    <label>End date <input type="date" name="end" required></label>
-    <label>Participants (comma separated)
-      <input type="text" name="participants" placeholder="Alex, Jordan">
-    </label>
-    <button type="submit" class="btn">Create</button>
-    <span id="new-trip-status" class="status"></span>
-  </form>
-</section>
+  <main class="main-pane" id="main-pane">
+    <div class="main-loading">Loading…</div>
+  </main>
+</div>
 
-{% if broken %}
-<section>
-  <h2>⚠ Trips with errors</h2>
-  {% for trip in broken %}
-    {% include "partials/trip_card.html" %}
-  {% endfor %}
-</section>
-{% endif %}
+<template id="tpl-home">
+  <section class="welcome">
+    <h2>Camping Planner</h2>
+    <p>Pick a trip from the sidebar, or start a new one.</p>
+    <p class="muted">Tip: clicking different trips swaps the main pane without reloading — handy for comparing gear, dates, and costs across trips.</p>
+  </section>
+</template>
 
-<section>
-  <h2>Upcoming</h2>
-  {% if upcoming %}
-    {% for trip in upcoming %}
-      {% include "partials/trip_card.html" %}
-    {% endfor %}
-  {% else %}
-    <p class="empty">No upcoming trips.</p>
-  {% endif %}
-</section>
+<template id="tpl-new">
+  <section>
+    <h2>New Trip</h2>
+    <form id="new-trip-form">
+      <label>Park
+        <select name="park" required>
+          <option value="">— select —</option>
+          {% for slug, name in park_options %}
+          <option value="{{ slug }}">{{ name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Start date <input type="date" name="start" required></label>
+      <label>End date <input type="date" name="end" required></label>
+      <label>Participants (comma separated)
+        <input type="text" name="participants" placeholder="Alex, Jordan">
+      </label>
+      <button type="submit" class="btn">Create</button>
+      <span class="status" data-status></span>
+    </form>
+  </section>
+</template>
 
-<section>
-  <h2>Past</h2>
-  {% if past %}
-    {% for trip in past %}
-      {% include "partials/trip_card.html" %}
-    {% endfor %}
-  {% else %}
-    <p class="empty">No past trips.</p>
-  {% endif %}
-</section>
-
-<section>
-  <h2>Check Park Availability</h2>
-  <p class="warn">⚠ Ontario Parks rate-limits aggressively (Azure WAF will ban your IP for 30+ min after ~15 rapid requests). One check at a time, please.</p>
-  <form onsubmit="checkAvail(event)">
-    <label>Park
-      <select name="park" required>
-        <option value="">— select —</option>
-        {% for slug, name in park_options %}
-        <option value="{{ slug }}">{{ name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label>Start <input type="date" name="start" required></label>
-    <label>End <input type="date" name="end" required></label>
-    <button type="submit" class="btn" id="avail-btn">Check</button>
-  </form>
-  <div id="avail-results"></div>
-</section>
+<template id="tpl-availability">
+  <section>
+    <h2>Check Park Availability</h2>
+    <p class="warn">⚠ Ontario Parks rate-limits aggressively (Azure WAF will ban your IP for 30+ min after ~15 rapid requests). One check at a time, please.</p>
+    <form id="avail-form">
+      <label>Park
+        <select name="park" required>
+          <option value="">— select —</option>
+          {% for slug, name in park_options %}
+          <option value="{{ slug }}">{{ name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Start <input type="date" name="start" required></label>
+      <label>End <input type="date" name="end" required></label>
+      <button type="submit" class="btn">Check</button>
+    </form>
+    <div data-results></div>
+  </section>
+</template>
 {% endblock %}
 
 {% block scripts %}

@@ -1,8 +1,8 @@
-"""Tests for launch.py helpers."""
+"""Tests for the markdown-table helpers used by /api/save-gear."""
 
 import pytest
 
-from launch import replace_first_table, _md_escape_cell
+from app.services.trips import replace_first_table, _md_escape_cell
 
 
 GEAR_MD = """## Shared gear

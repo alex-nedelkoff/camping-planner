@@ -163,21 +163,21 @@ page.goto(url, timeout=45000, wait_until="domcontentloaded")
 
 ### Project files
 
-- `app/` — FastAPI web UI. Entry point: `uvicorn app.main:app --reload --port 8000`
-  - `app/main.py` — FastAPI instance, `db.init_schema()` on boot, `/static` and `/trips` mounts, router includes
+- `app/` — FastAPI single-page app. Entry point: `uvicorn app.main:app --reload --port 8000`
+  - `app/main.py` — FastAPI instance, `db.init_schema()` on boot, `/static` mount, router includes
   - `app/config.py` — central paths + cache TTLs (REPO_ROOT, TRIPS_DIR, TEMPLATE_DIR, PARKS_JSON, DATABASE_PATH)
   - `app/models.py` — Pydantic request/response schemas
   - `app/services/db.py` — SQLite connection, schema init + auto-migration, generic JSON-blob cache, per-user checklist state
   - `app/services/identity.py` — cookie-based identity (`cp_user`); no password
-  - `app/services/trips.py` — scan/create/rebuild/save-gear logic; markdown table editor; injects cached weather into build_trip
+  - `app/services/trips.py` — scan/create/save-gear logic; markdown table editor; `load_trip_payload` (used by `/api/trip/<slug>`); injects cached weather into build_trip
   - `app/services/availability.py` — `ontario_parks.check_park` wrapped in `availability_cache` (15 min TTL)
   - `app/services/weather_cache.py` — `weather.get_weather` wrapped in `weather_cache` (1 hour TTL)
-  - `app/routes/{pages,trips,parks,checklist,identity}.py` — thin route handlers
-  - `app/templates/` — Jinja2 templates (NOT the same as `templates/trip-template/`)
-  - `app/static/` — `index.css`, `index.js`
+  - `app/routes/{pages,trips,parks,checklist,identity}.py` — thin route handlers. `pages.py` always serves the same SPA shell; routing happens client-side
+  - `app/templates/` — Jinja2 templates (`base.html`, `index.html` SPA shell)
+  - `app/static/css/` — `index.css` (shell + sidebar) and `trip.css` (trip pane visuals)
+  - `app/static/js/` — `index.js` (router + sidebar + forms) and `trip.js` (per-trip behaviours: checklist sync, gear editor, embedded-script bootstrapping)
 - `camping.sqlite3` — gitignored. Caches + checklist state. Safe to delete; app re-creates the schema empty on next boot. Trip content is *not* in here.
-- `launch.py` — legacy stdlib HTTP server. Functionally replaced by `app/`; kept until smoke-tested in the wild, then deleted.
-- `build_trip.py` — markdown → trip.html renderer (called from `app/services/trips.py`)
+- `build_trip.py` — markdown → rendered HTML fragments (header, sections, weather, route map). Pure render library; the FastAPI layer composes these via `load_trip_payload`. No more `trip.html` artifact.
 - `ontario_parks.py` — availability checker (API + Playwright fallback)
 - `weather.py` — weather data via Open-Meteo API (historical averages + forecast)
 - `route_map.py` — KML/GPX parser, Leaflet map + SVG offline map generator
@@ -188,7 +188,7 @@ page.goto(url, timeout=45000, wait_until="domcontentloaded")
 - `osm_data.py`, `osm_killarney_cache.json` — OSM lakes/portages cache used by `route_engine.py`
 - `route_engine.py` — auto-routes paddling segments + estimates from OSM data
 - `templates/trip-template/` — markdown skeletons copied when creating a new trip
-- `trips/<slug>/` — per-trip markdown source of truth + generated `trip.html`
+- `trips/<slug>/` — per-trip markdown source of truth (rendered on demand by the FastAPI app; no `trip.html` artifact)
 - `legacy/` — pre-FastAPI sheet-driven flow (`trip_planner.py`, sample resource data, etc.). Kept for reference.
 - `FastAPI-refactor.md` — phase history (Phases 1–3 complete) and rationale for what was skipped
 
@@ -203,40 +203,33 @@ page.goto(url, timeout=45000, wait_until="domcontentloaded")
 ### Overview
 
 ```
-trips/<slug>/*.md  ──build_trip.py──►  trips/<slug>/trip.html
-       ▲                                        ▲
-       │                                        │
-   git (truth)                          FastAPI app at app/
-                                        + camping.sqlite3 (caches, per-user toggles)
+trips/<slug>/*.md ─► app.services.trips.load_trip_payload ─► /api/trip/<slug> ─► SPA pane
+       ▲                                                          ▲
+       │                                                          │
+   git (truth)                                  FastAPI app at app/
+                                                + camping.sqlite3 (caches, per-user toggles)
 ```
 
-Markdown files in `trips/<slug>/` are the source of truth. `build_trip.py` renders them into a self-contained `trip.html` per trip. The FastAPI app at `app/` provides a browser UI for creating trips, rebuilding HTML, editing the gear table, checking park availability, and syncing per-user packing checkboxes.
+Markdown files in `trips/<slug>/` are the source of truth. The FastAPI app renders them on demand into the SPA's main pane — there's no per-trip HTML artifact. Edit markdown directly (then commit) or via the in-browser section editors.
 
-### Two ways to work
+### Working with trips
 
-**Edit-then-rebuild (git-first):**
-```bash
-$EDITOR trips/<slug>/packing.md
-python3 build_trip.py trips/<slug>/
-git add trips/<slug>/ && git commit -am "..."
-```
-
-**Web UI (FastAPI):**
 ```bash
 uvicorn app.main:app --reload --port 8000
-# http://127.0.0.1:8000/  → index, "+ New Trip", rebuild, availability check
-# http://127.0.0.1:8000/trips/<slug>/trip.html  → trip page (gear edit, checkboxes)
+# http://127.0.0.1:8000/             → SPA shell, sidebar lists every trip
+# http://127.0.0.1:8000/trips/<slug> → SPA deep-links to a trip
+# http://127.0.0.1:8000/new          → new-trip form
+# http://127.0.0.1:8000/availability → park availability check
 ```
 
-The two paths coexist: the web UI writes back to the same markdown files; commit those after editing.
+The sidebar swaps trips without a page reload — handy for comparing 2+ trips. Save-gear and section saves write straight to markdown; commit them with git.
 
 ### Starting a new trip
 
-Either via the index "+ New Trip" form, or:
+Either via the SPA "+ New Trip" form, or by hand:
 ```bash
 cp -r templates/trip-template trips/<park>-<YYYY-MM>/
 $EDITOR trips/<park>-<YYYY-MM>/trip.md   # fill frontmatter
-python3 build_trip.py trips/<park>-<YYYY-MM>/
 ```
 
 Slug convention is `<park>-<YYYY-MM>` derived from `park` + `start_date`.
@@ -268,19 +261,20 @@ Slug convention is `<park>-<YYYY-MM>` derived from `park` + `start_date`.
 
 If `trip.md` has `nights` + `access_point` but no `route.gpx`/`.kml`, `route_engine.py` auto-routes paddling + portage segments using the cached OSM data in `osm_killarney_cache.json` and produces per-day estimates.
 
-### HTML trip page features
+### Trip pane features
 
-- Self-contained (all CSS/JS inline; only external dep is the Leaflet CDN for online maps)
-- Works offline — checkboxes persist via `localStorage` per-user; SVG map fallback for routes
-- Per-user packing checklist sync via `/api/checklist` when the FastAPI app is running
+- Rendered server-side per request via `/api/trip/<slug>` — no static HTML artifact
+- Sidebar trip switcher: click between trips without reloading
+- Per-user packing checklist sync via `/api/checklist`
+- Gear table inline editor → `/api/save-gear`
 - Weather section (historical or forecast)
-- Route map (Leaflet online + SVG offline)
-- Responsive + print-friendly (`@media print` styles)
+- Route map (Leaflet from CDN + SVG fallback in `<noscript>`)
+- Responsive + print-friendly (`@media print` styles in `app/static/css/trip.css`)
 
 ### Tests
 
 ```bash
-pytest tests/ -q       # 79 tests, ~1s
+pytest tests/ -q       # 82 tests, ~1s
 ```
 
-Tests cover `build_trip.py` rendering, OSM/route logic, the gear-table editor, FastAPI routes (with TestClient), the SQLite layer (incl. v0→v1 migration), and identity. The Camis API is **always mocked** in tests — never hit Ontario Parks from the test suite.
+Tests cover `build_trip.py` render functions, OSM/route logic, the gear-table editor, FastAPI routes (incl. SPA shell + `/api/trip/<slug>`), the SQLite layer (incl. v0→v1 migration), and identity. The Camis API is **always mocked** in tests — never hit Ontario Parks from the test suite.

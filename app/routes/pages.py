@@ -1,4 +1,4 @@
-"""Server-rendered HTML pages."""
+"""SPA shell entry point — always serves the same shell; routing is client-side."""
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
@@ -11,17 +11,29 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(JINJA_TEMPLATES_DIR))
 
 
-@router.get("/", response_class=HTMLResponse)
-def index(request: Request):
-    all_trips = trips_svc.scan_trips()
-    upcoming, past, broken = trips_svc.split_trips(all_trips)
+def _render_shell(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "index.html",
-        {
-            "upcoming": [trips_svc.trip_card_meta(t) for t in upcoming],
-            "past": [trips_svc.trip_card_meta(t) for t in past],
-            "broken": broken,
-            "park_options": trips_svc.load_park_options(),
-        },
+        {"park_options": trips_svc.load_park_options()},
     )
+
+
+@router.get("/", response_class=HTMLResponse)
+def index(request: Request):
+    return _render_shell(request)
+
+
+@router.get("/trips/{slug}", response_class=HTMLResponse)
+def trip(request: Request, slug: str):  # noqa: ARG001 — slug parsed by SPA
+    return _render_shell(request)
+
+
+@router.get("/new", response_class=HTMLResponse)
+def new(request: Request):
+    return _render_shell(request)
+
+
+@router.get("/availability", response_class=HTMLResponse)
+def availability_page(request: Request):
+    return _render_shell(request)

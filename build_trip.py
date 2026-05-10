@@ -1,14 +1,14 @@
-"""
-Generate a self-contained trip HTML page from a directory of markdown files.
+"""Trip rendering library.
 
-Usage: python3 build_trip.py trips/<trip-name>/
+Pure functions that turn a trip directory's markdown + YAML into rendered
+HTML fragments (header, sections, weather widget, route map). The FastAPI
+layer composes these into a single API payload; there is no longer a
+self-contained HTML output. See app/services/trips.py:load_trip_payload.
 """
 
-import argparse
 import datetime
 import json
 import re
-import sys
 from html import escape
 from pathlib import Path
 
@@ -21,8 +21,7 @@ import osm_data as _osm_data
 import route_engine as _route_engine
 
 # Weather data provider — defaults to direct Open-Meteo lookup. The FastAPI
-# layer swaps this for a SQLite-cached version (see app/services/trips.py) so
-# repeated rebuilds skip the network. CLI invocations stay zero-dep.
+# layer swaps this for a SQLite-cached version (see app/services/trips.py).
 weather_provider = _weather.get_weather
 
 # ---------------------------------------------------------------------------
@@ -30,302 +29,13 @@ weather_provider = _weather.get_weather
 # ---------------------------------------------------------------------------
 
 SECTION_FILES = ["itinerary", "gear", "food", "packing", "costs"]
+EDITABLE_SECTIONS = ("intro", "itinerary", "gear", "food", "packing", "costs")
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?(.*)", re.DOTALL)
 TASK_LINE_RE = re.compile(
     r"^(?P<prefix>\s*[-*+]\s+)\[(?P<mark>[ xX])\]\s+(?P<label>.+)$",
     re.MULTILINE,
 )
 
-_PAGE_CSS = """
-* { box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-       max-width: 900px; margin: 0 auto; padding: 1.5rem; color: #222;
-       line-height: 1.55; background: #fafafa; }
-h1, h2, h3 { color: #1f3a3a; }
-h1 { border-bottom: 3px solid #2d5016; padding-bottom: 0.3rem; }
-section { background: white; padding: 1.25rem 1.5rem; margin: 1rem 0;
-          border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
-th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; }
-th { background: #f0f4ee; }
-input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
-.trip-header { background: #2d5016; color: white; padding: 1.5rem 1.5rem 1rem;
-               border-radius: 10px; margin-bottom: 1rem; position: relative; }
-.trip-header h1 { color: white; border-bottom: none; margin: 0 0 0.5rem; }
-.user-pill { position: absolute; top: 1rem; right: 1rem; background: rgba(0,0,0,0.25);
-             color: white; padding: 0.3rem 0.7rem; border-radius: 999px;
-             font-size: 0.85rem; cursor: pointer; border: none; font-family: inherit; }
-.user-pill:hover { background: rgba(0,0,0,0.4); }
-.user-pill.unset { background: rgba(255,255,255,0.18); font-style: italic; }
-.trip-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; opacity: 0.95; }
-.trip-header table { background: rgba(0,0,0,0.18); border-radius: 6px;
-                     overflow: hidden; margin-top: 1rem; }
-.trip-header th, .trip-header td { color: white;
-                     border-bottom: 1px solid rgba(255,255,255,0.18);
-                     padding: 0.5rem 0.75rem; }
-.trip-header th { background: rgba(0,0,0,0.28); font-weight: 600; }
-.trip-header tr:last-child td { border-bottom: none; }
-.gear-edit-toolbar { margin-top: 0.6rem; display: flex; gap: 0.5rem;
-                     align-items: center; flex-wrap: wrap; }
-.gear-btn { padding: 0.35rem 0.85rem; background: #2d5016; color: white;
-            border: none; border-radius: 5px; cursor: pointer;
-            font-size: 0.9rem; font-family: inherit; }
-.gear-btn:hover { background: #3a6420; }
-.gear-btn.secondary { background: #6b7a5a; }
-.gear-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-#gear table.editing td { background: #fffbe6; }
-#gear table.editing td[contenteditable=true]:focus { outline: 2px solid #2d5016;
-                     outline-offset: -2px; background: #fff; }
-#gear .row-del { background: transparent; border: none; color: #c00;
-                 cursor: pointer; font-size: 1.1rem; padding: 0 0.3rem;
-                 margin-left: 0.4rem; }
-.gear-status { font-size: 0.9rem; color: #555; margin-left: 0.25rem; }
-.gear-status.error { color: #c00; }
-@media print { body { background: white; } section { box-shadow: none; }
-               .gear-edit-toolbar { display: none; } }
-"""
-
-_PAGE_JS = r"""
-(function() {
-  var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
-  var tripSlug = slugMatch ? slugMatch[1] : null;
-  var boxes = document.querySelectorAll('input[type=checkbox][data-cb-key]');
-
-  // localStorage key is namespaced per-user so switching identity on the same
-  // device doesn't bleed checks. '' = shared (matches Phase 2 behaviour).
-  var currentUser = '';
-  function lkey(cbKey) { return 'cb:' + currentUser + ':' + cbKey; }
-
-  function applyLocal(cb) {
-    var saved = localStorage.getItem(lkey(cb.dataset.cbKey));
-    if (saved === '1') cb.checked = true;
-    else if (saved === '0') cb.checked = false;
-    else cb.checked = false;
-  }
-
-  function hydrateFromServer() {
-    if (!tripSlug) return Promise.resolve();
-    return fetch('/api/checklist?trip=' + encodeURIComponent(tripSlug))
-      .then(function(r) { return r.ok ? r.json() : null; })
-      .then(function(j) {
-        if (!j || !j.ok || !j.state) return;
-        boxes.forEach(function(cb) {
-          if (Object.prototype.hasOwnProperty.call(j.state, cb.dataset.cbKey)) {
-            cb.checked = !!j.state[cb.dataset.cbKey];
-            localStorage.setItem(lkey(cb.dataset.cbKey), cb.checked ? '1' : '0');
-          }
-        });
-      })
-      .catch(function() { /* offline */ });
-  }
-
-  function refreshChecklist() {
-    boxes.forEach(applyLocal);
-    return hydrateFromServer();
-  }
-
-  boxes.forEach(function(cb) {
-    cb.addEventListener('change', function() {
-      localStorage.setItem(lkey(cb.dataset.cbKey), cb.checked ? '1' : '0');
-      if (!tripSlug) return;
-      fetch('/api/checklist?trip=' + encodeURIComponent(tripSlug), {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({key: cb.dataset.cbKey, checked: cb.checked})
-      }).catch(function() {});
-    });
-  });
-
-  // --- Identity (cookie-based) ---
-  function paintUser(name) {
-    var pill = document.getElementById('user-pill');
-    if (!pill) return;
-    if (name) {
-      pill.textContent = 'Hi, ' + name;
-      pill.classList.remove('unset');
-    } else {
-      pill.textContent = 'Set name';
-      pill.classList.add('unset');
-    }
-  }
-
-  function loadUser() {
-    return fetch('/api/whoami')
-      .then(function(r) { return r.json(); })
-      .then(function(j) {
-        currentUser = j.user || '';
-        paintUser(currentUser);
-        return refreshChecklist();
-      })
-      .catch(function() { return refreshChecklist(); });
-  }
-
-  window.switchUser = function() {
-    var current = currentUser || '';
-    var name = prompt('Switch to whom? (blank = shared/anonymous)', current);
-    if (name === null) return;
-    var trimmed = name.trim();
-    var op = trimmed
-      ? fetch('/api/whoami', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({user: trimmed})
-        }).then(function(r) { return r.json(); })
-      : fetch('/api/whoami', {method: 'DELETE'}).then(function() { return {user: ''}; });
-    op.then(function(j) {
-      currentUser = (j && j.user) || '';
-      paintUser(currentUser);
-      return refreshChecklist();
-    }).catch(function() {});
-  };
-
-  loadUser();
-})();
-
-(function() {
-  var section = document.getElementById('gear');
-  if (!section) return;
-  var table = section.querySelector('table');
-  if (!table) return;
-  var tbody = table.querySelector('tbody');
-  if (!tbody) return;
-
-  var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
-  var tripSlug = slugMatch ? slugMatch[1] : null;
-
-  var ncols = 0;
-  var firstRow = tbody.querySelector('tr');
-  if (firstRow) ncols = firstRow.cells.length;
-  if (!ncols) {
-    var theadRow = table.querySelector('thead tr');
-    if (theadRow) ncols = theadRow.cells.length;
-  }
-  if (!ncols) return;
-
-  var toolbar = document.createElement('div');
-  toolbar.className = 'gear-edit-toolbar';
-  toolbar.innerHTML =
-    '<button class="gear-btn" id="gear-edit-btn">Edit gear</button>' +
-    '<button class="gear-btn" id="gear-add-btn" hidden>+ Add row</button>' +
-    '<button class="gear-btn" id="gear-save-btn" hidden>Save</button>' +
-    '<button class="gear-btn secondary" id="gear-cancel-btn" hidden>Cancel</button>' +
-    '<span class="gear-status" id="gear-status"></span>';
-  table.after(toolbar);
-
-  var editBtn = toolbar.querySelector('#gear-edit-btn');
-  var addBtn = toolbar.querySelector('#gear-add-btn');
-  var saveBtn = toolbar.querySelector('#gear-save-btn');
-  var cancelBtn = toolbar.querySelector('#gear-cancel-btn');
-  var status = toolbar.querySelector('#gear-status');
-
-  var snapshot = null;
-
-  function addDeleteButtons() {
-    Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
-      if (tr.querySelector('.row-del')) return;
-      var lastCell = tr.cells[tr.cells.length - 1];
-      if (!lastCell) return;
-      var btn = document.createElement('button');
-      btn.className = 'row-del';
-      btn.textContent = '×';
-      btn.title = 'Delete row';
-      btn.hidden = true;
-      btn.contentEditable = 'false';
-      btn.addEventListener('click', function() { tr.remove(); });
-      lastCell.appendChild(btn);
-    });
-  }
-
-  function setEditing(on) {
-    table.classList.toggle('editing', on);
-    Array.from(tbody.querySelectorAll('td')).forEach(function(td) {
-      td.contentEditable = on ? 'true' : 'false';
-    });
-    Array.from(tbody.querySelectorAll('.row-del')).forEach(function(b) {
-      b.hidden = !on;
-    });
-    editBtn.hidden = on;
-    addBtn.hidden = !on;
-    saveBtn.hidden = !on;
-    cancelBtn.hidden = !on;
-  }
-
-  function rowsAsArray() {
-    return Array.from(tbody.querySelectorAll('tr')).map(function(tr) {
-      return Array.from(tr.cells).map(function(td) {
-        var clone = td.cloneNode(true);
-        var del = clone.querySelector('.row-del');
-        if (del) del.remove();
-        return clone.textContent.replace(/\s+/g, ' ').trim();
-      });
-    });
-  }
-
-  addDeleteButtons();
-
-  editBtn.addEventListener('click', function() {
-    snapshot = tbody.innerHTML;
-    setEditing(true);
-    status.textContent = '';
-    status.className = 'gear-status';
-  });
-
-  cancelBtn.addEventListener('click', function() {
-    if (snapshot != null) tbody.innerHTML = snapshot;
-    addDeleteButtons();
-    setEditing(false);
-    status.textContent = '';
-  });
-
-  addBtn.addEventListener('click', function() {
-    var tr = document.createElement('tr');
-    for (var i = 0; i < ncols; i++) {
-      var td = document.createElement('td');
-      td.contentEditable = 'true';
-      tr.appendChild(td);
-    }
-    tbody.appendChild(tr);
-    addDeleteButtons();
-    Array.from(tr.querySelectorAll('.row-del')).forEach(function(b) { b.hidden = false; });
-    tr.cells[0].focus();
-  });
-
-  saveBtn.addEventListener('click', async function() {
-    if (!tripSlug) {
-      status.textContent = 'Cannot detect trip slug from URL';
-      status.className = 'gear-status error';
-      return;
-    }
-    var rows = rowsAsArray();
-    saveBtn.disabled = true;
-    cancelBtn.disabled = true;
-    status.textContent = 'Saving…';
-    status.className = 'gear-status';
-    try {
-      var r = await fetch('/api/save-gear?trip=' + encodeURIComponent(tripSlug), {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({rows: rows})
-      });
-      var j = await r.json();
-      if (j.ok) {
-        status.textContent = 'Saved ✓ — reloading…';
-        setTimeout(function() { location.reload(); }, 600);
-      } else {
-        status.textContent = 'Error: ' + (j.error || 'unknown');
-        status.className = 'gear-status error';
-        saveBtn.disabled = false;
-        cancelBtn.disabled = false;
-      }
-    } catch (e) {
-      status.textContent = 'Error: ' + e.message + ' (is launch.py running?)';
-      status.className = 'gear-status error';
-      saveBtn.disabled = false;
-      cancelBtn.disabled = false;
-    }
-  });
-})();
-"""
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -357,7 +67,8 @@ def _load_park_info(park_slug: str) -> dict:
     return data.get("parks", {}).get(park_slug, {})
 
 
-def _render_header(fm: dict) -> str:
+def render_header(fm: dict) -> str:
+    """Render the dark green trip-header block (title, meta, nights table)."""
     park_info = _load_park_info(fm.get("park", ""))
     park_name = park_info.get("name", fm.get("park", "Trip"))
     drive = park_info.get("driveFromAjax", "")
@@ -377,8 +88,6 @@ def _render_header(fm: dict) -> str:
         )
     return (
         '<header class="trip-header">'
-        '<button id="user-pill" class="user-pill unset" '
-        'onclick="switchUser()" title="Click to set / change name">…</button>'
         f'<h1>{park_name} &middot; {fm.get("start_date", "")} → '
         f'{fm.get("end_date", "")}</h1>'
         '<div class="trip-meta">'
@@ -391,6 +100,7 @@ def _render_header(fm: dict) -> str:
         + nights_table
         + '</header>'
     )
+
 
 # ---------------------------------------------------------------------------
 # Loading & rendering
@@ -461,7 +171,7 @@ def render_weather_section(park_slug: str, start_date: str, end_date: str) -> st
         park_key=park_slug, start_date=start_date, end_date=end_date,
     )
     if data["source"] == "unavailable" or not data["days"]:
-        return '<section id="weather"><h2>Weather</h2><p>Weather data unavailable.</p></section>'
+        return "<p>Weather data unavailable.</p>"
 
     label = "Forecast" if data["source"] == "forecast" else "Historical averages"
     rows = []
@@ -479,11 +189,10 @@ def render_weather_section(park_slug: str, start_date: str, end_date: str) -> st
         )
 
     return (
-        '<section id="weather"><h2>Weather</h2>'
         f"<p><em>{label}</em></p>"
         '<table><thead><tr><th>Date</th><th>Conditions</th>'
         '<th>High / Low</th><th>Precip</th></tr></thead>'
-        f"<tbody>{''.join(rows)}</tbody></table></section>"
+        f"<tbody>{''.join(rows)}</tbody></table>"
     )
 
 
@@ -491,21 +200,14 @@ def render_route_section(trip) -> str:
     """Render the route map section.
 
     Three modes:
-      1. trip['route_file'] set -> use the user-supplied GPX/KML (existing behavior).
+      1. trip['route_file'] set -> use the user-supplied GPX/KML.
       2. No route file but trip frontmatter has 'nights' + 'access_point' ->
          auto-route from cached OSM data.
       3. Neither -> return ''.
-
-    Accepts either a trip dict (preferred, new) or a Path/None (legacy: route_file).
     """
-    # Backward-compat: accept the old (route_file) signature where caller passed
-    # a Path or None. If caller passes a dict, treat it as the trip dict.
     if trip is None:
         return ""
     if not isinstance(trip, dict):
-        # Legacy path-only invocation.
-        if trip is None:
-            return ""
         data = _route_map.parse_route_file(str(trip))
         return _route_map.generate_map_section(data)
 
@@ -535,23 +237,19 @@ def _render_auto_route(route: dict) -> str:
     """Render the OSM-driven route section: map + per-day estimates table."""
     days = _route_engine.build_day_estimates(route["segments"])
 
-    # Build a route_map-compatible structure to pass to generate_map_section.
     tracks = []
     for seg in route["segments"]:
         if not seg["geometry"]:
             continue
-        # Each segment becomes a track; route_map.py will color-cycle them.
         track_name = f"{seg['from']} → {seg['to']} ({seg['kind']})"
         tracks.append({
             "name": track_name,
             "points": [tuple(pt) for pt in seg["geometry"]],
         })
-    # Markers (access point + per-night site centroids) become Leaflet pins.
     waypoints = [
         {"lat": m["lat"], "lon": m["lon"], "name": m["label"], "desc": ""}
         for m in route.get("markers", [])
     ]
-    # Add portage entry/exit pins for each portage actually used in the route.
     for seg in route["segments"]:
         if seg["kind"] != "portage" or len(seg["geometry"]) < 2:
             continue
@@ -570,7 +268,6 @@ def _render_auto_route(route: dict) -> str:
         "waypoints": waypoints, "tracks": tracks, "source": "auto",
     })
 
-    # Per-day estimates table.
     rows = []
     total_paddle = 0.0
     total_portage = 0.0
@@ -610,90 +307,4 @@ def _render_auto_route(route: dict) -> str:
         f"<tbody>{''.join(rows)}</tbody></table>"
     )
 
-    return (
-        f'<section id="route"><h2>Route</h2>'
-        f"{warnings_html}"
-        f"{map_html}"
-        f"{table_html}"
-        f"</section>"
-    )
-
-# ---------------------------------------------------------------------------
-# Top-level orchestration
-# ---------------------------------------------------------------------------
-
-def build_html(trip_dir) -> str:
-    """Build the full self-contained HTML page for a trip directory."""
-    trip = load_trip(trip_dir)
-    fm = trip["frontmatter"]
-
-    sections_html = []
-    if trip["intro"]:
-        sections_html.append(
-            f'<section id="intro">{render_section(trip["intro"], "intro")}</section>'
-        )
-    sections_html.append(
-        f'<section id="itinerary"><h2>Itinerary</h2>'
-        f'{render_section(trip["itinerary"], "itinerary")}</section>'
-    )
-    sections_html.append(render_route_section(trip))
-    sections_html.append(render_weather_section(
-        fm.get("park", ""), fm.get("start_date", ""), fm.get("end_date", ""),
-    ))
-    sections_html.append(
-        f'<section id="gear"><h2>Gear</h2>'
-        f'{render_section(trip["gear"], "gear")}</section>'
-    )
-    sections_html.append(
-        f'<section id="food"><h2>Food</h2>'
-        f'{render_section(trip["food"], "food")}</section>'
-    )
-    sections_html.append(
-        f'<section id="packing"><h2>Packing</h2>'
-        f'{render_section(trip["packing"], "packing")}</section>'
-    )
-    sections_html.append(
-        f'<section id="costs"><h2>Costs</h2>'
-        f'{render_section(trip["costs"], "costs")}</section>'
-    )
-
-    body = _render_header(fm) + "\n".join(s for s in sections_html if s)
-    title = (
-        f'{_load_park_info(fm.get("park", "")).get("name", "Trip")} '
-        f'{fm.get("start_date", "")}'
-    )
-    return (
-        '<!DOCTYPE html><html lang="en"><head>'
-        '<meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f'<title>{title}</title>'
-        f'<style>{_PAGE_CSS}</style>'
-        '</head><body>'
-        f'{body}'
-        f'<script>{_PAGE_JS}</script>'
-        '</body></html>'
-    )
-
-
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("trip_dir", help="Path to trip directory (contains trip.md)")
-    parser.add_argument(
-        "--refresh-osm", action="store_true",
-        help="Re-fetch the Killarney OSM cache from Overpass before rendering.",
-    )
-    args = parser.parse_args(argv)
-
-    if args.refresh_osm:
-        _osm_data.refresh_killarney_cache()
-
-    trip_dir = Path(args.trip_dir)
-    html = build_html(trip_dir)
-    out_path = trip_dir / "trip.html"
-    out_path.write_text(html, encoding="utf-8")
-    print(f"Wrote {out_path}")
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+    return f"{warnings_html}{map_html}{table_html}"

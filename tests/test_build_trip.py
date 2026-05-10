@@ -136,7 +136,7 @@ def test_render_section_handles_headings_and_paragraphs():
 
 from unittest.mock import patch
 
-from build_trip import build_html
+from app.services.trips import load_trip_payload
 
 
 _FAKE_WEATHER = {
@@ -156,43 +156,56 @@ _FAKE_WEATHER = {
 }
 
 
-def test_build_html_assembles_full_page():
+def _section_html(payload, section_id: str) -> str:
+    for s in payload["sections"]:
+        if s["id"] == section_id:
+            return s["html"]
+    return ""
+
+
+def _all_html(payload) -> str:
+    return payload["header_html"] + "".join(s["html"] for s in payload["sections"])
+
+
+def test_load_trip_payload_assembles_sections(tmp_path, monkeypatch):
     fixture = Path(__file__).parent / "fixtures" / "sample-trip"
+    # Redirect the service's TRIPS_DIR to the fixture's parent so the slug
+    # "sample-trip" resolves to fixture/.
+    from app.services import trips as trips_svc
+    monkeypatch.setattr(trips_svc, "TRIPS_DIR", fixture.parent)
+
     with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER), \
          patch("build_trip._osm_data.load_killarney_features",
                side_effect=FileNotFoundError("no cache")):
-        html = build_html(fixture)
+        payload = load_trip_payload("sample-trip")
 
-    # Sections present in expected order.
+    assert payload["slug"] == "sample-trip"
+    section_ids = [s["id"] for s in payload["sections"]]
+    # Intro + itinerary + weather + gear/food/packing/costs (no route — no GPX, no OSM).
+    assert "intro" in section_ids
+    assert "itinerary" in section_ids
+    assert "weather" in section_ids
+    assert "gear" in section_ids
+    assert "route" not in section_ids
+
+    full = _all_html(payload)
     for marker in ("Welcome to the test trip", "Day 1", "Canoe", "Friday dinner",
                    "Tent", "Permit"):
-        assert marker in html, f"missing: {marker}"
+        assert marker in full, f"missing: {marker}"
 
-    # Weather table populated from the mocked data.
-    assert "Mainly clear" in html
-    assert "18" in html and "5" in html
+    assert "Mainly clear" in _section_html(payload, "weather")
+    assert "Killarney" in payload["header_html"]
+    assert "2026-05-15" in payload["header_html"]
+    assert "Alex" in payload["header_html"]
 
-    # Frontmatter rendered into header.
-    assert "Killarney" in html or "killarney" in html
-    assert "2026-05-15" in html
-    assert "Alex" in html
-
-    # Task list became real checkboxes with stable keys.
-    assert 'type="checkbox"' in html
-    assert 'data-cb-key="packing--tent"' in html
-    assert 'data-cb-key="packing--stove"' in html
-
-    # Self-contained: contains its own <style> and <script> blocks.
-    assert "<style>" in html
-    assert "<script>" in html
-
-    # No route file in fixture → no map section.
-    assert "Route Map" not in html
+    assert 'data-cb-key="packing--tent"' in _section_html(payload, "packing")
+    assert 'data-cb-key="packing--stove"' in _section_html(payload, "packing")
 
 
-def test_build_html_renders_auto_route_table_when_no_gpx():
-    """When no route file is present and OSM cache is loadable, an auto route table appears."""
+def test_load_trip_payload_renders_auto_route_when_no_gpx(tmp_path, monkeypatch):
     fixture = Path(__file__).parent / "fixtures" / "sample-trip"
+    from app.services import trips as trips_svc
+    monkeypatch.setattr(trips_svc, "TRIPS_DIR", fixture.parent)
 
     fake_osm = {
         "lakes": [
@@ -210,21 +223,22 @@ def test_build_html_renders_auto_route_table_when_no_gpx():
     }
     with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER), \
          patch("build_trip._osm_data.load_killarney_features", return_value=fake_osm):
-        html = build_html(fixture)
+        payload = load_trip_payload("sample-trip")
 
-    # The auto-route renders a "Route" heading with a per-day estimates table.
-    assert "Route" in html
-    # Per-day table headers.
+    section_ids = [s["id"] for s in payload["sections"]]
+    assert "route" in section_ids
+    route_html = _section_html(payload, "route")
     for header in ("Day", "Paddle", "Portage", "Est. time"):
-        assert header in html
+        assert header in route_html
 
 
-def test_build_html_omits_route_when_no_osm_cache():
-    """When OSM cache load fails AND no route file, route section is omitted."""
+def test_load_trip_payload_omits_route_when_no_osm_cache(tmp_path, monkeypatch):
     fixture = Path(__file__).parent / "fixtures" / "sample-trip"
+    from app.services import trips as trips_svc
+    monkeypatch.setattr(trips_svc, "TRIPS_DIR", fixture.parent)
+
     with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER), \
          patch("build_trip._osm_data.load_killarney_features",
                side_effect=FileNotFoundError("no cache")):
-        html = build_html(fixture)
-    # No OSM cache and no GPX -> no Route section.
-    assert "<section id=\"route\">" not in html
+        payload = load_trip_payload("sample-trip")
+    assert "route" not in [s["id"] for s in payload["sections"]]

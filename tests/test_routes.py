@@ -48,7 +48,24 @@ def client(tmp_path, monkeypatch):
 def test_index_renders(client):
     r = client.get("/")
     assert r.status_code == 200
-    assert "Camping Trips" in r.text
+    # SPA shell ships an empty main pane; sidebar header is in the markup.
+    assert "Trips" in r.text
+    assert 'id="main-pane"' in r.text
+
+
+def test_trip_slug_url_serves_shell(client):
+    r = client.get("/trips/killarney-2026-05")
+    assert r.status_code == 200
+    assert 'id="main-pane"' in r.text
+
+
+def test_trips_list_endpoint(client):
+    r = client.get("/api/trips")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    names = [t["name"] for t in body["trips"]]
+    assert "killarney-2026-05" in names
 
 
 # ---------------------------------------------------------------------------
@@ -107,12 +124,37 @@ def test_new_trip_validates_bad_date(client):
 
 
 # ---------------------------------------------------------------------------
-# POST /api/rebuild
+# GET /api/trip/<slug>
 # ---------------------------------------------------------------------------
 
 
-def test_rebuild_missing_trip_returns_404(client):
-    r = client.post("/api/rebuild", params={"trip": "no-such-trip"})
+def test_get_trip_returns_payload(client):
+    from unittest.mock import patch
+
+    fake_weather = {
+        "source": "forecast",
+        "days": [{
+            "date": "2026-05-15", "high": 18.0, "low": 5.0,
+            "precip_mm": 0.0, "precip_chance": 10, "code": 1,
+            "description": "Mainly clear", "icon": "☀️",
+        }],
+    }
+    with patch("build_trip._weather.get_weather", return_value=fake_weather), \
+         patch("build_trip._osm_data.load_killarney_features",
+               side_effect=FileNotFoundError("no cache")):
+        r = client.get("/api/trip/killarney-2026-05")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["slug"] == "killarney-2026-05"
+    assert body["park_name"]
+    assert "<header" in body["header_html"]
+    section_ids = [s["id"] for s in body["sections"]]
+    for required in ("intro", "itinerary", "gear", "food", "packing", "costs"):
+        assert required in section_ids
+
+
+def test_get_trip_missing_returns_404(client):
+    r = client.get("/api/trip/no-such-trip")
     assert r.status_code == 404
 
 

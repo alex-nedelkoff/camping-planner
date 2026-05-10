@@ -1,6 +1,6 @@
-"""Trip discovery, creation, gear-edit and rebuild logic.
+"""Trip discovery, creation, and editing services.
 
-Pure functions over the filesystem and the existing build_trip module.
+Pure functions over the filesystem and the build_trip render library.
 Routes call into these; tests import them directly.
 """
 
@@ -17,8 +17,8 @@ import build_trip
 from app.config import PARKS_JSON, TEMPLATE_DIR, TRIPS_DIR
 from app.services import weather_cache as _weather_cache
 
-# Inject the SQLite-cached weather lookup into build_trip whenever the FastAPI
-# layer is loaded. CLI users (`python build_trip.py ...`) keep the direct call.
+# Route the trip renderer through the SQLite-cached weather lookup so repeated
+# trip loads don't re-hit Open-Meteo.
 build_trip.weather_provider = _weather_cache.get_weather
 
 
@@ -227,24 +227,13 @@ def create_trip(
     return slug
 
 
-def rebuild_trip(slug: str, trips_dir: Path | None = None) -> str:
-    """Re-render the trip's HTML. Returns the slug on success."""
-    if trips_dir is None:
-        trips_dir = TRIPS_DIR
-    trip_dir = trips_dir / slug
-    if not slug or not trip_dir.is_dir():
-        raise TripError("trip not found", status=404)
-    html = build_trip.build_html(trip_dir)
-    (trip_dir / "trip.html").write_text(html, encoding="utf-8")
-    return slug
-
-
 def save_gear_table(
     slug: str,
     rows: list[list[str]],
     trips_dir: Path | None = None,
 ) -> None:
-    """Replace gear.md's first table with `rows` and re-render the HTML."""
+    """Replace gear.md's first table with `rows`. Trip is rendered on demand
+    by /api/trip/<slug>, so there's no HTML artifact to refresh here."""
     if trips_dir is None:
         trips_dir = TRIPS_DIR
     trip_dir = trips_dir / slug
@@ -261,5 +250,75 @@ def save_gear_table(
     except ValueError as exc:
         raise TripError(str(exc), status=400) from exc
     gear_md.write_text(new_text, encoding="utf-8")
-    html = build_trip.build_html(trip_dir)
-    (trip_dir / "trip.html").write_text(html, encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Trip rendering payload (consumed by /api/trip/<slug>)
+# ---------------------------------------------------------------------------
+
+
+def load_trip_payload(slug: str, trips_dir: Path | None = None) -> dict:
+    """Build the SPA payload for a trip: header HTML + per-section rendered HTML.
+
+    Returned shape:
+        {
+          "slug": str,
+          "frontmatter": dict,
+          "park_name": str,
+          "header_html": str,
+          "sections": [
+            {"id": str, "title": str, "html": str, "editable": bool},
+            ...
+          ],
+        }
+    """
+    if trips_dir is None:
+        trips_dir = TRIPS_DIR
+    trip_dir = trips_dir / slug
+    if not slug or not trip_dir.is_dir():
+        raise TripError("trip not found", status=404)
+
+    trip = build_trip.load_trip(trip_dir)
+    fm = trip["frontmatter"]
+    park_info = build_trip._load_park_info(fm.get("park", ""))
+    park_name = park_info.get("name") or fm.get("park", "Trip")
+
+    sections: list[dict] = []
+    sections.append({
+        "id": "intro", "title": "Overview", "editable": True,
+        "html": build_trip.render_section(trip["intro"], "intro") if trip["intro"] else "",
+    })
+    sections.append({
+        "id": "itinerary", "title": "Itinerary", "editable": True,
+        "html": build_trip.render_section(trip["itinerary"], "itinerary"),
+    })
+
+    route_html = build_trip.render_route_section(trip)
+    if route_html:
+        sections.append({
+            "id": "route", "title": "Route", "editable": False, "html": route_html,
+        })
+
+    weather_html = build_trip.render_weather_section(
+        fm.get("park", ""), fm.get("start_date", ""), fm.get("end_date", ""),
+    )
+    if weather_html:
+        sections.append({
+            "id": "weather", "title": "Weather", "editable": False, "html": weather_html,
+        })
+
+    for section_id in ("gear", "food", "packing", "costs"):
+        sections.append({
+            "id": section_id,
+            "title": section_id.capitalize(),
+            "editable": True,
+            "html": build_trip.render_section(trip[section_id], section_id),
+        })
+
+    return {
+        "slug": slug,
+        "frontmatter": fm,
+        "park_name": park_name,
+        "header_html": build_trip.render_header(fm),
+        "sections": sections,
+    }

@@ -15,10 +15,9 @@ from app.services import db
 app = FastAPI(title="Camping Planner")
 
 db.init_schema()
+TRIPS_DIR.mkdir(exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-TRIPS_DIR.mkdir(exist_ok=True)
-app.mount("/trips", StaticFiles(directory=str(TRIPS_DIR)), name="trips")
 
 app.include_router(pages.router)
 app.include_router(trips.router)

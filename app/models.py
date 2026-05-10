@@ -26,6 +26,38 @@ class NewTripResponse(BaseModel):
     trip_dir: str
 
 
+class TripSection(BaseModel):
+    id: str
+    title: str
+    html: str
+    editable: bool
+
+
+class TripPayloadResponse(BaseModel):
+    ok: bool = True
+    slug: str
+    park_name: str
+    frontmatter: dict
+    header_html: str
+    sections: list[TripSection]
+
+
+class TripListItem(BaseModel):
+    name: str
+    park_name: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    participant_count: int = 0
+    days_label: str | None = None
+    bucket: str
+    error: str | None = None
+
+
+class TripListResponse(BaseModel):
+    ok: bool = True
+    trips: list[TripListItem]
+
+
 class CampgroundAvailability(BaseModel):
     available: int
     total: int
