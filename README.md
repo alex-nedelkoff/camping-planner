@@ -1,161 +1,84 @@
-# Camping Trip Planner
+# camping-planner
 
-Plan group camping trips to Ontario Provincial Parks. Collect preferences from friends, check campsite availability, and generate shareable trip pages.
+Shared trip planning for canoe and camping trips with friends. Markdown is the
+source of truth; a small Python script generates a self-contained HTML page
+per trip.
 
-## How It Works
-
-```
-1. Survey friends (optional)    →  Google Form collects dates, park preferences, gear
-2. Plan the trip                →  Google Sheet template = collaborative source of truth
-3. Generate trip page           →  Self-contained HTML with everything you need
-4. Share via Google Drive       →  Everyone gets the itinerary + interactive checklists
-```
-
-The Google Sheet is where all the planning happens — you and your friends edit it together. When you're ready, generate an HTML trip page from it that works offline at the campsite.
-
-## Quick Start
-
-### Option A: Ask Claude
-
-Just open Claude Code in this project and say:
-
-> "Let's plan a camping trip to Killarney for July 10-12 with Alex, Jordan, Sam, and Riley"
-
-Claude will:
-- Create a Google Sheet with all the tabs pre-filled
-- Check Ontario Parks for site availability
-- Suggest hikes and activities
-- Ask you questions to fill in the details
-- Generate the HTML trip page and upload it to Drive
-
-### Option B: Do It Yourself
-
-**1. Create a trip planning sheet:**
+## Quick start
 
 ```bash
-python3 trip_planner.py new-trip \
-  --park killarney \
-  --start 2026-07-10 \
-  --end 2026-07-12 \
-  --participants "Alex,Jordan,Sam,Riley"
+git clone git@github.com:alex-nedelkoff/camping-planner.git
+cd camping-planner
+pip install -r requirements.txt
 ```
 
-This creates a Google Sheet with 8 tabs and gives you the URL. Share it with your group.
+## Editing a trip
 
-**2. Fill in the sheet collaboratively:**
+1. `cd trips/<trip-name>/`
+2. Edit any of `trip.md`, `itinerary.md`, `gear.md`, `food.md`, `packing.md`,
+   `costs.md` in your editor.
+3. `git pull --rebase && git commit -am "..." && git push`.
 
-| Tab | What goes here | Who fills it |
-|---|---|---|
-| Trip Info | Park, dates, meeting point, check-in/out | Trip organizer |
-| Participants | Names, who's driving, dietary restrictions, phone numbers | Everyone |
-| Route | Multi-day route stops (for canoe/portage trips) | Trip organizer |
-| Gear | Shared gear assignments (tent, stove, cooler, etc.) | Everyone claims items |
-| Shared Food | Who's bringing what food for which meal | Everyone |
-| Itinerary | Day-by-day schedule — departure, activities, meals | Trip organizer |
-| Costs | Shared expenses and who paid | Anyone who pays for something |
-| Packing Checklist | Personal packing items | Pre-filled, for personal use |
+GitHub renders `.md` files when you click them on github.com — no build step
+needed for the markdown.
 
-**3. Generate the trip page:**
+## Previewing the HTML
+
+The repo is private, so `htmlpreview.github.io` doesn't work. Run a local
+server instead:
 
 ```bash
-python3 trip_planner.py generate --sheet-id YOUR_SHEET_ID --output trip.html
+python3 -m http.server
 ```
 
-Add a canoe/hiking route map:
-```bash
-python3 trip_planner.py generate --sheet-id YOUR_SHEET_ID --route-file route.gpx --output trip.html
-```
+Then open `http://localhost:8000/trips/<trip-name>/trip.html`.
 
-**4. Upload to Google Drive:**
+## Regenerating the HTML
 
-```bash
-python3 trip_planner.py upload --file trip.html --share
-```
-
-Share the link with everyone.
-
-## The HTML Trip Page
-
-The generated HTML file is a single self-contained page with:
-
-- **Trip overview** — park, dates, campsite, group size
-- **Who's coming** — participants, dietary restrictions, drivers
-- **Getting there** — meeting point, departure time, Google Maps link
-- **Weather** — historical averages or real forecast (auto-detected)
-- **Route** — multi-site stops for canoe/portage trips
-- **Route map** — interactive Leaflet map (online) + SVG diagram (offline)
-- **Day-by-day itinerary** — times, activities, meal schedule
-- **Activities** — suggested hikes with difficulty/distance, swimming, paddling
-- **Gear assignments** — who's bringing what
-- **Shared food plan** — meals and dietary notes
-- **Cost summary** — expenses with per-person split
-- **Packing checklist** — checkboxes saved to your device (localStorage)
-
-**Works offline** — critical for camping with no cell service. Print a copy as backup.
-
-## Checking Campsite Availability
+After editing markdown, regenerate the trip page:
 
 ```bash
-# Check a specific park
-python3 ontario_parks.py check killarney --start 2026-07-10 --end 2026-07-12
-
-# List all configured parks
-python3 ontario_parks.py list
-
-# List every park in the Ontario Parks system
-python3 ontario_parks.py list-all
+python3 build_trip.py trips/<trip-name>/
 ```
 
-Or ask Claude: "Check if Killarney has availability for July 10-12"
+Commit both the markdown changes and the regenerated `trip.html`.
 
-## Weather
+## Starting a new trip
 
 ```bash
-python3 weather.py --park killarney --start 2026-07-10 --end 2026-07-12
+cp -r templates/trip-template trips/<new-trip-name>/
+$EDITOR trips/<new-trip-name>/trip.md  # fill in frontmatter
+python3 build_trip.py trips/<new-trip-name>/
+git add trips/<new-trip-name>/
+git commit -m "feat: add <new-trip-name>"
 ```
 
-- More than 16 days out: shows historical averages (typical conditions)
-- Within 16 days: shows real forecast with rain probability
-- Automatically included in the HTML trip page
+## Sensitive content
 
-## Survey (Optional)
+Anything you don't want committed (phone numbers, emergency contacts,
+satellite-messenger PINs) goes in:
 
-If you want to poll your friends before planning:
+- `private/` — gitignored top-level folder
+- `*.local.md` — gitignored anywhere
 
-1. See `GOOGLE_FORM_SETUP.md` for form structure, or use `form_builder_import.csv` with the Form Builder add-on, or run `create_form.gs` in Google Apps Script
-2. The form collects: available days/weekends, park preferences (filtered by driving willingness), gear, dietary restrictions
-3. Responses go to a Google Sheet that Claude can read to pre-fill the trip planning sheet
+Both you and your collaborator sync these out-of-band.
 
-## File Overview
+## Park availability checks
 
-| File | What it does |
-|---|---|
-| `trip_planner.py` | Main tool — create sheets, generate HTML, upload to Drive |
-| `ontario_parks.py` | Check campsite availability via Ontario Parks API |
-| `weather.py` | Fetch weather data (historical + forecast) from Open-Meteo |
-| `route_map.py` | Parse KML/GPX files, generate interactive + offline maps |
-| `parks.json` | Park database — IDs, names, drive times from Ajax |
-| `park_activities.json` | Curated hikes, swimming, paddling for 7 popular parks |
-| `CLAUDE.md` | Technical reference for Claude (API details, endpoints, gws usage) |
-| `GOOGLE_FORM_SETUP.md` | Instructions for creating the preference survey form |
-| `form_builder_import.csv` | CSV template for the Form Builder add-on |
-| `create_form.gs` | Google Apps Script to auto-create the form |
+Use the existing tooling against the Ontario Parks API:
 
-## Requirements
+```bash
+python3 ontario_parks.py check killarney --start 2026-05-15 --end 2026-05-18
+```
 
-- Python 3.9+
-- `requests` and `playwright` (`pip install -r requirements.txt`)
-- `gws` CLI (Google Workspace CLI — for Sheets/Drive operations)
-- Claude Code (for the interactive planning workflow)
+See `CLAUDE.md` for the full API reference, including rate-limit warnings.
 
-## Adding New Parks
+## Repo layout
 
-Park configs are in `parks.json`. Each park needs a `resourceLocationId` (from the API) and a `mapId` (from browsing the reservation site). To find a park's mapId:
-
-1. Go to `reservations.ontarioparks.com`
-2. Navigate to the park's campground map
-3. Grab the `mapId` from the URL
-
-To add activities for a park, edit `park_activities.json`.
-
-To add GPS coordinates for weather, edit `weather.py:PARK_COORDS`.
+- `build_trip.py` — markdown → HTML trip page generator
+- `ontario_parks.py` — Ontario Parks availability checks
+- `weather.py`, `route_map.py` — used by `build_trip.py`
+- `parks.json`, `park_activities.json` — park metadata
+- `templates/trip-template/` — copy this to start a new trip
+- `trips/` — one folder per trip
+- `legacy/` — older Sheet-driven flow, kept for reference
