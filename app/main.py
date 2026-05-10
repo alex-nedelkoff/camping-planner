@@ -25,6 +25,7 @@ app.include_router(parks.router)
 app.include_router(checklist.router)
 app.include_router(identity.router)
 app.include_router(foods.router)
+app.include_router(foods.trip_meals_router)
 
 
 @app.exception_handler(Exception)

@@ -172,6 +172,9 @@ def test_load_trip_payload_assembles_sections(tmp_path, monkeypatch):
     from app.services import trips as trips_svc
     monkeypatch.setattr(trips_svc, "TRIPS_DIR", fixture.parent)
 
+    from app.services import meal_plan as mp_svc
+    monkeypatch.setattr(mp_svc, "TRIPS_DIR", fixture.parent)
+
     with patch("build_trip.weather_provider", return_value=_FAKE_WEATHER), \
          patch("build_trip._osm_data.load_killarney_features",
                side_effect=FileNotFoundError("no cache")):
@@ -187,9 +190,14 @@ def test_load_trip_payload_assembles_sections(tmp_path, monkeypatch):
     assert "route" not in section_ids
 
     full = _all_html(payload)
-    for marker in ("Welcome to the test trip", "Day 1", "Canoe", "Friday dinner",
-                   "Tent", "Permit"):
+    for marker in ("Welcome to the test trip", "Day 1", "Canoe", "Tent", "Permit"):
         assert marker in full, f"missing: {marker}"
+
+    # Food section is now a structured meal-plan section, not raw HTML.
+    food_section = next(s for s in payload["sections"] if s["id"] == "food")
+    assert food_section["kind"] == "meal-plan"
+    # Legacy prose is surfaced in the payload for the migration banner.
+    assert "Friday dinner" in food_section["payload"]["plan"]["legacy_body"]
 
     assert "Mainly clear" in _section_html(payload, "weather")
     assert "Killarney" in payload["header_html"]

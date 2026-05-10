@@ -7,9 +7,12 @@ from app.models import (
     FoodIn,
     FoodReferencesResponse,
     FoodsCatalogResponse,
+    MealPlanIn,
+    MealPlanOut,
     OkResponse,
 )
 from app.services import foods as foods_svc
+from app.services import meal_plan as mp_svc
 
 router = APIRouter(prefix="/api/foods")
 
@@ -57,4 +60,28 @@ def delete_food(food_id: str, force: bool = Query(default=False)):
                 detail={"ok": False, "error": "food is referenced", "references": refs},
             )
     foods_svc.delete(food_id)
+    return OkResponse()
+
+
+trip_meals_router = APIRouter(prefix="/api/trip")
+
+
+@trip_meals_router.get("/{slug}/meals", response_model=MealPlanOut)
+def get_meals(slug: str):
+    try:
+        plan = mp_svc.load(slug)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail={"ok": False, "error": "trip not found"})
+    catalog = foods_svc.load_catalog()
+    totals = mp_svc.compute_totals(plan, catalog)
+    return MealPlanOut(plan=plan, totals=totals)
+
+
+@trip_meals_router.post("/{slug}/meals", response_model=OkResponse)
+def save_meals(slug: str, body: MealPlanIn):
+    try:
+        catalog = foods_svc.load_catalog()
+        mp_svc.save(slug, body.model_dump(), catalog=catalog)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail={"ok": False, "error": "trip not found"})
     return OkResponse()

@@ -370,20 +370,27 @@ def load_trip_payload(slug: str, trips_dir: Path | None = None) -> dict:
     park_info = build_trip._load_park_info(fm.get("park", ""))
     park_name = park_info.get("name") or fm.get("park", "Trip")
 
+    from app.services import foods as foods_svc
+    from app.services import meal_plan as mp_svc
+
     sections: list[dict] = []
     sections.append({
         "id": "intro", "title": "Overview", "editable": True,
+        "kind": "html", "payload": None,
         "html": build_trip.render_section(trip["intro"], "intro") if trip["intro"] else "",
     })
     sections.append({
         "id": "itinerary", "title": "Itinerary", "editable": True,
+        "kind": "html", "payload": None,
         "html": build_trip.render_section(trip["itinerary"], "itinerary"),
     })
 
     route_html = build_trip.render_route_section(trip)
     if route_html:
         sections.append({
-            "id": "route", "title": "Route", "editable": False, "html": route_html,
+            "id": "route", "title": "Route", "editable": False,
+            "kind": "html", "payload": None,
+            "html": route_html,
         })
 
     weather_html = build_trip.render_weather_section(
@@ -391,16 +398,36 @@ def load_trip_payload(slug: str, trips_dir: Path | None = None) -> dict:
     )
     if weather_html:
         sections.append({
-            "id": "weather", "title": "Weather", "editable": False, "html": weather_html,
+            "id": "weather", "title": "Weather", "editable": False,
+            "kind": "html", "payload": None,
+            "html": weather_html,
         })
 
     for section_id in ("gear", "food", "packing", "costs"):
-        sections.append({
-            "id": section_id,
-            "title": section_id.capitalize(),
-            "editable": True,
-            "html": build_trip.render_section(trip[section_id], section_id),
-        })
+        if section_id == "food":
+            try:
+                plan = mp_svc.load(slug)
+                catalog = foods_svc.load_catalog()
+                totals = mp_svc.compute_totals(plan, catalog)
+            except Exception:
+                plan, totals = {}, {}
+            sections.append({
+                "id": "food",
+                "title": "Food",
+                "editable": True,
+                "kind": "meal-plan",
+                "html": "",
+                "payload": {"plan": plan, "totals": totals},
+            })
+        else:
+            sections.append({
+                "id": section_id,
+                "title": section_id.capitalize(),
+                "editable": True,
+                "kind": "html",
+                "payload": None,
+                "html": build_trip.render_section(trip[section_id], section_id),
+            })
 
     return {
         "slug": slug,
