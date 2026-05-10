@@ -106,6 +106,60 @@ def _point_in_polygon(point: list, polygon: list) -> bool:
     return inside
 
 
+def _line_inside_polygon(p1: list, p2: list, polygon: list,
+                         samples: int = 20) -> bool:
+    """True if the line from p1 to p2 stays inside polygon (sampled)."""
+    for i in range(samples + 1):
+        t = i / samples
+        lat = p1[0] + t * (p2[0] - p1[0])
+        lon = p1[1] + t * (p2[1] - p1[1])
+        if not _point_in_polygon([lat, lon], polygon):
+            return False
+    return True
+
+
+def _polygon_aware_paddle(start: list, end: list, lake: dict) -> list:
+    """Return geometry [start, ..., end] for a paddle staying inside `lake`.
+
+    Tries straight line first. If the line crosses outside the lake polygon
+    (peninsula, L-shaped lake, etc.), searches polygon vertices for a single
+    intermediate waypoint that keeps both legs inside, picking the shortest
+    detour. Falls back to routing via the lake centroid when no vertex works.
+
+    `lake` is a dict with `polygon` (and optionally `centroid`). If `lake`
+    is falsy or has no polygon, returns the straight line unchanged.
+    """
+    if not lake or not lake.get("polygon"):
+        return [start, end]
+    polygon = lake["polygon"]
+    if _line_inside_polygon(start, end, polygon):
+        return [start, end]
+    best_vertex = None
+    best_dist = float("inf")
+    for vertex in polygon:
+        v = [vertex[0], vertex[1]]
+        if (_line_inside_polygon(start, v, polygon) and
+                _line_inside_polygon(v, end, polygon)):
+            d = _haversine_km(start, v) + _haversine_km(v, end)
+            if d < best_dist:
+                best_dist = d
+                best_vertex = v
+    if best_vertex is not None:
+        return [start, best_vertex, end]
+    centroid = lake.get("centroid")
+    if centroid:
+        return [start, list(centroid), end]
+    return [start, end]
+
+
+def _path_distance_km(geometry: list) -> float:
+    """Sum of haversine distances along [lat, lon] points."""
+    total = 0.0
+    for i in range(1, len(geometry)):
+        total += _haversine_km(geometry[i - 1], geometry[i])
+    return total
+
+
 from datetime import datetime, timedelta
 
 
@@ -358,11 +412,11 @@ def build_route(nights: list, access_point: str, osm: dict,
         b_pt_resolved = b["point"] if b["point"] else (lake_b["centroid"] if lake_b else None)
 
         if lake_a and lake_b and lake_a["name"] == lake_b["name"]:
-            # Same lake — straight paddle between the two waypoint points.
-            d_km = _haversine_km(a_pt_resolved, b_pt_resolved)
+            # Same lake — straight paddle, routed around peninsulas if needed.
+            geom = _polygon_aware_paddle(a_pt_resolved, b_pt_resolved, lake_a)
             segments.append(_segment(
                 day_label, "paddle", a["label"], b["label"],
-                d_km, [a_pt_resolved, b_pt_resolved],
+                _path_distance_km(geom), geom,
             ))
             continue
 
@@ -421,13 +475,16 @@ def build_route(nights: list, access_point: str, osm: dict,
                     else:
                         exit_, entry = portage["endpoints"]
                         portage_geom = list(reversed(portage["line"]))
-                    # Paddle from current point to portage entry.
-                    d_paddle = _haversine_km(current_pt, entry)
+                    # Paddle from current point to portage entry, routed around
+                    # peninsulas if a straight line would cross outside the lake.
+                    paddle_geom = _polygon_aware_paddle(
+                        current_pt, entry, current_lake,
+                    )
                     segments.append(_segment(
                         day_label, "paddle",
                         a["label"] if current_lake is lake_a else f"{current_lake['name']}",
                         f"{current_lake['name']} portage",
-                        d_paddle, [current_pt, entry],
+                        _path_distance_km(paddle_geom), paddle_geom,
                     ))
                     # Portage.
                     next_lake = next((l for l in lakes if "name" in l and l["name"] == next_name), None)
@@ -440,11 +497,11 @@ def build_route(nights: list, access_point: str, osm: dict,
                     current_lake = next_lake
                     current_pt = exit_
                 end_pt = b_pt_resolved or lake_b["centroid"]
-                d_final = _haversine_km(current_pt, end_pt)
+                final_geom = _polygon_aware_paddle(current_pt, end_pt, lake_b)
                 segments.append(_segment(
                     day_label, "paddle",
                     f"{lake_b['name']} portage", b["label"],
-                    d_final, [current_pt, end_pt],
+                    _path_distance_km(final_geom), final_geom,
                 ))
                 continue
 
