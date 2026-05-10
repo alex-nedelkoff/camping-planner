@@ -287,6 +287,21 @@ def _render_auto_route(route: dict) -> str:
         {"lat": m["lat"], "lon": m["lon"], "name": m["label"], "desc": ""}
         for m in route.get("markers", [])
     ]
+    # Add portage entry/exit pins for each portage actually used in the route.
+    for seg in route["segments"]:
+        if seg["kind"] != "portage" or len(seg["geometry"]) < 2:
+            continue
+        entry = seg["geometry"][0]
+        exit_ = seg["geometry"][-1]
+        dist = seg["distance_km"]
+        waypoints.append({
+            "lat": entry[0], "lon": entry[1],
+            "name": f"Portage take-out → {seg['to']}", "desc": f"{dist} km",
+        })
+        waypoints.append({
+            "lat": exit_[0], "lon": exit_[1],
+            "name": f"Portage put-in ← {seg['from']}", "desc": f"{dist} km",
+        })
     map_html = _route_map.generate_map_section({
         "waypoints": waypoints, "tracks": tracks, "source": "auto",
     })

@@ -43,13 +43,24 @@ KILLARNEY_ACCESS_POINTS = {
 LAKE_SUPPLEMENT = [
     {
         "name": "Baie Fine",
-        # Rough rectangular footprint covering Baie Fine fjord.
+        # Rough fjord outline: long diagonal SW-running inlet from The Pool
+        # (east end) out toward the North Channel mouth. Approximate, not
+        # survey-accurate — the centroid lands mid-fjord where backcountry
+        # sites cluster.
         "polygon": [
-            [46.013, -81.480], [46.013, -81.535],
-            [46.030, -81.535], [46.030, -81.480],
-            [46.013, -81.480],
+            [46.020, -81.495],  # NE near Threenarrows
+            [46.022, -81.510],  # The Pool
+            [46.018, -81.530],
+            [46.012, -81.555],
+            [46.005, -81.580],
+            [46.000, -81.600],  # west mouth
+            [46.005, -81.575],  # return south shore
+            [46.010, -81.550],
+            [46.015, -81.525],
+            [46.018, -81.505],
+            [46.020, -81.495],  # close
         ],
-        "centroid": [46.022, -81.510],
+        "centroid": [46.012, -81.540],
     },
 ]
 
@@ -396,6 +407,15 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
             "kind": "access",
         })
     for night in nights:
+        gps = night.get("gps")
+        if gps and len(gps) == 2:
+            markers.append({
+                "label": f"Site {night['site']}, {night['location']}",
+                "lat": gps[0],
+                "lon": gps[1],
+                "kind": "site",
+            })
+            continue
         lake = _find_lake(night["location"], lakes)
         if lake:
             markers.append({

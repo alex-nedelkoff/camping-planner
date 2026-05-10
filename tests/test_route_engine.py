@@ -269,6 +269,36 @@ def test_build_route_uses_access_point_gps_for_first_and_last_legs():
     assert last_end == [46.0136, -81.4049]
 
 
+def test_build_route_marker_uses_gps_override_when_present():
+    """A `gps:` field on a night entry overrides the lake-centroid marker."""
+    osm = {
+        "lakes": [
+            {
+                "name": "George Lake",
+                "polygon": [
+                    [46.00, -81.39], [46.00, -81.41],
+                    [46.05, -81.41], [46.05, -81.39],
+                    [46.00, -81.39],
+                ],
+                "centroid": [46.025, -81.40],
+            },
+        ],
+        "portages": [],
+    }
+    nights = [
+        {"date": "2026-05-15", "site": "5", "location": "George Lake",
+         "gps": [46.0312, -81.3998]},
+    ]
+    out = build_route(nights=nights, access_point="George Lake", osm=osm)
+    site_markers = [m for m in out.get("markers", []) if m["kind"] == "site"]
+    assert len(site_markers) == 1
+    # Uses the override, not the centroid.
+    assert site_markers[0]["lat"] == 46.0312
+    assert site_markers[0]["lon"] == -81.3998
+    # Label drops the "(lake center)" hint when GPS is provided.
+    assert "lake center" not in site_markers[0]["label"]
+
+
 def test_build_route_emits_markers_for_access_and_each_night():
     osm = {
         "lakes": [
