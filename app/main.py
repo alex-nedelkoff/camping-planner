@@ -28,6 +28,7 @@ app.include_router(foods.router)
 app.include_router(foods.trip_meals_router)
 app.include_router(gear.router)
 app.include_router(gear.categories_router)
+app.include_router(gear.trip_gear_router)
 
 
 @app.exception_handler(Exception)

@@ -227,11 +227,11 @@ def create_trip(
     return slug
 
 
-EDITABLE_SECTIONS = {"intro", "itinerary", "gear", "packing", "costs"}
+EDITABLE_SECTIONS = {"intro", "itinerary", "packing", "costs"}
 
 # Sections whose primary content is a single markdown table — eligible for the
 # in-place row editor in the trip pane.
-TABLE_SECTIONS = {"gear", "costs"}
+TABLE_SECTIONS = {"costs"}
 
 
 def load_section(
@@ -438,6 +438,8 @@ def load_trip_payload(slug: str, trips_dir: Path | None = None) -> dict:
     park_name = park_info.get("name") or fm.get("park", "Trip")
 
     from app.services import foods as foods_svc
+    from app.services import gear as gear_svc
+    from app.services import gear_plan as gp_svc
     from app.services import meal_plan as mp_svc
 
     sections: list[dict] = []
@@ -484,6 +486,21 @@ def load_trip_payload(slug: str, trips_dir: Path | None = None) -> dict:
                 "title": "Food",
                 "editable": False,
                 "kind": "meal-plan",
+                "html": "",
+                "payload": {"plan": plan, "totals": totals},
+            })
+        elif section_id == "gear":
+            try:
+                plan = gp_svc.load(slug)
+                catalog = gear_svc.load_catalog()
+                totals = gp_svc.compute_totals(plan, catalog)
+            except Exception:
+                plan, totals = {}, {}
+            sections.append({
+                "id": "gear",
+                "title": "Shared gear",
+                "editable": False,
+                "kind": "gear-plan",
                 "html": "",
                 "payload": {"plan": plan, "totals": totals},
             })

@@ -195,3 +195,21 @@ class CategoryRequest(BaseModel):
 
 class CategoryRenameRequest(BaseModel):
     new_name: str = Field(min_length=1, max_length=40)
+
+
+class GearPlanItem(BaseModel):
+    item_id: str
+    qty: int = Field(default=1, ge=0)
+    who: str = ""
+    notes: str = ""
+    override_weight_g: int | None = Field(default=None, ge=0)
+
+
+class GearPlanIn(BaseModel):
+    items: list[GearPlanItem] = Field(default_factory=list)
+
+
+class GearPlanOut(BaseModel):
+    ok: bool = True
+    plan: dict
+    totals: dict

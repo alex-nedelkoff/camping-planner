@@ -8,6 +8,8 @@ from app.models import (
     GearCatalogResponse,
     GearItemCreatedResponse,
     GearItemIn,
+    GearPlanIn,
+    GearPlanOut,
     GearReferencesResponse,
     OkResponse,
 )
@@ -99,4 +101,30 @@ def delete_category(name: str, force: bool = Query(default=False)):
                 status_code=409, detail={"ok": False, "error": str(exc)},
             )
         raise HTTPException(status_code=400, detail={"ok": False, "error": str(exc)})
+    return OkResponse()
+
+
+trip_gear_router = APIRouter(prefix="/api/trip")
+
+
+@trip_gear_router.get("/{slug}/gear-plan", response_model=GearPlanOut)
+def get_gear_plan(slug: str):
+    from app.services import gear_plan as gp_svc
+    try:
+        plan = gp_svc.load(slug)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail={"ok": False, "error": "trip not found"})
+    catalog = gear_svc.load_catalog()
+    totals = gp_svc.compute_totals(plan, catalog)
+    return GearPlanOut(plan=plan, totals=totals)
+
+
+@trip_gear_router.post("/{slug}/gear-plan", response_model=OkResponse)
+def save_gear_plan(slug: str, body: GearPlanIn):
+    from app.services import gear_plan as gp_svc
+    try:
+        catalog = gear_svc.load_catalog()
+        gp_svc.save(slug, body.model_dump(), catalog=catalog)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail={"ok": False, "error": "trip not found"})
     return OkResponse()
