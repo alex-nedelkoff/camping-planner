@@ -11,6 +11,9 @@ from pathlib import Path
 import markdown as _md
 import yaml
 
+import weather as _weather
+import route_map as _route_map
+
 SECTION_FILES = ["itinerary", "gear", "food", "packing", "costs"]
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?(.*)", re.DOTALL)
 
@@ -52,6 +55,46 @@ def render_section(md_text: str, section_id: str) -> str:
 
     processed = TASK_LINE_RE.sub(replace, md_text)
     return _md.markdown(processed, extensions=["tables", "fenced_code"])
+
+
+def render_weather_section(park_slug: str, start_date: str, end_date: str) -> str:
+    """Render the weather widget HTML using weather.get_weather()."""
+    data = _weather.get_weather(
+        park_key=park_slug, start_date=start_date, end_date=end_date,
+    )
+    if data["source"] == "unavailable" or not data["days"]:
+        return '<section id="weather"><h2>Weather</h2><p>Weather data unavailable.</p></section>'
+
+    label = "Forecast" if data["source"] == "forecast" else "Historical averages"
+    rows = []
+    for day in data["days"]:
+        chance = ""
+        if day.get("precip_chance") is not None:
+            chance = f"{day['precip_chance']}% rain"
+        elif day.get("precip_mm", 0) > 0:
+            chance = f"~{day['precip_mm']}mm"
+        rows.append(
+            f"<tr><td>{day['date']}</td>"
+            f"<td>{day.get('icon', '')} {day.get('description', '')}</td>"
+            f"<td>{day['high']}&deg;C / {day['low']}&deg;C</td>"
+            f"<td>{chance}</td></tr>"
+        )
+
+    return (
+        '<section id="weather"><h2>Weather</h2>'
+        f"<p><em>{label}</em></p>"
+        '<table><thead><tr><th>Date</th><th>Conditions</th>'
+        '<th>High / Low</th><th>Precip</th></tr></thead>'
+        f"<tbody>{''.join(rows)}</tbody></table></section>"
+    )
+
+
+def render_route_section(route_file) -> str:
+    """Render the route map section, or empty string if no route file."""
+    if route_file is None:
+        return ""
+    data = _route_map.parse_route_file(str(route_file))
+    return _route_map.generate_map_section(data)
 
 
 def load_trip(trip_dir) -> dict:
