@@ -151,3 +151,73 @@ def test_build_route_unknown_lake_name_falls_back_to_approx():
     assert len(approx) >= 1
     assert any("Mystery" in w or "could not resolve" in w.lower()
                for w in out["warnings"])
+
+
+from route_engine import (
+    estimate_minutes,
+    format_human_time,
+    build_day_estimates,
+)
+
+
+def test_estimate_minutes_paddle_only():
+    # 4 km at 4 km/h = 60 min, +15% buffer = 69 min, rounds to 69 (no 5-min round here).
+    assert estimate_minutes(paddle_km=4.0, portage_km=0.0) == 69
+
+
+def test_estimate_minutes_portage_only():
+    # 1 km portage with 3 traversals at 2 km/h = 90 min, +15% = 103.5 -> 104.
+    assert estimate_minutes(paddle_km=0.0, portage_km=1.0) == 104
+
+
+def test_estimate_minutes_combined():
+    # 2 km paddle (30 min) + 0.5 km portage (45 min) = 75 min, +15% = 86.25 -> 86.
+    assert estimate_minutes(paddle_km=2.0, portage_km=0.5) == 86
+
+
+def test_format_human_time_under_an_hour():
+    assert format_human_time(45) == "45m"
+
+
+def test_format_human_time_rounds_to_5_min():
+    # 67 -> nearest 5 = 65 -> "1h 5m"
+    assert format_human_time(67) == "1h 5m"
+
+
+def test_format_human_time_exact_hour():
+    assert format_human_time(60) == "1h 0m"
+
+
+def test_build_day_estimates_aggregates_per_day():
+    segments = [
+        # Day 1: paddle 5 km same-lake.
+        {"day": "Fri 2026-05-15", "kind": "paddle", "from": "X", "to": "Y",
+         "distance_km": 5.0, "geometry": []},
+        # Day 2: paddle + portage + paddle (split leg).
+        {"day": "Sat 2026-05-16", "kind": "paddle", "from": "Y", "to": "P-in",
+         "distance_km": 3.0, "geometry": []},
+        {"day": "Sat 2026-05-16", "kind": "portage", "from": "P-in", "to": "P-out",
+         "distance_km": 0.4, "geometry": []},
+        {"day": "Sat 2026-05-16", "kind": "paddle", "from": "P-out", "to": "Z",
+         "distance_km": 4.0, "geometry": []},
+    ]
+    days = build_day_estimates(segments)
+
+    assert len(days) == 2
+    assert days[0]["paddle_km"] == 5.0
+    assert days[0]["portage_km"] == 0.0
+    assert days[0]["approx"] is False
+    assert days[1]["paddle_km"] == 7.0
+    assert days[1]["portage_km"] == 0.4
+    # day1 label is start->end of the day's segments.
+    assert days[1]["label"].startswith("Y")  # from first segment's from
+    assert days[1]["label"].endswith("Z")    # to last segment's to
+
+
+def test_build_day_estimates_marks_approx_days():
+    segments = [
+        {"day": "Fri 2026-05-15", "kind": "approx", "from": "X", "to": "Y",
+         "distance_km": 5.0, "geometry": []},
+    ]
+    days = build_day_estimates(segments)
+    assert days[0]["approx"] is True

@@ -9,6 +9,7 @@ Public API:
 """
 import math
 import re
+from fractions import Fraction
 from typing import Optional
 
 # Conservative pace defaults — see spec for rationale.
@@ -244,3 +245,76 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
         ))
 
     return {"segments": segments, "warnings": warnings}
+
+
+def estimate_minutes(paddle_km: float, portage_km: float) -> int:
+    """Total estimated travel time in minutes, including the buffer.
+
+    Uses Fraction arithmetic throughout to avoid floating-point precision
+    issues when results land exactly on 0.5 (e.g. 90 * 1.15 = 103.5 exactly,
+    which Python's float gives as 103.4999...9).
+    """
+    paddle_f = Fraction(paddle_km).limit_denominator(10000)
+    portage_f = Fraction(portage_km).limit_denominator(10000)
+    paddle_kmh_f = Fraction(PADDLE_KMH).limit_denominator(10000)
+    portage_kmh_f = Fraction(PORTAGE_KMH).limit_denominator(10000)
+    # BUFFER_PCT = 0.15 => multiplier = 1.15 = 23/20 exactly.
+    buf_f = Fraction(23, 20)
+    paddle_min = paddle_f * 60 / paddle_kmh_f
+    portage_min = portage_f * PORTAGE_TRAVERSALS * 60 / portage_kmh_f
+    total = (paddle_min + portage_min) * buf_f
+    return round(float(total))
+
+
+def format_human_time(minutes: int) -> str:
+    """Round minutes to nearest 5 and format as 'Xh Ym' or 'Ym'."""
+    rounded = 5 * round(minutes / 5)
+    h, m = divmod(rounded, 60)
+    if h == 0:
+        return f"{m}m"
+    return f"{h}h {m}m"
+
+
+def build_day_estimates(segments: list) -> list:
+    """Aggregate segments by day. Returns list of DayEstimate dicts in day order."""
+    days_in_order: list = []
+    by_day: dict = {}
+    for seg in segments:
+        d = seg["day"]
+        if d not in by_day:
+            by_day[d] = {
+                "day": d,
+                "paddle_km": 0.0,
+                "portage_km": 0.0,
+                "approx": False,
+                "_first_from": seg["from"],
+                "_last_to": seg["to"],
+            }
+            days_in_order.append(d)
+        rec = by_day[d]
+        if seg["kind"] == "paddle":
+            rec["paddle_km"] += seg["distance_km"]
+        elif seg["kind"] == "portage":
+            rec["portage_km"] += seg["distance_km"]
+        elif seg["kind"] == "approx":
+            # Approx legs count as paddle for distance + flag the day.
+            rec["paddle_km"] += seg["distance_km"]
+            rec["approx"] = True
+        rec["_last_to"] = seg["to"]
+
+    out = []
+    for d in days_in_order:
+        rec = by_day[d]
+        paddle_km = round(rec["paddle_km"], 2)
+        portage_km = round(rec["portage_km"], 2)
+        minutes = estimate_minutes(paddle_km, portage_km)
+        out.append({
+            "day": d,
+            "label": f"{rec['_first_from']} → {rec['_last_to']}",
+            "paddle_km": paddle_km,
+            "portage_km": portage_km,
+            "approx": rec["approx"],
+            "minutes": minutes,
+            "human_time": format_human_time(minutes),
+        })
+    return out
