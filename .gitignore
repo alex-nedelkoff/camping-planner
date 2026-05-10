@@ -16,3 +16,4 @@ jeffs_review.html
 # Generated trip pages from the legacy build_trip.py CLI; the SPA renders
 # trips on demand from markdown.
 trips/*/trip.html
+.superpowers/
