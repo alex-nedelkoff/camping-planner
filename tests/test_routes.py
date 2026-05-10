@@ -140,6 +140,141 @@ def test_save_gear_rejects_malformed_rows(client):
 
 
 # ---------------------------------------------------------------------------
+# POST /api/save-section-table — generic version of /api/save-gear
+# ---------------------------------------------------------------------------
+
+
+def test_save_section_table_works_for_costs(client):
+    slug = "killarney-2026-05"
+    new_rows = [
+        ["Permit / reservation", "Alex", "$70"],
+        ["Gas", "Jordan", "$120"],
+    ]
+    r = client.post(
+        "/api/save-section-table",
+        params={"trip": slug, "section": "costs"},
+        json={"rows": new_rows},
+    )
+    assert r.status_code == 200, r.text
+    md = client.get(
+        "/api/section", params={"trip": slug, "section": "costs"},
+    ).json()["markdown"]
+    assert "Alex" in md and "$70" in md
+    assert "Jordan" in md and "$120" in md
+    # The trailing **Total per person:** line should be preserved
+    assert "**Total per person:**" in md
+
+
+def test_save_section_table_rejects_non_table_section(client):
+    r = client.post(
+        "/api/save-section-table",
+        params={"trip": "killarney-2026-05", "section": "packing"},
+        json={"rows": [["x"]]},
+    )
+    assert r.status_code == 400
+
+
+def test_save_section_table_404_on_unknown_trip(client):
+    r = client.post(
+        "/api/save-section-table",
+        params={"trip": "nope", "section": "gear"},
+        json={"rows": [["x"]]},
+    )
+    assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# GET /api/section + POST /api/save-section
+# ---------------------------------------------------------------------------
+
+
+def test_get_section_returns_raw_markdown(client):
+    r = client.get(
+        "/api/section",
+        params={"trip": "killarney-2026-05", "section": "gear"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["section"] == "gear"
+    assert "Item" in body["markdown"]
+
+
+def test_get_intro_returns_body_after_frontmatter(client):
+    r = client.get(
+        "/api/section",
+        params={"trip": "killarney-2026-05", "section": "intro"},
+    )
+    assert r.status_code == 200, r.text
+    md = r.json()["markdown"]
+    assert "---" not in md.splitlines()[:3]
+
+
+def test_get_section_rejects_unknown_name(client):
+    r = client.get(
+        "/api/section",
+        params={"trip": "killarney-2026-05", "section": "secrets"},
+    )
+    assert r.status_code == 400
+
+
+def test_get_section_404_on_unknown_trip(client):
+    r = client.get(
+        "/api/section",
+        params={"trip": "no-such-trip", "section": "gear"},
+    )
+    assert r.status_code == 404
+
+
+def test_save_section_round_trip(client):
+    payload = {"markdown": "## Updated\n\nFresh content.\n"}
+    r = client.post(
+        "/api/save-section",
+        params={"trip": "killarney-2026-05", "section": "costs"},
+        json=payload,
+    )
+    assert r.status_code == 200, r.text
+    after = client.get(
+        "/api/section",
+        params={"trip": "killarney-2026-05", "section": "costs"},
+    ).json()["markdown"]
+    assert after == payload["markdown"]
+
+
+def test_save_intro_preserves_frontmatter(client):
+    new_body = "# Renamed trip\n\nDifferent intro.\n"
+    r = client.post(
+        "/api/save-section",
+        params={"trip": "killarney-2026-05", "section": "intro"},
+        json={"markdown": new_body},
+    )
+    assert r.status_code == 200, r.text
+    # Reading the trip.md directly: frontmatter must still be there
+    from app.services import trips as trips_svc
+    trip_md = (trips_svc.TRIPS_DIR / "killarney-2026-05" / "trip.md").read_text(encoding="utf-8")
+    assert trip_md.startswith("---\n")
+    assert "park:" in trip_md
+    assert "Different intro." in trip_md
+
+
+def test_save_section_rejects_unknown_section(client):
+    r = client.post(
+        "/api/save-section",
+        params={"trip": "killarney-2026-05", "section": "private"},
+        json={"markdown": "secret"},
+    )
+    assert r.status_code == 400
+
+
+def test_save_section_404_on_unknown_trip(client):
+    r = client.post(
+        "/api/save-section",
+        params={"trip": "no-such-trip", "section": "gear"},
+        json={"markdown": "x"},
+    )
+    assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
 # GET /api/availability  (mocked — no live Camis hits)
 # ---------------------------------------------------------------------------
 

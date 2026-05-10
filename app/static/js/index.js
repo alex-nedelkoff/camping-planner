@@ -3,6 +3,31 @@ function toggleNewTrip() {
   s.hidden = !s.hidden;
 }
 
+// --- Auto-fill end date = start + 5 days, only when end is empty.
+// Wired on every form on the index that pairs a `start` and `end` date input.
+function plusDaysISO(iso, days) {
+  var d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return '';
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function wireAutoEnd(form) {
+  if (!form) return;
+  var start = form.querySelector('input[name=start]');
+  var end = form.querySelector('input[name=end]');
+  if (!start || !end) return;
+  start.addEventListener('change', function() {
+    if (end.value || !start.value) return;
+    var bumped = plusDaysISO(start.value, 5);
+    if (bumped) end.value = bumped;
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  Array.from(document.querySelectorAll('form')).forEach(wireAutoEnd);
+});
+
 async function rebuild(btn, name) {
   var orig = btn.textContent;
   btn.disabled = true;

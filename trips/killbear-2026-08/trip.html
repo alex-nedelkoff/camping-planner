@@ -1,0 +1,580 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Killbear 2026-08-26</title><style>
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       max-width: 900px; margin: 0 auto; padding: 1.5rem; color: #222;
+       line-height: 1.55; background: #f0eee6; }
+h1, h2, h3 { color: #1f3a3a; }
+h1 { border-bottom: 3px solid #2d5016; padding-bottom: 0.3rem; }
+section { background: white; padding: 0; margin: 1.5rem 0;
+          border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+          overflow: hidden; border: 1px solid #d8d4c5; }
+.section-header { background: linear-gradient(90deg, #2d5016 0%, #3a6420 100%);
+                  color: white; padding: 0.85rem 1.5rem; display: flex;
+                  justify-content: space-between; align-items: center; gap: 1rem;
+                  border-bottom: 4px solid #1f3a3a; }
+.section-header h2 { color: white; margin: 0; font-size: 1.4rem;
+                     border-bottom: none; font-weight: 700;
+                     letter-spacing: 0.02em; }
+.section-body { padding: 1.25rem 1.5rem; }
+.section-body > h2:first-child { display: none; }
+table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; }
+th { background: #f0f4ee; }
+input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
+.trip-header { background: #2d5016; color: white; padding: 1.5rem 1.5rem 1rem;
+               border-radius: 10px; margin-bottom: 1rem; position: relative; }
+.trip-header h1 { color: white; border-bottom: none; margin: 0 0 0.5rem; }
+.user-pill { position: absolute; top: 1rem; right: 1rem; background: rgba(0,0,0,0.25);
+             color: white; padding: 0.3rem 0.7rem; border-radius: 999px;
+             font-size: 0.85rem; cursor: pointer; border: none; font-family: inherit; }
+.user-pill:hover { background: rgba(0,0,0,0.4); }
+.user-pill.unset { background: rgba(255,255,255,0.18); font-style: italic; }
+.trip-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; opacity: 0.95; }
+.trip-header table { background: rgba(0,0,0,0.18); border-radius: 6px;
+                     overflow: hidden; margin-top: 1rem; }
+.trip-header th, .trip-header td { color: white;
+                     border-bottom: 1px solid rgba(255,255,255,0.18);
+                     padding: 0.5rem 0.75rem; }
+.trip-header th { background: rgba(0,0,0,0.28); font-weight: 600; }
+.trip-header tr:last-child td { border-bottom: none; }
+.section-actions { display: flex; gap: 0.4rem; align-items: center; }
+.section-btn { padding: 0.3rem 0.75rem; background: rgba(255,255,255,0.18);
+               color: white; border: 1px solid rgba(255,255,255,0.35);
+               border-radius: 5px; cursor: pointer;
+               font-size: 0.85rem; font-family: inherit; }
+.section-btn:hover { background: rgba(255,255,255,0.3); }
+.section-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.section-status { font-size: 0.85rem; color: rgba(255,255,255,0.85);
+                  margin-left: 0.25rem; }
+.section-status.error { color: #ffd0d0; }
+.section-editor { display: flex; flex-direction: column; gap: 0.6rem; }
+.section-editor textarea { width: 100%; min-height: 14rem;
+                           padding: 0.75rem; border: 1px solid #ccc;
+                           border-radius: 6px; font-family: 'SF Mono',
+                           Menlo, Consolas, monospace; font-size: 0.9rem;
+                           line-height: 1.5; resize: vertical; }
+.gear-edit-toolbar { margin-top: 0.6rem; display: flex; gap: 0.5rem;
+                     align-items: center; flex-wrap: wrap; }
+.gear-btn { padding: 0.35rem 0.85rem; background: #2d5016; color: white;
+            border: none; border-radius: 5px; cursor: pointer;
+            font-size: 0.9rem; font-family: inherit; }
+.gear-btn:hover { background: #3a6420; }
+.gear-btn.secondary { background: #6b7a5a; }
+.gear-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+#gear table.editing td { background: #fffbe6; }
+#gear table.editing td[contenteditable=true]:focus { outline: 2px solid #2d5016;
+                     outline-offset: -2px; background: #fff; }
+#gear .row-del { background: transparent; border: none; color: #c00;
+                 cursor: pointer; font-size: 1.1rem; padding: 0 0.3rem;
+                 margin-left: 0.4rem; }
+.gear-status { font-size: 0.9rem; color: #555; margin-left: 0.25rem; }
+.gear-status.error { color: #c00; }
+@media print { body { background: white; } section { box-shadow: none; }
+               .gear-edit-toolbar, .section-actions { display: none; }
+               .section-header { background: white; color: #1f3a3a;
+                                 border-bottom: 2px solid #2d5016; }
+               .section-header h2 { color: #1f3a3a; } }
+</style></head><body><header class="trip-header"><button id="user-pill" class="user-pill unset" onclick="switchUser()" title="Click to set / change name">…</button><h1>Killbear &middot; 2026-08-26 → 2026-08-29</h1><div class="trip-meta"><span><strong>Participants:</strong> Alex, Gabe, Ronald</span><span><strong>Drive from Ajax:</strong> 3.0 hrs</span></div></header><section id="intro"><div class="section-header"><h2>Overview</h2><div class="section-actions"><button class="section-btn" data-edit="intro" data-edit-mode="markdown">Edit</button><span class="section-status" data-status="intro"></span></div></div><div class="section-body" data-section-body="intro"><h1>killbear-2026-08</h1>
+<p>New trip — fill in details.</p></div></section>
+<section id="itinerary"><div class="section-header"><h2>Itinerary</h2><div class="section-actions"><button class="section-btn" data-edit="itinerary" data-edit-mode="markdown">Edit</button><span class="section-status" data-status="itinerary"></span></div></div><div class="section-body" data-section-body="itinerary"><h2>Day 1 — Friday</h2>
+<ul>
+<li>06:00 — depart Ajax</li>
+<li>10:30 — arrive at access point</li>
+<li>11:00 — launch</li>
+<li>16:00 — arrive at site, set up camp</li>
+</ul>
+<h2>Day 2 — Saturday</h2>
+<h2>Day 3 — Sunday</h2>
+<h2>Day 4 — Monday — return</h2></div></section>
+<section id="weather"><div class="section-header"><h2>Weather</h2></div><div class="section-body" data-section-body="weather"><p><em>Historical averages</em></p><table><thead><tr><th>Date</th><th>Conditions</th><th>High / Low</th><th>Precip</th></tr></thead><tbody><tr><td>2026-08-26</td><td> Historical average</td><td>22.1&deg;C / 18.8&deg;C</td><td>~0.5mm</td></tr><tr><td>2026-08-27</td><td> Historical average</td><td>21.3&deg;C / 17.4&deg;C</td><td></td></tr><tr><td>2026-08-28</td><td> Historical average</td><td>23.0&deg;C / 17.2&deg;C</td><td></td></tr><tr><td>2026-08-29</td><td> Historical average</td><td>24.6&deg;C / 17.4&deg;C</td><td></td></tr></tbody></table></div></section>
+<section id="gear"><div class="section-header"><h2>Gear</h2><div class="section-actions"><button class="section-btn" data-edit="gear" data-edit-mode="table">Edit</button><span class="section-status" data-status="gear"></span></div></div><div class="section-body" data-section-body="gear"><h2>Shared gear</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Who's bringing</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Canoe</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Paddles</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>PFDs</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Tarp</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Stove + fuel</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Water filter</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>First aid kit</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Map + compass</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2>Personal gear</h2>
+<p>Each person brings their own — see <code>packing.md</code>.</p></div></section>
+<section id="food"><div class="section-header"><h2>Food</h2><div class="section-actions"><button class="section-btn" data-edit="food" data-edit-mode="markdown">Edit</button><span class="section-status" data-status="food"></span></div></div><div class="section-body" data-section-body="food"><h2>Friday dinner</h2>
+<ul>
+<li><em>meal idea</em> — <em>who's bringing</em></li>
+</ul>
+<h2>Saturday breakfast</h2>
+<h2>Saturday lunch</h2>
+<h2>Saturday dinner</h2>
+<h2>Sunday breakfast</h2>
+<h2>Sunday lunch</h2>
+<h2>Sunday dinner</h2>
+<h2>Monday breakfast</h2></div></section>
+<section id="packing"><div class="section-header"><h2>Packing</h2><div class="section-actions"><button class="section-btn" data-edit="packing" data-edit-mode="markdown">Edit</button><span class="section-status" data-status="packing"></span></div></div><div class="section-body" data-section-body="packing"><h2>Shelter &amp; sleep</h2>
+<ul>
+<li><input type="checkbox" data-cb-key="packing--tent"> Tent</li>
+<li><input type="checkbox" data-cb-key="packing--sleeping-bag"> Sleeping bag</li>
+<li><input type="checkbox" data-cb-key="packing--sleeping-pad"> Sleeping pad</li>
+<li><input type="checkbox" data-cb-key="packing--pillow-stuff-sack"> Pillow / stuff sack</li>
+</ul>
+<h2>Kitchen</h2>
+<ul>
+<li><input type="checkbox" data-cb-key="packing--stove"> Stove</li>
+<li><input type="checkbox" data-cb-key="packing--fuel-canister"> Fuel canister</li>
+<li><input type="checkbox" data-cb-key="packing--pot-pan"> Pot / pan</li>
+<li><input type="checkbox" data-cb-key="packing--lighter-matches"> Lighter / matches</li>
+<li><input type="checkbox" data-cb-key="packing--bowl-utensils"> Bowl + utensils</li>
+<li><input type="checkbox" data-cb-key="packing--water-bottles"> Water bottles</li>
+</ul>
+<h2>Clothing</h2>
+<ul>
+<li><input type="checkbox" data-cb-key="packing--rain-jacket"> Rain jacket</li>
+<li><input type="checkbox" data-cb-key="packing--warm-layer-fleece-down"> Warm layer (fleece/down)</li>
+<li><input type="checkbox" data-cb-key="packing--quick-dry-shirts"> Quick-dry shirts</li>
+<li><input type="checkbox" data-cb-key="packing--quick-dry-pants-shorts"> Quick-dry pants/shorts</li>
+<li><input type="checkbox" data-cb-key="packing--wool-socks"> Wool socks</li>
+<li><input type="checkbox" data-cb-key="packing--camp-shoes"> Camp shoes</li>
+<li><input type="checkbox" data-cb-key="packing--hat"> Hat</li>
+</ul>
+<h2>Personal</h2>
+<ul>
+<li><input type="checkbox" data-cb-key="packing--headlamp-spare-batteries"> Headlamp + spare batteries</li>
+<li><input type="checkbox" data-cb-key="packing--toothbrush-toothpaste"> Toothbrush + toothpaste</li>
+<li><input type="checkbox" data-cb-key="packing--sunscreen"> Sunscreen</li>
+<li><input type="checkbox" data-cb-key="packing--bug-spray"> Bug spray</li>
+<li><input type="checkbox" data-cb-key="packing--personal-meds"> Personal meds</li>
+<li><input type="checkbox" data-cb-key="packing--phone-charger-power-bank"> Phone charger / power bank</li>
+</ul>
+<h2>Paddling</h2>
+<ul>
+<li><input type="checkbox" data-cb-key="packing--pfd"> PFD</li>
+<li><input type="checkbox" data-cb-key="packing--dry-bag"> Dry bag</li>
+<li><input type="checkbox" data-cb-key="packing--quick-dry-towel"> Quick-dry towel</li>
+</ul></div></section>
+<section id="costs"><div class="section-header"><h2>Costs</h2><div class="section-actions"><button class="section-btn" data-edit="costs" data-edit-mode="table">Edit</button><span class="section-status" data-status="costs"></span></div></div><div class="section-body" data-section-body="costs"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Who paid</th>
+<th>Amount</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Permit / reservation</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Gas</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Groceries</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Total per person:</strong></p></div></section><script>
+(function() {
+  var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
+  var tripSlug = slugMatch ? slugMatch[1] : null;
+  var boxes = document.querySelectorAll('input[type=checkbox][data-cb-key]');
+
+  // localStorage key is namespaced per-user so switching identity on the same
+  // device doesn't bleed checks. '' = shared (matches Phase 2 behaviour).
+  var currentUser = '';
+  function lkey(cbKey) { return 'cb:' + currentUser + ':' + cbKey; }
+
+  function applyLocal(cb) {
+    var saved = localStorage.getItem(lkey(cb.dataset.cbKey));
+    if (saved === '1') cb.checked = true;
+    else if (saved === '0') cb.checked = false;
+    else cb.checked = false;
+  }
+
+  function hydrateFromServer() {
+    if (!tripSlug) return Promise.resolve();
+    return fetch('/api/checklist?trip=' + encodeURIComponent(tripSlug))
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(j) {
+        if (!j || !j.ok || !j.state) return;
+        boxes.forEach(function(cb) {
+          if (Object.prototype.hasOwnProperty.call(j.state, cb.dataset.cbKey)) {
+            cb.checked = !!j.state[cb.dataset.cbKey];
+            localStorage.setItem(lkey(cb.dataset.cbKey), cb.checked ? '1' : '0');
+          }
+        });
+      })
+      .catch(function() { /* offline */ });
+  }
+
+  function refreshChecklist() {
+    boxes.forEach(applyLocal);
+    return hydrateFromServer();
+  }
+
+  boxes.forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      localStorage.setItem(lkey(cb.dataset.cbKey), cb.checked ? '1' : '0');
+      if (!tripSlug) return;
+      fetch('/api/checklist?trip=' + encodeURIComponent(tripSlug), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key: cb.dataset.cbKey, checked: cb.checked})
+      }).catch(function() {});
+    });
+  });
+
+  // --- Identity (cookie-based) ---
+  function paintUser(name) {
+    var pill = document.getElementById('user-pill');
+    if (!pill) return;
+    if (name) {
+      pill.textContent = 'Hi, ' + name;
+      pill.classList.remove('unset');
+    } else {
+      pill.textContent = 'Set name';
+      pill.classList.add('unset');
+    }
+  }
+
+  function loadUser() {
+    return fetch('/api/whoami')
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        currentUser = j.user || '';
+        paintUser(currentUser);
+        return refreshChecklist();
+      })
+      .catch(function() { return refreshChecklist(); });
+  }
+
+  window.switchUser = function() {
+    var current = currentUser || '';
+    var name = prompt('Switch to whom? (blank = shared/anonymous)', current);
+    if (name === null) return;
+    var trimmed = name.trim();
+    var op = trimmed
+      ? fetch('/api/whoami', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({user: trimmed})
+        }).then(function(r) { return r.json(); })
+      : fetch('/api/whoami', {method: 'DELETE'}).then(function() { return {user: ''}; });
+    op.then(function(j) {
+      currentUser = (j && j.user) || '';
+      paintUser(currentUser);
+      return refreshChecklist();
+    }).catch(function() {});
+  };
+
+  loadUser();
+})();
+
+// --- In-place table row editor (gear, costs, ...) ---
+(function() {
+  var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
+  var tripSlug = slugMatch ? slugMatch[1] : null;
+
+  Array.from(document.querySelectorAll('button[data-edit][data-edit-mode=table]'))
+    .forEach(function(headerBtn) {
+      var sectionId = headerBtn.dataset.edit;
+      attachTableEditor(sectionId, headerBtn);
+    });
+
+  function attachTableEditor(sectionId, headerBtn) {
+    var section = document.getElementById(sectionId);
+    if (!section) return;
+    var table = section.querySelector('table');
+    if (!table) return;
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+    var status = section.querySelector('[data-status="' + sectionId + '"]');
+
+    var ncols = 0;
+    var firstRow = tbody.querySelector('tr');
+    if (firstRow) ncols = firstRow.cells.length;
+    if (!ncols) {
+      var theadRow = table.querySelector('thead tr');
+      if (theadRow) ncols = theadRow.cells.length;
+    }
+    if (!ncols) return;
+
+    // Toolbar lives below the table; section-header Edit toggles into edit mode.
+    var toolbar = document.createElement('div');
+    toolbar.className = 'gear-edit-toolbar';
+    toolbar.innerHTML =
+      '<button class="gear-btn" data-act="add" hidden>+ Add row</button>' +
+      '<button class="gear-btn" data-act="save" hidden>Save</button>' +
+      '<button class="gear-btn secondary" data-act="cancel" hidden>Cancel</button>';
+    table.after(toolbar);
+
+    var addBtn = toolbar.querySelector('[data-act=add]');
+    var saveBtn = toolbar.querySelector('[data-act=save]');
+    var cancelBtn = toolbar.querySelector('[data-act=cancel]');
+
+    var snapshot = null;
+
+    function setStatus(text, isError) {
+      if (!status) return;
+      status.textContent = text || '';
+      status.className = 'section-status' + (isError ? ' error' : '');
+    }
+
+    function addDeleteButtons() {
+      Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
+        if (tr.querySelector('.row-del')) return;
+        var lastCell = tr.cells[tr.cells.length - 1];
+        if (!lastCell) return;
+        var btn = document.createElement('button');
+        btn.className = 'row-del';
+        btn.textContent = '×';
+        btn.title = 'Delete row';
+        btn.hidden = true;
+        btn.contentEditable = 'false';
+        btn.addEventListener('click', function() { tr.remove(); });
+        lastCell.appendChild(btn);
+      });
+    }
+
+    function setEditing(on) {
+      table.classList.toggle('editing', on);
+      Array.from(tbody.querySelectorAll('td')).forEach(function(td) {
+        td.contentEditable = on ? 'true' : 'false';
+      });
+      Array.from(tbody.querySelectorAll('.row-del')).forEach(function(b) {
+        b.hidden = !on;
+      });
+      headerBtn.hidden = on;
+      addBtn.hidden = !on;
+      saveBtn.hidden = !on;
+      cancelBtn.hidden = !on;
+    }
+
+    function rowsAsArray() {
+      return Array.from(tbody.querySelectorAll('tr')).map(function(tr) {
+        return Array.from(tr.cells).map(function(td) {
+          var clone = td.cloneNode(true);
+          var del = clone.querySelector('.row-del');
+          if (del) del.remove();
+          return clone.textContent.replace(/\s+/g, ' ').trim();
+        });
+      });
+    }
+
+    addDeleteButtons();
+
+    headerBtn.addEventListener('click', function() {
+      snapshot = tbody.innerHTML;
+      setEditing(true);
+      setStatus('', false);
+    });
+
+    cancelBtn.addEventListener('click', function() {
+      if (snapshot != null) tbody.innerHTML = snapshot;
+      addDeleteButtons();
+      setEditing(false);
+      setStatus('', false);
+    });
+
+    addBtn.addEventListener('click', function() {
+      var tr = document.createElement('tr');
+      for (var i = 0; i < ncols; i++) {
+        var td = document.createElement('td');
+        td.contentEditable = 'true';
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+      addDeleteButtons();
+      Array.from(tr.querySelectorAll('.row-del')).forEach(function(b) { b.hidden = false; });
+      tr.cells[0].focus();
+    });
+
+    saveBtn.addEventListener('click', function() {
+      if (!tripSlug) {
+        setStatus('Cannot detect trip slug from URL', true);
+        return;
+      }
+      var rows = rowsAsArray();
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      setStatus('Saving…', false);
+      var url = '/api/save-section-table?trip=' + encodeURIComponent(tripSlug)
+              + '&section=' + encodeURIComponent(sectionId);
+      fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({rows: rows})
+      })
+        .then(function(r) { return r.json().then(function(j) { return {ok: r.ok, j: j}; }); })
+        .then(function(res) {
+          if (!res.ok || !res.j.ok) {
+            var err = (res.j && res.j.detail && res.j.detail.error) || 'save failed';
+            setStatus('Error: ' + err, true);
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
+            return;
+          }
+          setStatus('Saved ✓ — reloading…', false);
+          setTimeout(function() { location.reload(); }, 500);
+        })
+        .catch(function(e) {
+          setStatus('Error: ' + e.message, true);
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+        });
+    });
+  }
+})();
+
+// --- Generic per-section markdown editor ---
+(function() {
+  var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
+  var tripSlug = slugMatch ? slugMatch[1] : null;
+  if (!tripSlug) return;
+
+  Array.from(document.querySelectorAll('button[data-edit]')).forEach(function(btn) {
+    if (btn.dataset.editMode === 'table') return;  // handled by table-editor IIFE
+    var section = btn.dataset.edit;
+    btn.addEventListener('click', function() { openEditor(section, btn); });
+  });
+
+  function statusEl(section) {
+    return document.querySelector('[data-status="' + section + '"]');
+  }
+  function bodyEl(section) {
+    return document.querySelector('[data-section-body="' + section + '"]');
+  }
+  function setStatus(section, text, isError) {
+    var el = statusEl(section);
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'section-status' + (isError ? ' error' : '');
+  }
+
+  function openEditor(section, btn) {
+    var body = bodyEl(section);
+    if (!body) return;
+    btn.disabled = true;
+    setStatus(section, 'Loading…', false);
+    fetch('/api/section?trip=' + encodeURIComponent(tripSlug)
+          + '&section=' + encodeURIComponent(section))
+      .then(function(r) { return r.json().then(function(j) { return {ok: r.ok, j: j}; }); })
+      .then(function(res) {
+        if (!res.ok || !res.j.ok) {
+          var err = (res.j && res.j.detail && res.j.detail.error) || 'load failed';
+          setStatus(section, 'Error: ' + err, true);
+          btn.disabled = false;
+          return;
+        }
+        renderEditor(section, body, btn, res.j.markdown || '');
+      })
+      .catch(function(e) {
+        setStatus(section, 'Error: ' + e.message, true);
+        btn.disabled = false;
+      });
+  }
+
+  function renderEditor(section, body, editBtn, markdown) {
+    var snapshot = body.innerHTML;
+    var wrap = document.createElement('div');
+    wrap.className = 'section-editor';
+    var ta = document.createElement('textarea');
+    ta.value = markdown;
+    ta.spellcheck = false;
+    var actions = document.createElement('div');
+    actions.className = 'gear-edit-toolbar';
+    actions.innerHTML =
+      '<button class="gear-btn" data-act="save">Save</button>' +
+      '<button class="gear-btn secondary" data-act="cancel">Cancel</button>';
+    wrap.appendChild(ta);
+    wrap.appendChild(actions);
+    body.innerHTML = '';
+    body.appendChild(wrap);
+    setStatus(section, '', false);
+
+    var saveBtn = actions.querySelector('[data-act=save]');
+    var cancelBtn = actions.querySelector('[data-act=cancel]');
+
+    cancelBtn.addEventListener('click', function() {
+      body.innerHTML = snapshot;
+      editBtn.disabled = false;
+      setStatus(section, '', false);
+    });
+
+    saveBtn.addEventListener('click', function() {
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      setStatus(section, 'Saving…', false);
+      fetch('/api/save-section?trip=' + encodeURIComponent(tripSlug)
+            + '&section=' + encodeURIComponent(section), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({markdown: ta.value})
+      })
+        .then(function(r) { return r.json().then(function(j) { return {ok: r.ok, j: j}; }); })
+        .then(function(res) {
+          if (!res.ok || !res.j.ok) {
+            var err = (res.j && res.j.detail && res.j.detail.error) || 'save failed';
+            setStatus(section, 'Error: ' + err, true);
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
+            return;
+          }
+          setStatus(section, 'Saved ✓ — reloading…', false);
+          setTimeout(function() { location.reload(); }, 500);
+        })
+        .catch(function(e) {
+          setStatus(section, 'Error: ' + e.message, true);
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+        });
+    });
+  }
+})();
+</script></body></html>

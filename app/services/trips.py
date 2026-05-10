@@ -239,27 +239,119 @@ def rebuild_trip(slug: str, trips_dir: Path | None = None) -> str:
     return slug
 
 
+EDITABLE_SECTIONS = {"intro", "itinerary", "gear", "food", "packing", "costs"}
+
+
+def load_section(
+    slug: str,
+    section: str,
+    trips_dir: Path | None = None,
+) -> str:
+    """Return the raw markdown of a section (intro = trip.md body)."""
+    if trips_dir is None:
+        trips_dir = TRIPS_DIR
+    if section not in EDITABLE_SECTIONS:
+        raise TripError(f"unknown section '{section}'", status=400)
+    trip_dir = trips_dir / slug
+    if not slug or not trip_dir.is_dir():
+        raise TripError("trip not found", status=404)
+
+    if section == "intro":
+        trip_md = trip_dir / "trip.md"
+        if not trip_md.exists():
+            raise TripError("trip.md not found", status=404)
+        existing = trip_md.read_text(encoding="utf-8")
+        match = build_trip.FRONTMATTER_RE.match(existing)
+        if not match:
+            raise TripError("trip.md missing frontmatter", status=400)
+        return match.group(2).lstrip("\n")
+
+    target = trip_dir / f"{section}.md"
+    return target.read_text(encoding="utf-8") if target.exists() else ""
+
+
+def save_section(
+    slug: str,
+    section: str,
+    markdown: str,
+    trips_dir: Path | None = None,
+) -> None:
+    """Rewrite a single section's markdown and rebuild the trip page.
+
+    `intro` is special: it's the body of trip.md after the YAML frontmatter.
+    All other sections map 1:1 to <section>.md.
+    """
+    if trips_dir is None:
+        trips_dir = TRIPS_DIR
+    if section not in EDITABLE_SECTIONS:
+        raise TripError(f"unknown section '{section}'", status=400)
+    trip_dir = trips_dir / slug
+    if not slug or not trip_dir.is_dir():
+        raise TripError("trip not found", status=404)
+
+    # Normalise to LF + ensure a trailing newline so subsequent diffs stay tidy.
+    body = markdown.replace("\r\n", "\n").replace("\r", "\n")
+    if not body.endswith("\n"):
+        body += "\n"
+
+    if section == "intro":
+        trip_md = trip_dir / "trip.md"
+        if not trip_md.exists():
+            raise TripError("trip.md not found", status=404)
+        existing = trip_md.read_text(encoding="utf-8")
+        match = build_trip.FRONTMATTER_RE.match(existing)
+        if not match:
+            raise TripError("trip.md missing frontmatter", status=400)
+        frontmatter_block = existing[: match.start(2)]
+        trip_md.write_text(frontmatter_block + body, encoding="utf-8")
+    else:
+        target = trip_dir / f"{section}.md"
+        target.write_text(body, encoding="utf-8")
+
+    html = build_trip.build_html(trip_dir)
+    (trip_dir / "trip.html").write_text(html, encoding="utf-8")
+
+
+# Sections whose primary content is a single markdown table — eligible for the
+# in-place row editor in the trip page.
+TABLE_SECTIONS = {"gear", "costs"}
+
+
+def save_section_table(
+    slug: str,
+    section: str,
+    rows: list[list[str]],
+    trips_dir: Path | None = None,
+) -> None:
+    """Replace the first markdown table in <section>.md with `rows`, then rebuild."""
+    if trips_dir is None:
+        trips_dir = TRIPS_DIR
+    if section not in TABLE_SECTIONS:
+        raise TripError(
+            f"section '{section}' is not table-editable", status=400,
+        )
+    trip_dir = trips_dir / slug
+    if not slug or not trip_dir.is_dir():
+        raise TripError("trip not found", status=404)
+    md_path = trip_dir / f"{section}.md"
+    if not md_path.exists():
+        raise TripError(f"{section}.md not found", status=404)
+    if not isinstance(rows, list) or any(not isinstance(r, list) for r in rows):
+        raise TripError("rows must be a list of lists", status=400)
+    text = md_path.read_text(encoding="utf-8")
+    try:
+        new_text = replace_first_table(text, rows)
+    except ValueError as exc:
+        raise TripError(str(exc), status=400) from exc
+    md_path.write_text(new_text, encoding="utf-8")
+    html = build_trip.build_html(trip_dir)
+    (trip_dir / "trip.html").write_text(html, encoding="utf-8")
+
+
 def save_gear_table(
     slug: str,
     rows: list[list[str]],
     trips_dir: Path | None = None,
 ) -> None:
-    """Replace gear.md's first table with `rows` and re-render the HTML."""
-    if trips_dir is None:
-        trips_dir = TRIPS_DIR
-    trip_dir = trips_dir / slug
-    if not slug or not trip_dir.is_dir():
-        raise TripError("trip not found", status=404)
-    gear_md = trip_dir / "gear.md"
-    if not gear_md.exists():
-        raise TripError("gear.md not found", status=404)
-    if not isinstance(rows, list) or any(not isinstance(r, list) for r in rows):
-        raise TripError("rows must be a list of lists", status=400)
-    text = gear_md.read_text(encoding="utf-8")
-    try:
-        new_text = replace_first_table(text, rows)
-    except ValueError as exc:
-        raise TripError(str(exc), status=400) from exc
-    gear_md.write_text(new_text, encoding="utf-8")
-    html = build_trip.build_html(trip_dir)
-    (trip_dir / "trip.html").write_text(html, encoding="utf-8")
+    """Back-compat wrapper for older trip pages that POST /api/save-gear."""
+    save_section_table(slug=slug, section="gear", rows=rows, trips_dir=trips_dir)

@@ -353,17 +353,14 @@ def generate_map_section(route_data: dict) -> str:
     wpt_count = len(route_data.get("waypoints", []))
     wpt_note = f"<p>{wpt_count} waypoint(s) marked</p>" if wpt_count else ""
 
-    return f"""<section id="map">
-<h2>Route Map</h2>
-{stats_html}
+    return f"""{stats_html}
 {wpt_note}
 <div class="map-online">{leaflet_html}</div>
 <noscript>{svg_html}</noscript>
 <details class="map-offline">
 <summary>Offline map (no internet needed)</summary>
 {svg_html}
-</details>
-</section>"""
+</details>"""
 
 
 if __name__ == "__main__":
