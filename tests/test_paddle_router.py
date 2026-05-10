@@ -158,3 +158,35 @@ def test_fit_paddle_curve_retries_with_lower_pull_when_curve_leaves_polygon():
     for pt in geom[1:-1]:
         assert _point_in_polygon(pt, poly), \
             f"Final geometry leaves polygon at {pt}"
+
+
+from paddle_router import _snap_to_polyline
+
+
+def test_snap_to_polyline_finds_closest_segment_point():
+    """Polyline of 3 points; query point off the second segment."""
+    polyline = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]
+    # Query at (1.5, 0.5) — closest point on segment (1,0)-(1,1) is (1, 0.5).
+    snap, idx, t = _snap_to_polyline([1.5, 0.5], polyline)
+    assert idx == 1   # second segment
+    assert abs(t - 0.5) < 1e-9
+    assert abs(snap[0] - 1.0) < 1e-9
+    assert abs(snap[1] - 0.5) < 1e-9
+
+
+def test_snap_to_polyline_clamps_to_endpoint_at_start():
+    """Query past polyline start; snap at first vertex (idx=0, t=0)."""
+    polyline = [[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]]
+    snap, idx, t = _snap_to_polyline([-1.0, 0.0], polyline)
+    assert idx == 0
+    assert abs(t) < 1e-9
+    assert snap == [0.0, 0.0]
+
+
+def test_snap_to_polyline_clamps_to_endpoint_at_end():
+    polyline = [[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]]
+    snap, idx, t = _snap_to_polyline([5.0, 0.0], polyline)
+    # Last segment is index len-2 = 1, t=1.
+    assert idx == 1
+    assert abs(t - 1.0) < 1e-9
+    assert snap == [2.0, 0.0]

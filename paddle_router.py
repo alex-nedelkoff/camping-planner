@@ -196,3 +196,40 @@ def fit_paddle_curve(entry, exit, lake):
         last_geom = geom
     # All retries failed → return the straightest version (last attempted).
     return last_geom or [list(entry), list(exit)]
+
+
+def _snap_to_polyline(point, polyline):
+    """Closest point on the polyline (any segment, not just vertices).
+
+    Returns (snap_point, segment_index, t) where t∈[0,1] is the position
+    along the segment between polyline[segment_index] and
+    polyline[segment_index+1]. Uses planar projection — adequate for
+    sub-km nearest-point comparisons at Killarney latitudes.
+    """
+    if len(polyline) < 2:
+        if polyline:
+            return list(polyline[0]), 0, 0.0
+        return list(point), 0, 0.0
+
+    best = None  # (sq_dist, snap, idx, t)
+    px, py = point[0], point[1]
+    for i in range(len(polyline) - 1):
+        ax, ay = polyline[i][0], polyline[i][1]
+        bx, by = polyline[i + 1][0], polyline[i + 1][1]
+        dx, dy = bx - ax, by - ay
+        seg_sq = dx * dx + dy * dy
+        if seg_sq < 1e-18:
+            t = 0.0
+        else:
+            t = ((px - ax) * dx + (py - ay) * dy) / seg_sq
+            if t < 0.0:
+                t = 0.0
+            elif t > 1.0:
+                t = 1.0
+        sx = ax + t * dx
+        sy = ay + t * dy
+        ddx, ddy = px - sx, py - sy
+        sq = ddx * ddx + ddy * ddy
+        if best is None or sq < best[0]:
+            best = (sq, [sx, sy], i, t)
+    return best[1], best[2], best[3]
