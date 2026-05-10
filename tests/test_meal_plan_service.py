@@ -215,3 +215,20 @@ def test_save_round_trips_through_load(tmp_trips):
     reloaded = mp.load("killarney-2026-07")
     assert reloaded["calorie_target"]["activity_level"] == "boat-camping"
     assert reloaded["days"][0]["date"] == "2026-07-10"
+
+
+def test_save_renders_body_with_participants_from_trip_md(tmp_trips):
+    """Body must report the correct people count from trip.md, not zero."""
+    write_trip_md(tmp_trips / "killarney-2026-07", None)
+    # write_trip_md sets participants=[Tom, Alex, Jordan] in trip.md
+    plan = {
+        "calorie_target": {"activity_level": "backcountry", "kcal_per_person_per_day": 4000},
+        "days": [
+            {"date": "2026-07-10", "label": "Friday", "meals": []},
+            {"date": "2026-07-11", "label": "Saturday", "meals": []},
+        ],
+    }
+    mp.save("killarney-2026-07", plan, catalog=SAMPLE_CATALOG)
+    body = (tmp_trips / "killarney-2026-07" / "food.md").read_text(encoding="utf-8")
+    # 4000 × 3 people × 2 days = 24,000
+    assert "× 3 people × 2 days = 24,000 kcal" in body

@@ -232,7 +232,13 @@ def save(slug: str, plan: dict, catalog: dict) -> None:
         sort_keys=False,
         allow_unicode=True,
     )
-    body = render_markdown_body(plan, catalog)
+    # Inject participants from trip.md so the rendered body reports the right count.
+    trip_fm = _read_trip_frontmatter(trip_dir)
+    plan_with_participants = {
+        **plan,
+        "participants": list(trip_fm.get("participants") or []),
+    }
+    body = render_markdown_body(plan_with_participants, catalog)
     text = (
         "---\n"
         f"{fm_dump}"
