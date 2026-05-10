@@ -12,8 +12,13 @@ th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee
 th { background: #f0f4ee; }
 input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
 .trip-header { background: #2d5016; color: white; padding: 1.5rem 1.5rem 1rem;
-               border-radius: 10px; margin-bottom: 1rem; }
+               border-radius: 10px; margin-bottom: 1rem; position: relative; }
 .trip-header h1 { color: white; border-bottom: none; margin: 0 0 0.5rem; }
+.user-pill { position: absolute; top: 1rem; right: 1rem; background: rgba(0,0,0,0.25);
+             color: white; padding: 0.3rem 0.7rem; border-radius: 999px;
+             font-size: 0.85rem; cursor: pointer; border: none; font-family: inherit; }
+.user-pill:hover { background: rgba(0,0,0,0.4); }
+.user-pill.unset { background: rgba(255,255,255,0.18); font-style: italic; }
 .trip-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; opacity: 0.95; }
 .trip-header table { background: rgba(0,0,0,0.18); border-radius: 6px;
                      overflow: hidden; margin-top: 1rem; }
@@ -40,12 +45,12 @@ input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
 .gear-status.error { color: #c00; }
 @media print { body { background: white; } section { box-shadow: none; }
                .gear-edit-toolbar { display: none; } }
-</style></head><body><header class="trip-header"><h1>Killarney &middot; 2026-05-15 → 2026-05-18</h1><div class="trip-meta"><span><strong>Participants:</strong> Alex, pizza-zip</span><span><strong>Access:</strong> George Lake</span><span><strong>Drive from Ajax:</strong> 4.5 hrs</span></div><table><thead><tr><th>Date</th><th>Site</th><th>Location</th></tr></thead><tbody><tr><td>2026-05-15</td><td>61</td><td>OSA Lake</td></tr><tr><td>2026-05-16</td><td>82</td><td>Baie Fine</td></tr><tr><td>2026-05-17</td><td>12</td><td>Killarney Lake</td></tr></tbody></table></header><section id="intro"><h1>Killarney 2026-05-15 â†’ 2026-05-18</h1>
+</style></head><body><header class="trip-header"><button id="user-pill" class="user-pill unset" onclick="switchUser()" title="Click to set / change name">…</button><h1>Killarney &middot; 2026-05-15 → 2026-05-18</h1><div class="trip-meta"><span><strong>Participants:</strong> Alex, pizza-zip</span><span><strong>Access:</strong> George Lake</span><span><strong>Drive from Ajax:</strong> 4.5 hrs</span></div><table><thead><tr><th>Date</th><th>Site</th><th>Location</th></tr></thead><tbody><tr><td>2026-05-15</td><td>61</td><td>OSA Lake</td></tr><tr><td>2026-05-16</td><td>82</td><td>Baie Fine</td></tr><tr><td>2026-05-17</td><td>12</td><td>Killarney Lake</td></tr></tbody></table></header><section id="intro"><h1>Killarney 2026-05-15 → 2026-05-18</h1>
 <p>3-night interior canoe trip in Killarney Provincial Park. George Lake put-in,
-moving sites each day: OSA Lake â†’ Baie Fine â†’ Killarney Lake â†’ back to George
+moving sites each day: OSA Lake → Baie Fine → Killarney Lake → back to George
 Lake on Monday. La Cloche white quartzite ridges, deep clear lakes, classic
 Group of Seven country.</p></section>
-<section id="itinerary"><h2>Itinerary</h2><h2>Friday 2026-05-15 â€” Day 1</h2>
+<section id="itinerary"><h2>Itinerary</h2><h2>Friday 2026-05-15 — Day 1</h2>
 <ul>
 <li>Depart Ajax in the morning (~5h drive to George Lake access)</li>
 <li>Permit pickup at George Lake park office</li>
@@ -53,18 +58,18 @@ Group of Seven country.</p></section>
 <li>Portage / paddle into Killarney Lake then north to OSA Lake</li>
 <li>Camp: site 61, OSA Lake</li>
 </ul>
-<h2>Saturday 2026-05-16 â€” Day 2</h2>
+<h2>Saturday 2026-05-16 — Day 2</h2>
 <ul>
 <li>Pack up, paddle south back through Killarney Lake</li>
 <li>Three Narrows portage into Baie Fine</li>
 <li>Camp: site 82, Baie Fine</li>
 </ul>
-<h2>Sunday 2026-05-17 â€” Day 3</h2>
+<h2>Sunday 2026-05-17 — Day 3</h2>
 <ul>
 <li>Pack up, paddle / portage back into Killarney Lake</li>
 <li>Camp: site 12, Killarney Lake</li>
 </ul>
-<h2>Monday 2026-05-18 â€” Day 4</h2>
+<h2>Monday 2026-05-18 — Day 4</h2>
 <ul>
 <li>Pack up, paddle out to George Lake access</li>
 <li>Drive home to Ajax</li>
@@ -312,21 +317,21 @@ Group of Seven country.</p></section>
 </tbody>
 </table>
 <h2>Personal gear</h2>
-<p>Each person brings their own â€” see <code>packing.md</code>.</p></section>
-<section id="food"><h2>Food</h2><p>3 breakfasts, 3 lunches, 3 dinners. Backcountry â€” no cooler, weight matters.</p>
+<p>Each person brings their own — see <code>packing.md</code>.</p></section>
+<section id="food"><h2>Food</h2><p>3 breakfasts, 3 lunches, 3 dinners. Backcountry — no cooler, weight matters.</p>
 <h2>Friday dinner</h2>
 <ul>
-<li><em>meal idea</em> â€” <em>who</em></li>
+<li><em>meal idea</em> — <em>who</em></li>
 </ul>
 <h2>Saturday breakfast</h2>
 <h2>Saturday lunch</h2>
-<p>(On the water â€” wraps / bars / cheese.)</p>
+<p>(On the water — wraps / bars / cheese.)</p>
 <h2>Saturday dinner</h2>
 <h2>Sunday breakfast</h2>
 <h2>Sunday lunch</h2>
 <h2>Sunday dinner</h2>
 <h2>Monday breakfast</h2>
-<p>(Quick â€” break camp and paddle out.)</p></section>
+<p>(Quick — break camp and paddle out.)</p></section>
 <section id="packing"><h2>Packing</h2><h2>Shelter &amp; sleep</h2>
 <ul>
 <li><input type="checkbox" data-cb-key="packing--tent"> Tent</li>
@@ -396,15 +401,99 @@ Group of Seven country.</p></section>
 </table>
 <p><strong>Total per person:</strong></p></section><script>
 (function() {
-  document.querySelectorAll('input[type=checkbox][data-cb-key]').forEach(function(cb) {
-    var key = 'cb:' + cb.dataset.cbKey;
-    var saved = localStorage.getItem(key);
+  var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
+  var tripSlug = slugMatch ? slugMatch[1] : null;
+  var boxes = document.querySelectorAll('input[type=checkbox][data-cb-key]');
+
+  // localStorage key is namespaced per-user so switching identity on the same
+  // device doesn't bleed checks. '' = shared (matches Phase 2 behaviour).
+  var currentUser = '';
+  function lkey(cbKey) { return 'cb:' + currentUser + ':' + cbKey; }
+
+  function applyLocal(cb) {
+    var saved = localStorage.getItem(lkey(cb.dataset.cbKey));
     if (saved === '1') cb.checked = true;
-    if (saved === '0') cb.checked = false;
+    else if (saved === '0') cb.checked = false;
+    else cb.checked = false;
+  }
+
+  function hydrateFromServer() {
+    if (!tripSlug) return Promise.resolve();
+    return fetch('/api/checklist?trip=' + encodeURIComponent(tripSlug))
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(j) {
+        if (!j || !j.ok || !j.state) return;
+        boxes.forEach(function(cb) {
+          if (Object.prototype.hasOwnProperty.call(j.state, cb.dataset.cbKey)) {
+            cb.checked = !!j.state[cb.dataset.cbKey];
+            localStorage.setItem(lkey(cb.dataset.cbKey), cb.checked ? '1' : '0');
+          }
+        });
+      })
+      .catch(function() { /* offline */ });
+  }
+
+  function refreshChecklist() {
+    boxes.forEach(applyLocal);
+    return hydrateFromServer();
+  }
+
+  boxes.forEach(function(cb) {
     cb.addEventListener('change', function() {
-      localStorage.setItem(key, cb.checked ? '1' : '0');
+      localStorage.setItem(lkey(cb.dataset.cbKey), cb.checked ? '1' : '0');
+      if (!tripSlug) return;
+      fetch('/api/checklist?trip=' + encodeURIComponent(tripSlug), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key: cb.dataset.cbKey, checked: cb.checked})
+      }).catch(function() {});
     });
   });
+
+  // --- Identity (cookie-based) ---
+  function paintUser(name) {
+    var pill = document.getElementById('user-pill');
+    if (!pill) return;
+    if (name) {
+      pill.textContent = 'Hi, ' + name;
+      pill.classList.remove('unset');
+    } else {
+      pill.textContent = 'Set name';
+      pill.classList.add('unset');
+    }
+  }
+
+  function loadUser() {
+    return fetch('/api/whoami')
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        currentUser = j.user || '';
+        paintUser(currentUser);
+        return refreshChecklist();
+      })
+      .catch(function() { return refreshChecklist(); });
+  }
+
+  window.switchUser = function() {
+    var current = currentUser || '';
+    var name = prompt('Switch to whom? (blank = shared/anonymous)', current);
+    if (name === null) return;
+    var trimmed = name.trim();
+    var op = trimmed
+      ? fetch('/api/whoami', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({user: trimmed})
+        }).then(function(r) { return r.json(); })
+      : fetch('/api/whoami', {method: 'DELETE'}).then(function() { return {user: ''}; });
+    op.then(function(j) {
+      currentUser = (j && j.user) || '';
+      paintUser(currentUser);
+      return refreshChecklist();
+    }).catch(function() {});
+  };
+
+  loadUser();
 })();
 
 (function() {

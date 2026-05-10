@@ -1,8 +1,10 @@
 # camping-planner
 
-Shared trip planning for canoe and camping trips with friends. Markdown is the
-source of truth; a small Python script generates a self-contained HTML page
-per trip.
+Shared trip planning for canoe and camping trips with friends. Markdown files
+in `trips/<slug>/` are the source of truth; `build_trip.py` renders them into
+a self-contained `trip.html` per trip; a small FastAPI app at `app/` provides
+a browser UI for creating/rebuilding trips, editing the gear table, checking
+park availability, and syncing per-user packing checklists across devices.
 
 ## Quick start
 
@@ -10,48 +12,55 @@ per trip.
 git clone git@github.com:alex-nedelkoff/camping-planner.git
 cd camping-planner
 pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+# open http://127.0.0.1:8000/
 ```
 
-## Editing a trip
+The web UI serves both the index (`/`) and individual trip pages
+(`/trips/<slug>/trip.html`) so you don't need a separate static-file server.
 
-1. `cd trips/<trip-name>/`
-2. Edit any of `trip.md`, `itinerary.md`, `gear.md`, `food.md`, `packing.md`,
-   `costs.md` in your editor.
-3. `git pull --rebase && git commit -am "..." && git push`.
+## Two ways to work
 
-GitHub renders `.md` files when you click them on github.com — no build step
-needed for the markdown.
+Both paths write back to the same markdown files — pick whichever fits the moment.
 
-## Previewing the HTML
-
-The repo is private, so `htmlpreview.github.io` doesn't work. Run a local
-server instead:
-
+**Edit-then-rebuild (git-first):**
 ```bash
-python3 -m http.server
+$EDITOR trips/<slug>/packing.md
+python3 build_trip.py trips/<slug>/
+git add trips/<slug>/ && git commit -am "..." && git push
 ```
 
-Then open `http://localhost:8000/trips/<trip-name>/trip.html`.
+**Web UI:** open the index, click "+ New Trip" or "Rebuild" on any trip card,
+or open a trip page and use the in-browser "Edit gear" button. Commit the
+markdown changes afterwards.
 
-## Regenerating the HTML
+## Persistence
 
-After editing markdown, regenerate the trip page:
+- **Trip content** — markdown files in `trips/<slug>/`, committed to git.
+- **Operational state** — `camping.sqlite3` at the repo root (gitignored,
+  auto-created). Holds availability/weather caches and per-user packing
+  checkbox state. Safe to delete; the app rebuilds an empty schema on next
+  boot.
 
-```bash
-python3 build_trip.py trips/<trip-name>/
-```
+## Identity
 
-Commit both the markdown changes and the regenerated `trip.html`.
+On first visit the UI prompts for your name and stores it in a `cp_user`
+cookie. The pill in the header lets you switch users; switching re-hydrates
+the trip page's packing checkboxes against your personal state. No password
+— the app is meant for a small trusted group on localhost. Leaving the name
+blank uses a "shared" bucket.
 
 ## Starting a new trip
 
+Either via the index "+ New Trip" form, or by hand:
+
 ```bash
-cp -r templates/trip-template trips/<new-trip-name>/
-$EDITOR trips/<new-trip-name>/trip.md  # fill in frontmatter
-python3 build_trip.py trips/<new-trip-name>/
-git add trips/<new-trip-name>/
-git commit -m "feat: add <new-trip-name>"
+cp -r templates/trip-template trips/<park>-<YYYY-MM>/
+$EDITOR trips/<park>-<YYYY-MM>/trip.md  # fill in frontmatter
+python3 build_trip.py trips/<park>-<YYYY-MM>/
 ```
+
+Slug convention: `<park>-<YYYY-MM>` derived from `park` + `start_date`.
 
 ## Sensitive content
 
@@ -61,24 +70,42 @@ satellite-messenger PINs) goes in:
 - `private/` — gitignored top-level folder
 - `*.local.md` — gitignored anywhere
 
-Both you and your collaborator sync these out-of-band.
+Sync these out-of-band.
 
-## Park availability checks
+## Park availability
 
-Use the existing tooling against the Ontario Parks API:
+The web UI has a "Check Park Availability" form on the index. CLI also works:
 
 ```bash
 python3 ontario_parks.py check killarney --start 2026-05-15 --end 2026-05-18
 ```
 
-See `CLAUDE.md` for the full API reference, including rate-limit warnings.
+See `CLAUDE.md` for the Ontario Parks API reference and Azure WAF rate-limit
+warnings.
+
+## Tests
+
+```bash
+pytest tests/ -q
+```
+
+79 tests, ~1s. Camis API is always mocked — tests never hit Ontario Parks.
 
 ## Repo layout
 
+- `app/` — FastAPI web UI
+  - `app/main.py` — entry point, route + static mounts, schema init
+  - `app/config.py` — paths, cache TTLs
+  - `app/models.py` — Pydantic schemas
+  - `app/services/` — `db`, `trips`, `availability`, `weather_cache`, `identity`
+  - `app/routes/` — `pages`, `trips`, `parks`, `checklist`, `identity`
+  - `app/templates/`, `app/static/` — Jinja2 + extracted CSS/JS
 - `build_trip.py` — markdown → HTML trip page generator
-- `ontario_parks.py` — Ontario Parks availability checks
-- `weather.py`, `route_map.py` — used by `build_trip.py`
-- `parks.json`, `park_activities.json` — park metadata
-- `templates/trip-template/` — copy this to start a new trip
+- `ontario_parks.py`, `weather.py`, `route_map.py`, `route_engine.py`, `osm_data.py` — auxiliary modules used by `build_trip.py`
+- `parks.json`, `park_activities.json`, `api_attribute_filterable.json`, `map_names_cache.json`, `osm_killarney_cache.json` — park metadata + caches
+- `templates/trip-template/` — markdown skeletons copied when creating a new trip (NB: not Jinja templates)
 - `trips/` — one folder per trip
-- `legacy/` — older Sheet-driven flow, kept for reference
+- `tests/` — pytest suite
+- `legacy/` — pre-FastAPI sheet-driven flow, kept for reference
+- `launch.py` — legacy stdlib HTTP server. Functionally replaced by `app/`; remove when you're confident nobody's still pointing at it
+- `FastAPI-refactor.md` — refactor history (Phases 1–3 complete) and rationale for what was deferred

@@ -20,6 +20,11 @@ import route_map as _route_map
 import osm_data as _osm_data
 import route_engine as _route_engine
 
+# Weather data provider — defaults to direct Open-Meteo lookup. The FastAPI
+# layer swaps this for a SQLite-cached version (see app/services/trips.py) so
+# repeated rebuilds skip the network. CLI invocations stay zero-dep.
+weather_provider = _weather.get_weather
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -45,8 +50,13 @@ th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee
 th { background: #f0f4ee; }
 input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
 .trip-header { background: #2d5016; color: white; padding: 1.5rem 1.5rem 1rem;
-               border-radius: 10px; margin-bottom: 1rem; }
+               border-radius: 10px; margin-bottom: 1rem; position: relative; }
 .trip-header h1 { color: white; border-bottom: none; margin: 0 0 0.5rem; }
+.user-pill { position: absolute; top: 1rem; right: 1rem; background: rgba(0,0,0,0.25);
+             color: white; padding: 0.3rem 0.7rem; border-radius: 999px;
+             font-size: 0.85rem; cursor: pointer; border: none; font-family: inherit; }
+.user-pill:hover { background: rgba(0,0,0,0.4); }
+.user-pill.unset { background: rgba(255,255,255,0.18); font-style: italic; }
 .trip-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; opacity: 0.95; }
 .trip-header table { background: rgba(0,0,0,0.18); border-radius: 6px;
                      overflow: hidden; margin-top: 1rem; }
@@ -77,15 +87,99 @@ input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
 
 _PAGE_JS = r"""
 (function() {
-  document.querySelectorAll('input[type=checkbox][data-cb-key]').forEach(function(cb) {
-    var key = 'cb:' + cb.dataset.cbKey;
-    var saved = localStorage.getItem(key);
+  var slugMatch = location.pathname.match(/\/trips\/([^/]+)\//);
+  var tripSlug = slugMatch ? slugMatch[1] : null;
+  var boxes = document.querySelectorAll('input[type=checkbox][data-cb-key]');
+
+  // localStorage key is namespaced per-user so switching identity on the same
+  // device doesn't bleed checks. '' = shared (matches Phase 2 behaviour).
+  var currentUser = '';
+  function lkey(cbKey) { return 'cb:' + currentUser + ':' + cbKey; }
+
+  function applyLocal(cb) {
+    var saved = localStorage.getItem(lkey(cb.dataset.cbKey));
     if (saved === '1') cb.checked = true;
-    if (saved === '0') cb.checked = false;
+    else if (saved === '0') cb.checked = false;
+    else cb.checked = false;
+  }
+
+  function hydrateFromServer() {
+    if (!tripSlug) return Promise.resolve();
+    return fetch('/api/checklist?trip=' + encodeURIComponent(tripSlug))
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(j) {
+        if (!j || !j.ok || !j.state) return;
+        boxes.forEach(function(cb) {
+          if (Object.prototype.hasOwnProperty.call(j.state, cb.dataset.cbKey)) {
+            cb.checked = !!j.state[cb.dataset.cbKey];
+            localStorage.setItem(lkey(cb.dataset.cbKey), cb.checked ? '1' : '0');
+          }
+        });
+      })
+      .catch(function() { /* offline */ });
+  }
+
+  function refreshChecklist() {
+    boxes.forEach(applyLocal);
+    return hydrateFromServer();
+  }
+
+  boxes.forEach(function(cb) {
     cb.addEventListener('change', function() {
-      localStorage.setItem(key, cb.checked ? '1' : '0');
+      localStorage.setItem(lkey(cb.dataset.cbKey), cb.checked ? '1' : '0');
+      if (!tripSlug) return;
+      fetch('/api/checklist?trip=' + encodeURIComponent(tripSlug), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key: cb.dataset.cbKey, checked: cb.checked})
+      }).catch(function() {});
     });
   });
+
+  // --- Identity (cookie-based) ---
+  function paintUser(name) {
+    var pill = document.getElementById('user-pill');
+    if (!pill) return;
+    if (name) {
+      pill.textContent = 'Hi, ' + name;
+      pill.classList.remove('unset');
+    } else {
+      pill.textContent = 'Set name';
+      pill.classList.add('unset');
+    }
+  }
+
+  function loadUser() {
+    return fetch('/api/whoami')
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        currentUser = j.user || '';
+        paintUser(currentUser);
+        return refreshChecklist();
+      })
+      .catch(function() { return refreshChecklist(); });
+  }
+
+  window.switchUser = function() {
+    var current = currentUser || '';
+    var name = prompt('Switch to whom? (blank = shared/anonymous)', current);
+    if (name === null) return;
+    var trimmed = name.trim();
+    var op = trimmed
+      ? fetch('/api/whoami', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({user: trimmed})
+        }).then(function(r) { return r.json(); })
+      : fetch('/api/whoami', {method: 'DELETE'}).then(function() { return {user: ''}; });
+    op.then(function(j) {
+      currentUser = (j && j.user) || '';
+      paintUser(currentUser);
+      return refreshChecklist();
+    }).catch(function() {});
+  };
+
+  loadUser();
 })();
 
 (function() {
@@ -259,7 +353,7 @@ def _load_park_info(park_slug: str) -> dict:
     parks_path = repo_root / "parks.json"
     if not parks_path.exists():
         return {}
-    data = json.loads(parks_path.read_text())
+    data = json.loads(parks_path.read_text(encoding="utf-8"))
     return data.get("parks", {}).get(park_slug, {})
 
 
@@ -283,6 +377,8 @@ def _render_header(fm: dict) -> str:
         )
     return (
         '<header class="trip-header">'
+        '<button id="user-pill" class="user-pill unset" '
+        'onclick="switchUser()" title="Click to set / change name">…</button>'
         f'<h1>{park_name} &middot; {fm.get("start_date", "")} → '
         f'{fm.get("end_date", "")}</h1>'
         '<div class="trip-meta">'
@@ -313,7 +409,7 @@ def load_trip(trip_dir) -> dict:
     trip_md_path = trip_dir / "trip.md"
     if not trip_md_path.exists():
         raise ValueError(f"{trip_md_path}: trip.md not found")
-    trip_md = trip_md_path.read_text()
+    trip_md = trip_md_path.read_text(encoding="utf-8")
 
     match = FRONTMATTER_RE.match(trip_md)
     if not match:
@@ -325,7 +421,7 @@ def load_trip(trip_dir) -> dict:
     sections = {}
     for name in SECTION_FILES:
         path = trip_dir / f"{name}.md"
-        sections[name] = path.read_text() if path.exists() else ""
+        sections[name] = path.read_text(encoding="utf-8") if path.exists() else ""
 
     route_file = None
     for ext in ("gpx", "kml"):
@@ -361,7 +457,7 @@ def render_section(md_text: str, section_id: str) -> str:
 
 def render_weather_section(park_slug: str, start_date: str, end_date: str) -> str:
     """Render the weather widget HTML using weather.get_weather()."""
-    data = _weather.get_weather(
+    data = weather_provider(
         park_key=park_slug, start_date=start_date, end_date=end_date,
     )
     if data["source"] == "unavailable" or not data["days"]:
