@@ -45,9 +45,9 @@ Group of Seven country.</p></section>
 <li>Pack up, paddle out to George Lake access</li>
 <li>Drive home to Ajax</li>
 </ul></section>
-<section id="route"><h2>Route</h2><div class="warnings"><ul><li>No portage found between George Lake and O.S.A. Lake — leg shown as straight line.</li><li>Could not resolve lake 'Baie Fine' in OSM data — leg shown as straight line.</li><li>Could not resolve lake 'Baie Fine' in OSM data — leg shown as straight line.</li><li>No portage found between Killarney Lake and George Lake — leg shown as straight line.</li></ul></div><section id="map">
+<section id="route"><h2>Route</h2><div class="warnings"><ul><li>No portage found between O.S.A. Lake and Baie Fine — leg shown as straight line.</li><li>No portage found between Baie Fine and Killarney Lake — leg shown as straight line.</li></ul></div><section id="map">
 <h2>Route Map</h2>
-<ul><li><strong>George Lake → OSA Lake (site 61) (approx)</strong>: 3.1 km</li><li><strong>OSA Lake (site 61) → Baie Fine (site 82) (approx)</strong>: 3.9 km</li><li><strong>Baie Fine (site 82) → Killarney Lake (site 12) (approx)</strong>: 5.9 km</li><li><strong>Killarney Lake (site 12) → George Lake (approx)</strong>: 5.1 km</li></ul>
+<ul><li><strong>George Lake → George Lake portage (paddle)</strong>: 1.6 km</li><li><strong>George Lake portage → Freeland Lake portage (portage)</strong>: 0.1 km</li><li><strong>Freeland Lake → Freeland Lake portage (paddle)</strong>: 2.0 km</li><li><strong>Freeland Lake portage → Killarney Lake portage (portage)</strong>: 0.4 km</li><li><strong>Killarney Lake → Killarney Lake portage (paddle)</strong>: 2.2 km</li><li><strong>Killarney Lake portage → O.S.A. Lake portage (portage)</strong>: 0.1 km</li><li><strong>O.S.A. Lake portage → OSA Lake (site 61) (paddle)</strong>: 1.8 km</li><li><strong>OSA Lake (site 61) → Baie Fine (site 82) (approx)</strong>: 8.8 km</li><li><strong>Baie Fine (site 82) → Killarney Lake (site 12) (approx)</strong>: 12.7 km</li><li><strong>Killarney Lake (site 12) → Killarney Lake portage (paddle)</strong>: 2.0 km</li><li><strong>Killarney Lake portage → Freeland Lake portage (portage)</strong>: 0.4 km</li><li><strong>Freeland Lake → Freeland Lake portage (paddle)</strong>: 2.0 km</li><li><strong>Freeland Lake portage → George Lake portage (portage)</strong>: 0.1 km</li><li><strong>George Lake portage → George Lake (paddle)</strong>: 1.6 km</li></ul>
 
 <div class="map-online">
 <div id="route-map" style="height:400px;border-radius:10px;z-index:0"></div>
@@ -55,13 +55,13 @@ Group of Seven country.</p></section>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function() {
-  var map = L.map('route-map').setView([46.04128011106125, -81.39041025885325], 12);
+  var map = L.map('route-map').setView([46.04323464243424, -81.37125248476761], 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 18
   }).addTo(map);
 
-  var geojson = {"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.39798275628058, 46.027078800652525], [-81.40628444247531, 46.05451689043605]]}, "properties": {"name": "George Lake \u2192 OSA Lake (site 61) (approx)", "distance_km": 3.1}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.40628444247531, 46.05451689043605], [-81.4, 46.02]]}, "properties": {"name": "OSA Lake (site 61) \u2192 Baie Fine (site 82) (approx)", "distance_km": 3.9}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.4, 46.02], [-81.3573738366571, 46.0635247531564]]}, "properties": {"name": "Baie Fine (site 82) \u2192 Killarney Lake (site 12) (approx)", "distance_km": 5.9}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.3573738366571, 46.0635247531564], [-81.39798275628058, 46.027078800652525]]}, "properties": {"name": "Killarney Lake (site 12) \u2192 George Lake (approx)", "distance_km": 5.1}}]};
+  var geojson = {"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.39798275628058, 46.027078800652525], [-81.3812037, 46.0353414]]}, "properties": {"name": "George Lake \u2192 George Lake portage (paddle)", "distance_km": 1.6}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.3812037, 46.0353414], [-81.3808799, 46.0353554], [-81.380251, 46.0353593]]}, "properties": {"name": "George Lake portage \u2192 Freeland Lake portage (portage)", "distance_km": 0.1}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.380251, 46.0353593], [-81.356614, 46.0420928]]}, "properties": {"name": "Freeland Lake \u2192 Freeland Lake portage (paddle)", "distance_km": 2.0}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.356614, 46.0420928], [-81.3565692, 46.0421432], [-81.3563698, 46.0422194], [-81.3561662, 46.0423096], [-81.3560337, 46.0424589], [-81.3559633, 46.0426527], [-81.3558357, 46.042799], [-81.3557933, 46.0429551], [-81.3556207, 46.0434068], [-81.3557475, 46.0435877], [-81.3558246, 46.0437637], [-81.3558021, 46.0439567], [-81.3559818, 46.0444231], [-81.3560823, 46.0447847], [-81.3562275, 46.0453278], [-81.3561468, 46.0456452]]}, "properties": {"name": "Freeland Lake portage \u2192 Killarney Lake portage (portage)", "distance_km": 0.4}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.3561468, 46.0456452], [-81.381701, 46.0549565]]}, "properties": {"name": "Killarney Lake \u2192 Killarney Lake portage (paddle)", "distance_km": 2.2}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.381701, 46.0549565], [-81.3819184, 46.0549382], [-81.3821919, 46.054924], [-81.3825752, 46.0548393], [-81.3831874, 46.0552077]]}, "properties": {"name": "Killarney Lake portage \u2192 O.S.A. Lake portage (portage)", "distance_km": 0.1}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.3831874, 46.0552077], [-81.40628444247531, 46.05451689043605]]}, "properties": {"name": "O.S.A. Lake portage \u2192 OSA Lake (site 61) (paddle)", "distance_km": 1.8}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.40628444247531, 46.05451689043605], [-81.51, 46.022]]}, "properties": {"name": "OSA Lake (site 61) \u2192 Baie Fine (site 82) (approx)", "distance_km": 8.8}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.51, 46.022], [-81.3573738366571, 46.0635247531564]]}, "properties": {"name": "Baie Fine (site 82) \u2192 Killarney Lake (site 12) (approx)", "distance_km": 12.7}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.3573738366571, 46.0635247531564], [-81.3561468, 46.0456452]]}, "properties": {"name": "Killarney Lake (site 12) \u2192 Killarney Lake portage (paddle)", "distance_km": 2.0}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.3561468, 46.0456452], [-81.3562275, 46.0453278], [-81.3560823, 46.0447847], [-81.3559818, 46.0444231], [-81.3558021, 46.0439567], [-81.3558246, 46.0437637], [-81.3557475, 46.0435877], [-81.3556207, 46.0434068], [-81.3557933, 46.0429551], [-81.3558357, 46.042799], [-81.3559633, 46.0426527], [-81.3560337, 46.0424589], [-81.3561662, 46.0423096], [-81.3563698, 46.0422194], [-81.3565692, 46.0421432], [-81.356614, 46.0420928]]}, "properties": {"name": "Killarney Lake portage \u2192 Freeland Lake portage (portage)", "distance_km": 0.4}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.356614, 46.0420928], [-81.380251, 46.0353593]]}, "properties": {"name": "Freeland Lake \u2192 Freeland Lake portage (paddle)", "distance_km": 2.0}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.380251, 46.0353593], [-81.3808799, 46.0353554], [-81.3812037, 46.0353414]]}, "properties": {"name": "Freeland Lake portage \u2192 George Lake portage (portage)", "distance_km": 0.1}}, {"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-81.3812037, 46.0353414], [-81.39798275628058, 46.027078800652525]]}, "properties": {"name": "George Lake portage \u2192 George Lake (paddle)", "distance_km": 1.6}}]};
   var colors = ['#2d5016', '#1565c0', '#c62828', '#6a1b9a'];
   var colorIdx = 0;
 
@@ -82,37 +82,77 @@ Group of Seven country.</p></section>
   }).addTo(map);
 
   // Fit bounds
-  map.fitBounds([[46.02, -81.40628444247531], [46.0635247531564, -81.3573738366571]], {padding: [30, 30]});
+  map.fitBounds([[46.022, -81.51], [46.0635247531564, -81.3556207]], {padding: [30, 30]});
 })();
 </script></div>
 <noscript><svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:700px;height:auto;background:#e8f4f8;border-radius:10px">
-<polyline points="231.2,308.0 170.2,106.2" fill="none" stroke="#2d5016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
-<text x="170.2" y="96.2" text-anchor="middle" font-size="11" fill="#2d5016" font-weight="600">George Lake → OSA Lake (site 61) (approx) (3.1 km)</text>
-<polyline points="170.2,106.2 216.4,360.0" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
-<text x="216.4" y="350.0" text-anchor="middle" font-size="11" fill="#1565c0" font-weight="600">OSA Lake (site 61) → Baie Fine (site 82) (approx) (3.9 km)</text>
-<polyline points="216.4,360.0 529.8,40.0" fill="none" stroke="#c62828" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
-<text x="529.8" y="30.0" text-anchor="middle" font-size="11" fill="#c62828" font-weight="600">Baie Fine (site 82) → Killarney Lake (site 12) (approx) (5.9 km)</text>
-<polyline points="529.8,40.0 231.2,308.0" fill="none" stroke="#6a1b9a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
-<text x="231.2" y="298.0" text-anchor="middle" font-size="11" fill="#6a1b9a" font-weight="600">Killarney Lake (site 12) → George Lake (approx) (5.1 km)</text>
+<polyline points="489.9,263.0 557.3,229.8" fill="none" stroke="#2d5016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="557.3" y="219.8" text-anchor="middle" font-size="11" fill="#2d5016" font-weight="600">George Lake → George Lake portage (paddle) (1.6 km)</text>
+<polyline points="557.3,229.8 558.6,229.7 561.1,229.7" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="558.6" y="219.7" text-anchor="middle" font-size="11" fill="#1565c0" font-weight="600">George Lake portage → Freeland Lake portage (portage) (0.1 km)</text>
+<polyline points="561.1,229.7 656.0,202.7" fill="none" stroke="#c62828" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="656.0" y="192.7" text-anchor="middle" font-size="11" fill="#c62828" font-weight="600">Freeland Lake → Freeland Lake portage (paddle) (2.0 km)</text>
+<polyline points="656.0,202.7 656.2,202.5 657.0,202.2 657.8,201.8 658.3,201.2 658.6,200.4 659.1,199.9 659.3,199.2 660.0,197.4 659.5,196.7 659.2,196.0 659.3,195.2 658.5,193.3 658.1,191.9 657.6,189.7 657.9,188.4" fill="none" stroke="#6a1b9a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="660.0" y="187.4" text-anchor="middle" font-size="11" fill="#6a1b9a" font-weight="600">Freeland Lake portage → Killarney Lake portage (portage) (0.4 km)</text>
+<polyline points="657.9,188.4 555.3,151.0" fill="none" stroke="#2d5016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="555.3" y="141.0" text-anchor="middle" font-size="11" fill="#2d5016" font-weight="600">Killarney Lake → Killarney Lake portage (paddle) (2.2 km)</text>
+<polyline points="555.3,151.0 554.4,151.1 553.3,151.2 551.7,151.5 549.3,150.0" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="553.3" y="141.2" text-anchor="middle" font-size="11" fill="#1565c0" font-weight="600">Killarney Lake portage → O.S.A. Lake portage (portage) (0.1 km)</text>
+<polyline points="549.3,150.0 456.5,152.8" fill="none" stroke="#c62828" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="456.5" y="142.8" text-anchor="middle" font-size="11" fill="#c62828" font-weight="600">O.S.A. Lake portage → OSA Lake (site 61) (paddle) (1.8 km)</text>
+<polyline points="456.5,152.8 40.0,283.4" fill="none" stroke="#6a1b9a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="40.0" y="273.4" text-anchor="middle" font-size="11" fill="#6a1b9a" font-weight="600">OSA Lake (site 61) → Baie Fine (site 82) (approx) (8.8 km)</text>
+<polyline points="40.0,283.4 653.0,116.6" fill="none" stroke="#2d5016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="653.0" y="106.6" text-anchor="middle" font-size="11" fill="#2d5016" font-weight="600">Baie Fine (site 82) → Killarney Lake (site 12) (approx) (12.7 km)</text>
+<polyline points="653.0,116.6 657.9,188.4" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="657.9" y="178.4" text-anchor="middle" font-size="11" fill="#1565c0" font-weight="600">Killarney Lake (site 12) → Killarney Lake portage (paddle) (2.0 km)</text>
+<polyline points="657.9,188.4 657.6,189.7 658.1,191.9 658.5,193.3 659.3,195.2 659.2,196.0 659.5,196.7 660.0,197.4 659.3,199.2 659.1,199.9 658.6,200.4 658.3,201.2 657.8,201.8 657.0,202.2 656.2,202.5 656.0,202.7" fill="none" stroke="#c62828" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="659.3" y="189.2" text-anchor="middle" font-size="11" fill="#c62828" font-weight="600">Killarney Lake portage → Freeland Lake portage (portage) (0.4 km)</text>
+<polyline points="656.0,202.7 561.1,229.7" fill="none" stroke="#6a1b9a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="561.1" y="219.7" text-anchor="middle" font-size="11" fill="#6a1b9a" font-weight="600">Freeland Lake → Freeland Lake portage (paddle) (2.0 km)</text>
+<polyline points="561.1,229.7 558.6,229.7 557.3,229.8" fill="none" stroke="#2d5016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="558.6" y="219.7" text-anchor="middle" font-size="11" fill="#2d5016" font-weight="600">Freeland Lake portage → George Lake portage (portage) (0.1 km)</text>
+<polyline points="557.3,229.8 489.9,263.0" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="489.9" y="253.0" text-anchor="middle" font-size="11" fill="#1565c0" font-weight="600">George Lake portage → George Lake (paddle) (1.6 km)</text>
 <line x1="40" y1="385" x2="104.0" y2="385" stroke="#666" stroke-width="2"/>
-<text x="72.0" y="381" text-anchor="middle" font-size="10" fill="#666">1.0 km</text>
+<text x="72.0" y="381" text-anchor="middle" font-size="10" fill="#666">0.9 km</text>
 </svg></noscript>
 <details class="map-offline">
 <summary>Offline map (no internet needed)</summary>
 <svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:700px;height:auto;background:#e8f4f8;border-radius:10px">
-<polyline points="231.2,308.0 170.2,106.2" fill="none" stroke="#2d5016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
-<text x="170.2" y="96.2" text-anchor="middle" font-size="11" fill="#2d5016" font-weight="600">George Lake → OSA Lake (site 61) (approx) (3.1 km)</text>
-<polyline points="170.2,106.2 216.4,360.0" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
-<text x="216.4" y="350.0" text-anchor="middle" font-size="11" fill="#1565c0" font-weight="600">OSA Lake (site 61) → Baie Fine (site 82) (approx) (3.9 km)</text>
-<polyline points="216.4,360.0 529.8,40.0" fill="none" stroke="#c62828" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
-<text x="529.8" y="30.0" text-anchor="middle" font-size="11" fill="#c62828" font-weight="600">Baie Fine (site 82) → Killarney Lake (site 12) (approx) (5.9 km)</text>
-<polyline points="529.8,40.0 231.2,308.0" fill="none" stroke="#6a1b9a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
-<text x="231.2" y="298.0" text-anchor="middle" font-size="11" fill="#6a1b9a" font-weight="600">Killarney Lake (site 12) → George Lake (approx) (5.1 km)</text>
+<polyline points="489.9,263.0 557.3,229.8" fill="none" stroke="#2d5016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="557.3" y="219.8" text-anchor="middle" font-size="11" fill="#2d5016" font-weight="600">George Lake → George Lake portage (paddle) (1.6 km)</text>
+<polyline points="557.3,229.8 558.6,229.7 561.1,229.7" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="558.6" y="219.7" text-anchor="middle" font-size="11" fill="#1565c0" font-weight="600">George Lake portage → Freeland Lake portage (portage) (0.1 km)</text>
+<polyline points="561.1,229.7 656.0,202.7" fill="none" stroke="#c62828" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="656.0" y="192.7" text-anchor="middle" font-size="11" fill="#c62828" font-weight="600">Freeland Lake → Freeland Lake portage (paddle) (2.0 km)</text>
+<polyline points="656.0,202.7 656.2,202.5 657.0,202.2 657.8,201.8 658.3,201.2 658.6,200.4 659.1,199.9 659.3,199.2 660.0,197.4 659.5,196.7 659.2,196.0 659.3,195.2 658.5,193.3 658.1,191.9 657.6,189.7 657.9,188.4" fill="none" stroke="#6a1b9a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="660.0" y="187.4" text-anchor="middle" font-size="11" fill="#6a1b9a" font-weight="600">Freeland Lake portage → Killarney Lake portage (portage) (0.4 km)</text>
+<polyline points="657.9,188.4 555.3,151.0" fill="none" stroke="#2d5016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="555.3" y="141.0" text-anchor="middle" font-size="11" fill="#2d5016" font-weight="600">Killarney Lake → Killarney Lake portage (paddle) (2.2 km)</text>
+<polyline points="555.3,151.0 554.4,151.1 553.3,151.2 551.7,151.5 549.3,150.0" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="553.3" y="141.2" text-anchor="middle" font-size="11" fill="#1565c0" font-weight="600">Killarney Lake portage → O.S.A. Lake portage (portage) (0.1 km)</text>
+<polyline points="549.3,150.0 456.5,152.8" fill="none" stroke="#c62828" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="456.5" y="142.8" text-anchor="middle" font-size="11" fill="#c62828" font-weight="600">O.S.A. Lake portage → OSA Lake (site 61) (paddle) (1.8 km)</text>
+<polyline points="456.5,152.8 40.0,283.4" fill="none" stroke="#6a1b9a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="40.0" y="273.4" text-anchor="middle" font-size="11" fill="#6a1b9a" font-weight="600">OSA Lake (site 61) → Baie Fine (site 82) (approx) (8.8 km)</text>
+<polyline points="40.0,283.4 653.0,116.6" fill="none" stroke="#2d5016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="653.0" y="106.6" text-anchor="middle" font-size="11" fill="#2d5016" font-weight="600">Baie Fine (site 82) → Killarney Lake (site 12) (approx) (12.7 km)</text>
+<polyline points="653.0,116.6 657.9,188.4" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="657.9" y="178.4" text-anchor="middle" font-size="11" fill="#1565c0" font-weight="600">Killarney Lake (site 12) → Killarney Lake portage (paddle) (2.0 km)</text>
+<polyline points="657.9,188.4 657.6,189.7 658.1,191.9 658.5,193.3 659.3,195.2 659.2,196.0 659.5,196.7 660.0,197.4 659.3,199.2 659.1,199.9 658.6,200.4 658.3,201.2 657.8,201.8 657.0,202.2 656.2,202.5 656.0,202.7" fill="none" stroke="#c62828" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="659.3" y="189.2" text-anchor="middle" font-size="11" fill="#c62828" font-weight="600">Killarney Lake portage → Freeland Lake portage (portage) (0.4 km)</text>
+<polyline points="656.0,202.7 561.1,229.7" fill="none" stroke="#6a1b9a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="561.1" y="219.7" text-anchor="middle" font-size="11" fill="#6a1b9a" font-weight="600">Freeland Lake → Freeland Lake portage (paddle) (2.0 km)</text>
+<polyline points="561.1,229.7 558.6,229.7 557.3,229.8" fill="none" stroke="#2d5016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="558.6" y="219.7" text-anchor="middle" font-size="11" fill="#2d5016" font-weight="600">Freeland Lake portage → George Lake portage (portage) (0.1 km)</text>
+<polyline points="557.3,229.8 489.9,263.0" fill="none" stroke="#1565c0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+<text x="489.9" y="253.0" text-anchor="middle" font-size="11" fill="#1565c0" font-weight="600">George Lake portage → George Lake (paddle) (1.6 km)</text>
 <line x1="40" y1="385" x2="104.0" y2="385" stroke="#666" stroke-width="2"/>
-<text x="72.0" y="381" text-anchor="middle" font-size="10" fill="#666">1.0 km</text>
+<text x="72.0" y="381" text-anchor="middle" font-size="10" fill="#666">0.9 km</text>
 </svg>
 </details>
-</section><table><thead><tr><th>Day</th><th>Leg</th><th>Paddle</th><th>Portage</th><th>Est. time</th></tr></thead><tbody><tr><td>Fri 2026-05-15</td><td>George Lake → OSA Lake (site 61) ⚠</td><td>3.12 km</td><td>(approx)</td><td>55m</td></tr><tr><td>Sat 2026-05-16</td><td>OSA Lake (site 61) → Baie Fine (site 82) ⚠</td><td>3.87 km</td><td>(approx)</td><td>1h 5m</td></tr><tr><td>Sun 2026-05-17</td><td>Baie Fine (site 82) → Killarney Lake (site 12) ⚠</td><td>5.85 km</td><td>(approx)</td><td>1h 40m</td></tr><tr><td>Mon 2026-05-18</td><td>Killarney Lake (site 12) → George Lake ⚠</td><td>5.12 km</td><td>(approx)</td><td>1h 30m</td></tr><tr><td><strong>Total</strong></td><td></td><td><strong>18.0 km</strong></td><td><strong>0.0 km</strong></td><td><strong>5h 10m</strong></td></tr></tbody></table></section>
+</section><table><thead><tr><th>Day</th><th>Leg</th><th>Paddle</th><th>Portage</th><th>Est. time</th></tr></thead><tbody><tr><td>Fri 2026-05-15</td><td>George Lake → OSA Lake (site 61)</td><td>7.57 km</td><td>0.63 km</td><td>3h 15m</td></tr><tr><td>Sat 2026-05-16</td><td>OSA Lake (site 61) → Baie Fine (site 82) ⚠</td><td>8.78 km</td><td>(approx)</td><td>2h 30m</td></tr><tr><td>Sun 2026-05-17</td><td>Baie Fine (site 82) → Killarney Lake (site 12) ⚠</td><td>12.65 km</td><td>(approx)</td><td>3h 40m</td></tr><tr><td>Mon 2026-05-18</td><td>Killarney Lake (site 12) → George Lake</td><td>5.55 km</td><td>0.5 km</td><td>2h 25m</td></tr><tr><td><strong>Total</strong></td><td></td><td><strong>34.5 km</strong></td><td><strong>1.1 km</strong></td><td><strong>11h 50m</strong></td></tr></tbody></table></section>
 <section id="weather"><h2>Weather</h2><p><em>Forecast</em></p><table><thead><tr><th>Date</th><th>Conditions</th><th>High / Low</th><th>Precip</th></tr></thead><tbody><tr><td>2026-05-15</td><td>🌦 Moderate drizzle</td><td>8.1&deg;C / 3.3&deg;C</td><td>14% rain</td></tr><tr><td>2026-05-16</td><td>☁️ Overcast</td><td>13.4&deg;C / 3.1&deg;C</td><td>16% rain</td></tr><tr><td>2026-05-17</td><td>🌦 Slight rain</td><td>7.5&deg;C / 5.8&deg;C</td><td>18% rain</td></tr><tr><td>2026-05-18</td><td>🌦 Light drizzle</td><td>12.5&deg;C / 5.4&deg;C</td><td>28% rain</td></tr></tbody></table></section>
 <section id="gear"><h2>Gear</h2><h2>Shared gear</h2>
 <table>

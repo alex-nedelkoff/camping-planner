@@ -20,6 +20,30 @@ PORTAGE_KMH = 2.0
 PORTAGE_TRAVERSALS = 3
 BUFFER_PCT = 0.15
 
+# Portage endpoint matching tolerance: if a portage endpoint is not strictly
+# inside any lake polygon, fall back to the nearest lake centroid within this
+# distance (km).
+PORTAGE_TOLERANCE_KM = 0.3
+
+# Maximum number of portage hops to search when pathfinding between lakes.
+MAX_PORTAGE_HOPS = 5
+
+# OSM doesn't tag Baie Fine as a separate lake (it's part of Lake Huron /
+# North Channel). Hardcode an approximate polygon and centroid so the route
+# engine can resolve trips that visit Baie Fine.
+LAKE_SUPPLEMENT = [
+    {
+        "name": "Baie Fine",
+        # Rough rectangular footprint covering Baie Fine fjord.
+        "polygon": [
+            [46.013, -81.480], [46.013, -81.535],
+            [46.030, -81.535], [46.030, -81.480],
+            [46.013, -81.480],
+        ],
+        "centroid": [46.022, -81.510],
+    },
+]
+
 
 def _norm_lake_name(name: str) -> str:
     """Normalize a lake name for case-insensitive, punctuation-insensitive matching.
@@ -87,18 +111,43 @@ def _find_lake(name: str, lakes: list) -> Optional[dict]:
     return None
 
 
-def _classify_portage_endpoints(portage: dict, lakes: list) -> list:
-    """Return the lakes (by index) each portage endpoint falls inside.
+def _min_dist_to_polygon_vertex(point: list, polygon: list) -> float:
+    """Return the minimum haversine distance from point to any vertex of polygon."""
+    best = float("inf")
+    for v in polygon:
+        d = _haversine_km(point, v)
+        if d < best:
+            best = d
+    return best
 
-    Returns [lake_or_None_for_endpoint_0, lake_or_None_for_endpoint_1].
+
+def _classify_portage_endpoints(portage: dict, lakes: list) -> list:
+    """Return the lakes (one per endpoint) each portage endpoint best belongs to.
+
+    Strict point-in-polygon first; falls back to nearest-polygon-vertex within
+    PORTAGE_TOLERANCE_KM. Centroid distance is a poor proxy for large irregular
+    lakes — vertex distance correctly handles portage endpoints that lie exactly
+    on the shoreline but fail the ray-cast due to floating-point precision.
+    Returns [lake_or_None, lake_or_None].
     """
     result = []
     for ep in portage["endpoints"]:
         match = None
+        # First: strict containment.
         for lake in lakes:
             if _point_in_polygon(ep, lake["polygon"]):
                 match = lake
                 break
+        # Fallback: nearest polygon vertex within tolerance.
+        if match is None:
+            best = None
+            best_dist = PORTAGE_TOLERANCE_KM
+            for lake in lakes:
+                d = _min_dist_to_polygon_vertex(ep, lake["polygon"])
+                if d < best_dist:
+                    best = lake
+                    best_dist = d
+            match = best
         result.append(match)
     return result
 
@@ -112,6 +161,52 @@ def _find_connecting_portage(lake_a: dict, lake_b: dict, portages: list) -> Opti
         names_at_ends = {e["name"] if e else None for e in ends}
         if {name_a, name_b}.issubset(names_at_ends):
             return p
+    return None
+
+
+def _build_lake_graph(lakes: list, portages: list) -> dict:
+    """Build adjacency: {lake_name: [(neighbor_name, portage_dict, ends), ...]}."""
+    graph: dict = {l["name"]: [] for l in lakes}
+    for p in portages:
+        ends = _classify_portage_endpoints(p, lakes)
+        if ends[0] is None or ends[1] is None:
+            continue
+        a_name = ends[0]["name"]
+        b_name = ends[1]["name"]
+        if a_name == b_name:
+            continue  # portage with both endpoints on same lake; ignore
+        graph.setdefault(a_name, []).append((b_name, p, ends))
+        graph.setdefault(b_name, []).append((a_name, p, ends))
+    return graph
+
+
+def _find_path_through_portages(lake_a: dict, lake_b: dict, lakes: list,
+                                portages: list) -> "list | None":
+    """BFS over the lake-portage graph from lake_a to lake_b.
+
+    Returns a list of (next_lake_name, portage_dict, ends) tuples representing
+    the path from lake_a to lake_b, or None if no path within MAX_PORTAGE_HOPS.
+    """
+    graph = _build_lake_graph(lakes, portages)
+    start = lake_a["name"]
+    goal = lake_b["name"]
+    if start not in graph:
+        return None
+
+    # BFS
+    queue: list = [(start, [])]
+    visited = {start}
+    while queue:
+        current, path = queue.pop(0)
+        if current == goal:
+            return path
+        if len(path) >= MAX_PORTAGE_HOPS:
+            continue
+        for neighbor, portage, ends in graph.get(current, []):
+            if neighbor in visited:
+                continue
+            visited.add(neighbor)
+            queue.append((neighbor, path + [(neighbor, portage, ends)]))
     return None
 
 
@@ -137,7 +232,7 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
 
     Returns {"segments": [...], "warnings": [...]}.
     """
-    lakes = osm["lakes"]
+    lakes = osm["lakes"] + LAKE_SUPPLEMENT  # add hardcoded supplements
     portages = osm["portages"]
     segments: list = []
     warnings: list = []
@@ -189,33 +284,44 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
             continue
 
         if lake_a and lake_b:
-            portage = _find_connecting_portage(lake_a, lake_b, portages)
-            if portage:
-                ends = _classify_portage_endpoints(portage, [lake_a, lake_b])
-                # Ordered entry/exit so entry is in lake_a, exit in lake_b.
-                if ends[0] and ends[0]["name"] == lake_a["name"]:
-                    entry, exit_ = portage["endpoints"]
-                    portage_geom = portage["line"]
-                else:
-                    exit_, entry = portage["endpoints"]
-                    portage_geom = list(reversed(portage["line"]))
-                # Paddle in lake_a from centroid to portage entry.
-                d1 = _haversine_km(lake_a["centroid"], entry)
+            path = _find_path_through_portages(lake_a, lake_b, lakes, portages)
+            if path:
+                # Walk: lake_a centroid -> (portage entry, portage line,
+                # portage exit, next lake centroid) per hop.
+                current_lake = lake_a
+                current_pt = lake_a["centroid"]
+                for next_name, portage, ends in path:
+                    # Find which endpoint is in current_lake.
+                    if ends[0] and ends[0]["name"] == current_lake["name"]:
+                        entry, exit_ = portage["endpoints"]
+                        portage_geom = portage["line"]
+                    else:
+                        exit_, entry = portage["endpoints"]
+                        portage_geom = list(reversed(portage["line"]))
+                    # Paddle from current point to portage entry.
+                    d_paddle = _haversine_km(current_pt, entry)
+                    segments.append(_segment(
+                        day_label, "paddle",
+                        a["label"] if current_lake is lake_a else f"{current_lake['name']}",
+                        f"{current_lake['name']} portage",
+                        d_paddle, [current_pt, entry],
+                    ))
+                    # Portage.
+                    next_lake = next((l for l in lakes if l["name"] == next_name), None)
+                    segments.append(_segment(
+                        day_label, "portage",
+                        f"{current_lake['name']} portage",
+                        f"{next_name} portage",
+                        portage["length_km"], portage_geom,
+                    ))
+                    current_lake = next_lake
+                    current_pt = exit_
+                # Final paddle from last portage exit to lake_b centroid.
+                d_final = _haversine_km(current_pt, lake_b["centroid"])
                 segments.append(_segment(
-                    day_label, "paddle", a["label"], f"{lake_a['name']} portage",
-                    d1, [lake_a["centroid"], entry],
-                ))
-                # Portage.
-                segments.append(_segment(
-                    day_label, "portage", f"{lake_a['name']} portage",
-                    f"{lake_b['name']} portage", portage["length_km"],
-                    portage_geom,
-                ))
-                # Paddle in lake_b from portage exit to centroid.
-                d2 = _haversine_km(exit_, lake_b["centroid"])
-                segments.append(_segment(
-                    day_label, "paddle", f"{lake_b['name']} portage", b["label"],
-                    d2, [exit_, lake_b["centroid"]],
+                    day_label, "paddle",
+                    f"{lake_b['name']} portage", b["label"],
+                    d_final, [current_pt, lake_b["centroid"]],
                 ))
                 continue
 
