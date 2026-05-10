@@ -47,8 +47,25 @@ def client(tmp_path, monkeypatch):
     yield TestClient(app)
 
 
-def test_get_meals_returns_scaffold_for_legacy_trip(client):
-    r = client.get("/api/trip/killarney-2026-05/meals")
+def test_get_meals_returns_scaffold_for_legacy_trip(client, tmp_path):
+    """A trip whose food.md has prose-only (no YAML frontmatter) should
+    surface the prose under legacy_body so the UI can show the migration
+    banner. Set up a dedicated trip rather than depending on the state of
+    any committed trip — those evolve as users save through the new UI.
+    """
+    trip_dir = tmp_path / "trips" / "legacy-trip-2026-09"
+    trip_dir.mkdir(parents=True)
+    (trip_dir / "trip.md").write_text(
+        "---\npark: killarney\n"
+        "start_date: 2026-09-04\nend_date: 2026-09-06\n"
+        "participants:\n  - Sam\n---\n",
+        encoding="utf-8",
+    )
+    (trip_dir / "food.md").write_text(
+        "## Friday dinner\n\n- pasta\n", encoding="utf-8",
+    )
+
+    r = client.get("/api/trip/legacy-trip-2026-09/meals")
     assert r.status_code == 200
     body = r.json()
     assert body["ok"] is True
