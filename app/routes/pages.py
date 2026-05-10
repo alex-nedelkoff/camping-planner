@@ -37,3 +37,8 @@ def new(request: Request):
 @router.get("/availability", response_class=HTMLResponse)
 def availability_page(request: Request):
     return _render_shell(request)
+
+
+@router.get("/foods", response_class=HTMLResponse)
+def foods_page(request: Request):
+    return _render_shell(request)

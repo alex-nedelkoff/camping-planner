@@ -185,6 +185,12 @@
       wireAvailForm();
       return;
     }
+    if (path === '/foods') {
+      state.activeSlug = null;
+      paintActiveSidebar();
+      if (window.FoodsPage) window.FoodsPage.mount(mainPane);
+      return;
+    }
     const tripMatch = path.match(/^\/trips\/([^/]+)\/?$/);
     if (tripMatch) {
       state.activeSlug = tripMatch[1];

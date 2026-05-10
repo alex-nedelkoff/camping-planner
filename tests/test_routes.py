@@ -59,6 +59,13 @@ def test_trip_slug_url_serves_shell(client):
     assert 'id="main-pane"' in r.text
 
 
+def test_foods_page_serves_shell(client):
+    r = client.get("/foods")
+    assert r.status_code == 200
+    assert 'id="main-pane"' in r.text
+    assert "Foods DB" in r.text  # sidebar link
+
+
 def test_trips_list_endpoint(client):
     r = client.get("/api/trips")
     assert r.status_code == 200
