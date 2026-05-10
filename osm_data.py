@@ -18,6 +18,7 @@ from pathlib import Path
 import requests
 
 CACHE_PATH = Path(__file__).parent / "osm_killarney_cache.json"
+JEFFS_CACHE_PATH = Path(__file__).parent / "jeffs_killarney_cache.json"
 
 # Killarney Provincial Park bounding box (south, west, north, east).
 KILLARNEY_BBOX = (45.92, -81.60, 46.12, -81.25)
@@ -156,13 +157,37 @@ def refresh_killarney_cache() -> None:
 
 
 def load_killarney_features() -> dict:
-    """Read the cached features. Raises FileNotFoundError if cache is missing."""
+    """Read cached features. Merges Jeff's cache when present.
+
+    Lakes: Jeff's wins on name conflict.
+    Portages: OSM only (Phase 1 doesn't extract portages).
+    Campsites: Jeff's only (new top-level key; absent OSM-only loads).
+
+    Raises FileNotFoundError if the OSM cache is missing.
+    """
     if not CACHE_PATH.exists():
         raise FileNotFoundError(
             f"{CACHE_PATH}: cache missing. "
             "Run `python3 build_trip.py --refresh-osm <trip-dir>` to populate."
         )
-    return json.loads(CACHE_PATH.read_text())
+    osm = json.loads(CACHE_PATH.read_text())
+    out = {
+        "lakes": list(osm.get("lakes", [])),
+        "portages": list(osm.get("portages", [])),
+        "campsites": [],
+    }
+
+    if JEFFS_CACHE_PATH.exists():
+        jeffs = json.loads(JEFFS_CACHE_PATH.read_text())
+        jeffs_lakes = jeffs.get("lakes", [])
+        jeffs_names = {l["name"] for l in jeffs_lakes if "name" in l}
+        out["lakes"] = (
+            [l for l in out["lakes"] if l.get("name") not in jeffs_names]
+            + jeffs_lakes
+        )
+        out["campsites"] = jeffs.get("campsites", [])
+
+    return out
 
 
 if __name__ == "__main__":
