@@ -163,15 +163,38 @@ page.goto(url, timeout=45000, wait_until="domcontentloaded")
 
 ### Project files
 
+- `app/` — FastAPI web UI. Entry point: `uvicorn app.main:app --reload --port 8000`
+  - `app/main.py` — FastAPI instance, `db.init_schema()` on boot, `/static` and `/trips` mounts, router includes
+  - `app/config.py` — central paths + cache TTLs (REPO_ROOT, TRIPS_DIR, TEMPLATE_DIR, PARKS_JSON, DATABASE_PATH)
+  - `app/models.py` — Pydantic request/response schemas
+  - `app/services/db.py` — SQLite connection, schema init + auto-migration, generic JSON-blob cache, per-user checklist state
+  - `app/services/identity.py` — cookie-based identity (`cp_user`); no password
+  - `app/services/trips.py` — scan/create/rebuild/save-gear logic; markdown table editor; injects cached weather into build_trip
+  - `app/services/availability.py` — `ontario_parks.check_park` wrapped in `availability_cache` (15 min TTL)
+  - `app/services/weather_cache.py` — `weather.get_weather` wrapped in `weather_cache` (1 hour TTL)
+  - `app/routes/{pages,trips,parks,checklist,identity}.py` — thin route handlers
+  - `app/templates/` — Jinja2 templates (NOT the same as `templates/trip-template/`)
+  - `app/static/` — `index.css`, `index.js`
+- `camping.sqlite3` — gitignored. Caches + checklist state. Safe to delete; app re-creates the schema empty on next boot. Trip content is *not* in here.
+- `launch.py` — legacy stdlib HTTP server. Functionally replaced by `app/`; kept until smoke-tested in the wild, then deleted.
+- `build_trip.py` — markdown → trip.html renderer (called from `app/services/trips.py`)
 - `ontario_parks.py` — availability checker (API + Playwright fallback)
-- `trip_planner.py` — trip planning orchestrator (Sheet creation, HTML generation, Drive upload)
 - `weather.py` — weather data via Open-Meteo API (historical averages + forecast)
 - `route_map.py` — KML/GPX parser, Leaflet map + SVG offline map generator
 - `parks.json` — park configs with resourceLocationId, mapId, drive times from Ajax
 - `park_activities.json` — curated hikes/swimming/paddling/tips per park
 - `api_attribute_filterable.json` — cached attribute definitions (55 attributes)
-- `sample_resources_killarney.json` — sample site detail data for Killarney (379 sites)
 - `map_names_cache.json` — cached campground map names
+- `osm_data.py`, `osm_killarney_cache.json` — OSM lakes/portages cache used by `route_engine.py`
+- `route_engine.py` — auto-routes paddling segments + estimates from OSM data
+- `templates/trip-template/` — markdown skeletons copied when creating a new trip
+- `trips/<slug>/` — per-trip markdown source of truth + generated `trip.html`
+- `legacy/` — pre-FastAPI sheet-driven flow (`trip_planner.py`, sample resource data, etc.). Kept for reference.
+- `FastAPI-refactor.md` — phase history (Phases 1–3 complete) and rationale for what was skipped
+
+**Source of truth:** markdown files in `trips/<slug>/` for trip *content*. SQLite (`camping.sqlite3`) holds operational state only — caches and per-user checklist toggles. Disaster-recovery story: git restores trip content; the DB is rebuildable on demand.
+
+**Identity:** cookie-based, no password. The `cp_user` cookie names the active user; empty/absent = "shared" bucket. Phase 2 checklist rows (no user) auto-migrate to the shared bucket on first Phase 3 boot. See `FastAPI-refactor.md` for phase history.
 
 ---
 
@@ -179,100 +202,85 @@ page.goto(url, timeout=45000, wait_until="domcontentloaded")
 
 ### Overview
 
-The trip planning workflow uses a **collaborative Google Sheet** as the source of truth and generates a **self-contained HTML trip page** from it.
-
 ```
-Google Sheet (collaborative) → trip_planner.py generate → HTML trip page (offline-capable)
+trips/<slug>/*.md  ──build_trip.py──►  trips/<slug>/trip.html
+       ▲                                        ▲
+       │                                        │
+   git (truth)                          FastAPI app at app/
+                                        + camping.sqlite3 (caches, per-user toggles)
 ```
 
-### Using `gws` CLI for Google Workspace
+Markdown files in `trips/<slug>/` are the source of truth. `build_trip.py` renders them into a self-contained `trip.html` per trip. The FastAPI app at `app/` provides a browser UI for creating trips, rebuilding HTML, editing the gear table, checking park availability, and syncing per-user packing checkboxes.
 
-The project uses `gws` CLI (installed at `/opt/homebrew/bin/gws`) for all Google Workspace operations. No service account or credentials.json needed.
+### Two ways to work
 
-Common operations:
+**Edit-then-rebuild (git-first):**
 ```bash
-# Read a sheet
-gws sheets spreadsheets values get --params '{"spreadsheetId":"ID","range":"Sheet1"}'
-
-# Create a spreadsheet
-gws sheets spreadsheets create --json '{"properties":{"title":"My Sheet"}}'
-
-# Write to a sheet
-gws sheets spreadsheets values update \
-  --params '{"spreadsheetId":"ID","range":"Tab!A1","valueInputOption":"USER_ENTERED"}' \
-  --json '{"values":[["a","b"],["c","d"]]}'
-
-# Upload file to Drive
-gws drive files create --json '{"name":"file.html","mimeType":"text/html"}' --upload file.html
-
-# Share with anyone
-gws drive permissions create --params '{"fileId":"ID"}' --json '{"role":"reader","type":"anyone"}'
+$EDITOR trips/<slug>/packing.md
+python3 build_trip.py trips/<slug>/
+git add trips/<slug>/ && git commit -am "..."
 ```
 
-### trip_planner.py usage
-
+**Web UI (FastAPI):**
 ```bash
-# Create a new trip sheet with template tabs
-python3 trip_planner.py new-trip --park killarney --start 2026-07-10 --end 2026-07-12 --participants "Alex,Jordan,Sam"
-
-# Generate HTML from a filled-out sheet
-python3 trip_planner.py generate --sheet-id SHEET_ID --output trip.html
-
-# Generate with a KML/GPX route map embedded
-python3 trip_planner.py generate --sheet-id SHEET_ID --route-file route.gpx --output trip.html
-
-# Upload to Drive and share
-python3 trip_planner.py upload --file trip.html --share
+uvicorn app.main:app --reload --port 8000
+# http://127.0.0.1:8000/  → index, "+ New Trip", rebuild, availability check
+# http://127.0.0.1:8000/trips/<slug>/trip.html  → trip page (gear edit, checkboxes)
 ```
 
-### Sheet template tabs
+The two paths coexist: the web UI writes back to the same markdown files; commit those after editing.
 
-The trip planning sheet has 8 tabs:
-1. **Trip Info** — park, dates, meeting point, drive time, check-in/out
-2. **Participants** — names, driving status, dietary restrictions, phone numbers
-3. **Route** — multi-site/canoe route: day, site/location, lake, travel method, notes
-4. **Gear** — items, assignments, status (Bringing/Needed)
-5. **Shared Food** — food items, who's bringing, which meal, dietary notes
-6. **Itinerary** — day-by-day schedule with times and activities
-7. **Costs** — expenses, who paid, split calculation
-8. **Packing Checklist** — personal packing items with checkboxes
+### Starting a new trip
 
-### Interactive trip creation
+Either via the index "+ New Trip" form, or:
+```bash
+cp -r templates/trip-template trips/<park>-<YYYY-MM>/
+$EDITOR trips/<park>-<YYYY-MM>/trip.md   # fill frontmatter
+python3 build_trip.py trips/<park>-<YYYY-MM>/
+```
 
-When the user asks to plan a trip, Claude should:
-1. Ask which park and dates
-2. Ask who's coming (or read from survey)
-3. Create the Sheet via `trip_planner.py new-trip`
-4. Check Ontario Parks for site details and suggest activities
-5. Help fill in the itinerary, gear, and food tabs
-6. Generate the HTML page
-7. Upload to Drive and share the link
+Slug convention is `<park>-<YYYY-MM>` derived from `park` + `start_date`.
+
+### Section files (per trip)
+
+| File           | Purpose                                                               |
+|----------------|-----------------------------------------------------------------------|
+| `trip.md`      | YAML frontmatter (park, dates, participants, nights, access_point) + intro markdown |
+| `itinerary.md` | Day-by-day schedule                                                   |
+| `gear.md`      | Shared gear table — editable in-browser via the Edit gear button     |
+| `food.md`      | Shared meal plan                                                      |
+| `packing.md`   | Personal packing list (the only file with task-list checkboxes)       |
+| `costs.md`     | Expense splits                                                        |
+| `route.gpx` / `route.kml` | Optional route file; auto-rendered as Leaflet + SVG          |
 
 ### Weather integration
 
-`weather.py` uses Open-Meteo API (free, no key). Automatically included in HTML generation.
-- **> 16 days out**: shows historical climate averages for those dates at the park location
-- **Within 16 days**: switches to real forecast with precipitation probability and weather codes
-- Park GPS coordinates are in `weather.py:PARK_COORDS`
+`weather.py` uses Open-Meteo API (no key). FastAPI calls go through `app/services/weather_cache.py` (1-hour TTL); CLI `build_trip.py` calls go direct.
+- **> 16 days out**: historical climate averages for those dates at the park location
+- **Within 16 days**: real forecast with precipitation probability + weather codes
+- Park GPS coordinates: `weather.py:PARK_COORDS`
 
-### Route maps (KML/GPX)
+### Route maps (KML/GPX + auto-route)
 
-`route_map.py` parses KML and GPX files and generates:
-- **Leaflet.js interactive map** (online) — OpenStreetMap tiles, colored track lines, clickable waypoint markers
-- **Static SVG diagram** (offline) — route shape, waypoints, distances, scale bar, in a collapsible `<details>` element
+`route_map.py` parses KML/GPX into:
+- **Leaflet.js interactive map** (online) — OSM tiles, coloured tracks, clickable waypoints
+- **Static SVG diagram** (offline) — route shape, waypoints, distances, scale bar, in a collapsible `<details>`
 
-To download a route file from Google Drive before generating:
-```bash
-gws drive files get --params '{"fileId":"DRIVE_FILE_ID","alt":"media"}' -o route.gpx
-python3 trip_planner.py generate --sheet-id ID --route-file route.gpx --output trip.html
-```
+If `trip.md` has `nights` + `access_point` but no `route.gpx`/`.kml`, `route_engine.py` auto-routes paddling + portage segments using the cached OSM data in `osm_killarney_cache.json` and produces per-day estimates.
 
 ### HTML trip page features
 
-- Self-contained (all CSS/JS inline, no external deps except Leaflet CDN for maps)
-- Works offline (localStorage for checklists, SVG map fallback)
+- Self-contained (all CSS/JS inline; only external dep is the Leaflet CDN for online maps)
+- Works offline — checkboxes persist via `localStorage` per-user; SVG map fallback for routes
+- Per-user packing checklist sync via `/api/checklist` when the FastAPI app is running
 - Weather section (historical or forecast)
 - Route map (Leaflet online + SVG offline)
-- Responsive (mobile-friendly)
-- Print-friendly (`@media print` styles)
-- Links back to the Sheet for edits
+- Responsive + print-friendly (`@media print` styles)
+
+### Tests
+
+```bash
+pytest tests/ -q       # 79 tests, ~1s
+```
+
+Tests cover `build_trip.py` rendering, OSM/route logic, the gear-table editor, FastAPI routes (with TestClient), the SQLite layer (incl. v0→v1 migration), and identity. The Camis API is **always mocked** in tests — never hit Ontario Parks from the test suite.

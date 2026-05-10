@@ -1,0 +1,46 @@
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       max-width: 900px; margin: 0 auto; padding: 1.5rem; color: #222;
+       line-height: 1.55; background: #fafafa; }
+h1, h2, h3 { color: #1f3a3a; }
+h2 { border-bottom: 2px solid #2d5016; padding-bottom: 0.25rem; margin-top: 0; }
+section { background: white; padding: 1.25rem 1.5rem; margin: 1rem 0;
+          border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.trip-header { background: #2d5016; color: white; padding: 1.25rem 1.5rem;
+               border-radius: 10px; margin-bottom: 1rem; display: flex;
+               justify-content: space-between; align-items: center; gap: 1rem;
+               flex-wrap: wrap; }
+.trip-header h1 { color: white; margin: 0; }
+.trip-header .header-actions { display: flex; gap: 0.5rem; align-items: center;
+                               flex-wrap: wrap; }
+.user-pill { background: rgba(0,0,0,0.25); color: white;
+             padding: 0.35rem 0.7rem; border-radius: 999px;
+             font-size: 0.9rem; cursor: pointer; border: none;
+             font-family: inherit; }
+.user-pill:hover { background: rgba(0,0,0,0.4); }
+.user-pill.unset { background: rgba(255,255,255,0.18); font-style: italic; }
+.card { padding: 0.9rem 1rem; margin: 0.75rem 0; border: 1px solid #e3e3e3;
+        border-radius: 8px; background: #fff; }
+.card h3 { margin: 0 0 0.3rem; }
+.card.error { border-color: #d99; background: #fdf3f3; }
+.meta { color: #555; font-size: 0.92rem; margin-bottom: 0.6rem; }
+.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.btn { display: inline-block; padding: 0.45rem 0.9rem; background: #2d5016;
+       color: white; border: none; border-radius: 6px; cursor: pointer;
+       text-decoration: none; font-size: 0.92rem; font-family: inherit; }
+.btn:hover { background: #3a6420; }
+.btn:disabled { opacity: 0.6; cursor: wait; }
+.btn.secondary { background: #6b7a5a; }
+.btn.secondary:hover { background: #7d8d6c; }
+form label { display: block; margin: 0.6rem 0; font-size: 0.95rem; }
+form input, form select { padding: 0.4rem; border: 1px solid #ccc;
+                          border-radius: 4px; min-width: 220px;
+                          margin-left: 0.5rem; font-family: inherit; }
+.warn { color: #8a5a00; background: #fff8e1; padding: 0.5rem 0.75rem;
+        border-left: 3px solid #d9a000; border-radius: 4px; margin: 0 0 0.75rem; }
+.empty { color: #888; font-style: italic; }
+.status { margin-left: 0.75rem; font-size: 0.9rem; color: #555; }
+.status.error { color: #c00; }
+table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; }
+th { background: #f0f4ee; }

@@ -41,7 +41,7 @@ HEADERS = {
 
 
 def load_parks() -> dict:
-    with open(PARKS_FILE) as f:
+    with open(PARKS_FILE, encoding="utf-8") as f:
         return json.load(f)["parks"]
 
 
@@ -52,7 +52,7 @@ def get_map_names() -> dict[str, str]:
     """
     # Try cache first
     if MAP_NAMES_CACHE.exists():
-        with open(MAP_NAMES_CACHE) as f:
+        with open(MAP_NAMES_CACHE, encoding="utf-8") as f:
             return json.load(f)
 
     try:
@@ -80,8 +80,8 @@ def get_map_names() -> dict[str, str]:
                 names[str(child_id)] = title
 
     # Cache it
-    with open(MAP_NAMES_CACHE, "w") as f:
-        json.dump(names, f, indent=2)
+    with open(MAP_NAMES_CACHE, "w", encoding="utf-8") as f:
+        json.dump(names, f, indent=2, ensure_ascii=False)
 
     return names
 
@@ -91,7 +91,7 @@ def resolve_map_name(map_id: Union[int, str]) -> str:
     key = str(map_id)
     # Check parks.json campgroundNames first
     try:
-        with open(PARKS_FILE) as f:
+        with open(PARKS_FILE, encoding="utf-8") as f:
             data = json.load(f)
         cg_names = data.get("campgroundNames", {})
         if key in cg_names:

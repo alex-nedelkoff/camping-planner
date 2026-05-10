@@ -162,7 +162,7 @@ def load_killarney_features() -> dict:
             f"{CACHE_PATH}: cache missing. "
             "Run `python3 build_trip.py --refresh-osm <trip-dir>` to populate."
         )
-    return json.loads(CACHE_PATH.read_text())
+    return json.loads(CACHE_PATH.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
