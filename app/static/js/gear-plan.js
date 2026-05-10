@@ -88,16 +88,22 @@
       const unknownClass = row.unknown_item ? ' gp-unknown' : '';
       const whoOptions = ['shared', ...plan.participants]
         .map(p => `<option value="${escapeHtml(p)}"${row.who === p ? ' selected' : ''}>${escapeHtml(p)}</option>`).join('');
-      const itemDisp = row.unknown_item
-        ? `<span style="color:#b45309">Unknown: ${escapeHtml(row.item_id || '')}</span>`
-        : (row.name ? escapeHtml(row.name) : '');
-      const catPill = `<span class="gear-pill" style="background:${pillColor(cat)}">${escapeHtml(cat)}</span>`;
+      // Input value is ALWAYS plain text: item name when known, otherwise
+      // the raw item_id (or empty for a fresh row). The "Unknown: ..." warning
+      // is rendered as a sibling in .gp-item-meta — never as the input's value
+      // (which only accepts plain text and breaks on embedded HTML).
+      const itemDispValue = row.unknown_item
+        ? (row.item_id || '')
+        : (row.name || '');
+      const catPill = row.unknown_item
+        ? `<span class="gp-warn">⚠ Unknown item${row.item_id ? ' (' + escapeHtml(row.item_id) + ')' : ''}</span>`
+        : `<span class="gear-pill" style="background:${pillColor(cat)}">${escapeHtml(cat)}</span>`;
       const warn = row.unknown_weight && !row.unknown_item
         ? `<span class="gp-warn">⚠ unknown weight</span>` : '';
       return `
         <div class="gp-row${unknownClass}" data-idx="${idx}">
           <div class="gp-cell gp-item-cell">
-            <input type="text" class="gp-item-input" value="${itemDisp}" placeholder="Type to search gear…" autocomplete="off">
+            <input type="text" class="gp-item-input" value="${escapeHtml(itemDispValue)}" placeholder="Type to search gear…" autocomplete="off">
             <div class="gp-item-meta">${catPill} ${warn}</div>
             <ul class="gp-item-suggestions" hidden></ul>
           </div>
