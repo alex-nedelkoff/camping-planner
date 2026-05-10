@@ -1,5 +1,7 @@
-/* Trip-pane behaviour: checklist sync, gear table editor, per-section editor.
-   The SPA calls initTripPane(root, slug) each time it swaps in a new trip. */
+/* Trip-pane behaviour: checklist sync, per-section editor, costs table editor.
+   The SPA calls initTripPane(root, slug) each time it swaps in a new trip.
+   (The gear and food sections are now rendered by gear-plan.js / meal-plan.js
+   respectively and do not flow through this file's table editor.) */
 
 (function (global) {
   'use strict';
@@ -390,11 +392,7 @@
       runEmbeddedScripts(root);
       initChecklist(root, slug, currentUser);
 
-      // Gear: simple contenteditable rows.
-      initTableEditor(root, 'gear', slug, {
-        labelVerb: 'Edit gear',
-        onSaved: onSaved,
-      });
+      // Gear is rendered by gear-plan.js (kind=gear-plan); no legacy table editor here.
 
       // Costs: 'Who paid' column becomes a dropdown of trip participants
       // (preserves any legacy values not in the participants list).
