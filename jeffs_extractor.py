@@ -360,6 +360,82 @@ def ocr_icon_number(image_crop: np.ndarray) -> Optional[str]:
     return "".join(digits)
 
 
+_DEDUP_RADIUS_KM = 0.01     # 10 m
+_OVERRIDE_RADIUS_KM = 0.05  # 50 m
+
+
+def _point_in_polygon(point, polygon) -> bool:
+    """Ray-casting test. Polygon is a closed ring of [lat, lon]."""
+    x, y = point[0], point[1]
+    inside = False
+    n = len(polygon)
+    j = n - 1
+    for i in range(n):
+        xi, yi = polygon[i][0], polygon[i][1]
+        xj, yj = polygon[j][0], polygon[j][1]
+        intersect = ((yi > y) != (yj > y)) and (
+            x < (xj - xi) * (y - yi) / (yj - yi + 1e-12) + xi
+        )
+        if intersect:
+            inside = not inside
+        j = i
+    return inside
+
+
+def aggregate_campsites(icons: list, lakes: list, overrides: dict) -> list:
+    """Combine per-tile icons into final campsites: dedupe, override, assign lake.
+
+    Each icon dict must have:
+      gps: [lat, lon]
+      ref: string or None
+
+    Output list of dicts:
+      {ref, lake (or None), gps}
+    plus an optional "warning" key when OCR failed and no override matched.
+    """
+    # 1. Apply overrides first — they correct OCR results.
+    override_entries = (overrides or {}).get("campsites", []) or []
+    for icon in icons:
+        for ov in override_entries:
+            near = ov.get("centroid_near")
+            if near is None or "ref" not in ov:
+                continue
+            if _haversine_km(icon["gps"], near) <= _OVERRIDE_RADIUS_KM:
+                icon["ref"] = ov["ref"]
+                break
+
+    # 2. Dedupe icons within 10m of each other.
+    deduped: list = []
+    for icon in icons:
+        merged = False
+        for existing in deduped:
+            if _haversine_km(icon["gps"], existing["gps"]) <= _DEDUP_RADIUS_KM:
+                # Same physical campsite seen in two tiles. Prefer non-None ref.
+                if existing.get("ref") is None and icon.get("ref") is not None:
+                    existing["ref"] = icon["ref"]
+                merged = True
+                break
+        if not merged:
+            deduped.append(dict(icon))
+
+    # 3. Assign lake by point-in-polygon.
+    out: list = []
+    for icon in deduped:
+        record = {
+            "ref": icon.get("ref"),
+            "gps": icon["gps"],
+            "lake": None,
+        }
+        for lake in lakes:
+            if _point_in_polygon(icon["gps"], lake["polygon"]):
+                record["lake"] = lake.get("name")
+                break
+        if record["ref"] is None:
+            record["warning"] = "OCR failed; add to overrides"
+        out.append(record)
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(description="Extract vector data from Jeff's Maps KMZ")
     parser.add_argument("kmz", help="Path to KMZ file")

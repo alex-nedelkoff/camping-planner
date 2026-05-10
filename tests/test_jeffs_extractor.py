@@ -254,3 +254,54 @@ def test_ocr_icon_number_returns_none_when_unconfident():
                return_value=_FAKE_OCR_LOW_CONF):
         ref = ocr_icon_number(image)
     assert ref is None
+
+
+from jeffs_extractor import aggregate_campsites
+
+
+def test_aggregate_campsites_dedups_within_10m():
+    """Two icons at GPS 1m apart with same ref produce a single output."""
+    icons = [
+        {"gps": [46.0440, -81.5040], "ref": "82"},
+        {"gps": [46.04400001, -81.50400001], "ref": "82"},  # ~1m away
+    ]
+    lakes = []  # no lake assignment matters for this test
+    overrides = {"campsites": []}
+    out = aggregate_campsites(icons, lakes, overrides)
+    assert len(out) == 1
+    assert out[0]["ref"] == "82"
+
+
+def test_aggregate_campsites_keeps_distinct_far_icons():
+    icons = [
+        {"gps": [46.0440, -81.5040], "ref": "82"},
+        {"gps": [46.0500, -81.5100], "ref": "61"},  # >100m away
+    ]
+    out = aggregate_campsites(icons, lakes=[], overrides={"campsites": []})
+    refs = sorted(c["ref"] for c in out)
+    assert refs == ["61", "82"]
+
+
+def test_aggregate_campsites_assigns_lake_via_point_in_polygon():
+    icons = [
+        {"gps": [46.05, -81.40], "ref": "12"},
+    ]
+    lakes = [
+        {"name": "Killarney Lake",
+         "polygon": [[46.04, -81.41], [46.06, -81.41], [46.06, -81.39],
+                     [46.04, -81.39], [46.04, -81.41]],
+         "centroid": [46.05, -81.40]},
+    ]
+    out = aggregate_campsites(icons, lakes, overrides={"campsites": []})
+    assert out[0]["lake"] == "Killarney Lake"
+
+
+def test_aggregate_campsites_applies_override_for_failed_ocr():
+    icons = [
+        {"gps": [46.044, -81.503], "ref": None},  # OCR failed
+    ]
+    overrides = {"campsites": [
+        {"centroid_near": [46.044, -81.503], "ref": "82"},
+    ]}
+    out = aggregate_campsites(icons, lakes=[], overrides=overrides)
+    assert out[0]["ref"] == "82"
