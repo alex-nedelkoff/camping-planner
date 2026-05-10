@@ -99,3 +99,36 @@ def test_load_trip_raises_on_missing_frontmatter(tmp_path):
 
     with pytest.raises(ValueError, match="frontmatter"):
         load_trip(trip_dir)
+
+
+from build_trip import render_section
+
+
+def test_render_section_converts_unchecked_task_to_checkbox():
+    md = "- [ ] First item\n"
+    html = render_section(md, "packing")
+    assert 'type="checkbox"' in html
+    assert 'data-cb-key="packing--first-item"' in html
+    # Unchecked must NOT include the literal " checked" attribute.
+    assert " checked" not in html
+
+
+def test_render_section_converts_checked_task_to_checkbox():
+    md = "- [x] Done item\n"
+    html = render_section(md, "packing")
+    assert 'data-cb-key="packing--done-item"' in html
+    assert "checked" in html
+
+
+def test_render_section_renders_tables():
+    md = "| a | b |\n|---|---|\n| 1 | 2 |\n"
+    html = render_section(md, "gear")
+    assert "<table>" in html
+    assert "<td>1</td>" in html
+
+
+def test_render_section_handles_headings_and_paragraphs():
+    md = "## Hello\n\nA paragraph.\n"
+    html = render_section(md, "intro")
+    assert "<h2>Hello</h2>" in html
+    assert "<p>A paragraph.</p>" in html

@@ -5,8 +5,10 @@ Usage: python3 build_trip.py trips/<trip-name>/
 """
 import datetime
 import re
+from html import escape
 from pathlib import Path
 
+import markdown as _md
 import yaml
 
 SECTION_FILES = ["itinerary", "gear", "food", "packing", "costs"]
@@ -22,6 +24,34 @@ def _stringify_dates(obj):
     if isinstance(obj, list):
         return [_stringify_dates(item) for item in obj]
     return obj
+
+
+TASK_LINE_RE = re.compile(
+    r"^(?P<prefix>\s*[-*+]\s+)\[(?P<mark>[ xX])\]\s+(?P<label>.+)$",
+    re.MULTILINE,
+)
+
+
+def _slugify(text: str) -> str:
+    """Lowercase, replace non-alphanumerics with hyphens, trim hyphens."""
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def render_section(md_text: str, section_id: str) -> str:
+    """Render markdown to HTML. Task-list items become persistent checkboxes."""
+    def replace(match):
+        prefix = match.group("prefix")
+        mark = match.group("mark")
+        label = match.group("label")
+        checked = "checked" if mark in "xX" else ""
+        key = f"{section_id}--{_slugify(label)}"
+        attrs = f'type="checkbox" data-cb-key="{escape(key)}"'
+        if checked:
+            attrs += " checked"
+        return f"{prefix}<input {attrs}> {label}"
+
+    processed = TASK_LINE_RE.sub(replace, md_text)
+    return _md.markdown(processed, extensions=["tables", "fenced_code"])
 
 
 def load_trip(trip_dir) -> dict:
