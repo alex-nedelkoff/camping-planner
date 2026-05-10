@@ -13,6 +13,7 @@ nights:
   - date: 2026-05-16
     site: '82'
     location: Baie Fine
+    gps: [46.044041, -81.503845]
   - date: 2026-05-17
     site: '12'
     location: Killarney Lake

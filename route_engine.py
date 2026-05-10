@@ -273,17 +273,32 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
     segments: list = []
     warnings: list = []
 
-    # Build the ordered list of waypoint dicts: each has {label, location, day_label}.
+    # Resolve the access point once — used as the start/end "point" for the
+    # access waypoints regardless of route-finding outcome.
+    access_info = _resolve_access_point(access_point, lakes)
+
+    def _night_point(night: dict) -> Optional[list]:
+        """Best [lat, lon] for a night: gps override > lake centroid > None."""
+        gps = night.get("gps")
+        if gps and len(gps) == 2:
+            return [gps[0], gps[1]]
+        lake = _find_lake(night["location"], lakes)
+        return lake["centroid"] if lake else None
+
+    # Build the ordered list of waypoint dicts. Each carries a `point` that
+    # downstream segment construction uses as its actual coordinate.
     waypoints = [{
         "label": access_point,
         "location": access_point,
         "day_label": _day_label(nights[0]["date"]) if nights else "",
+        "point": access_info["gps"],
     }]
     for night in nights:
         waypoints.append({
             "label": f"{night['location']} (site {night['site']})",
             "location": night["location"],
             "day_label": _day_label(night["date"]),
+            "point": _night_point(night),
         })
     # Final leg: return to access point on the day after the last night.
     if nights:
@@ -300,6 +315,7 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
         "label": access_point,
         "location": access_point,
         "day_label": return_label,
+        "point": access_info["gps"],
     })
 
     # Walk leg by leg.
@@ -310,26 +326,26 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
         lake_a = _find_lake(a["location"], lakes)
         lake_b = _find_lake(b["location"], lakes)
 
+        # Use waypoint-resolved points (gps override / access GPS / centroid)
+        # rather than raw lake centroids so user-supplied site coords flow
+        # through to the rendered geometry.
+        a_pt_resolved = a["point"] if a["point"] else (lake_a["centroid"] if lake_a else None)
+        b_pt_resolved = b["point"] if b["point"] else (lake_b["centroid"] if lake_b else None)
+
         if lake_a and lake_b and lake_a["name"] == lake_b["name"]:
-            # Same lake — straight paddle.
-            d_km = _haversine_km(lake_a["centroid"], lake_b["centroid"])
+            # Same lake — straight paddle between the two waypoint points.
+            d_km = _haversine_km(a_pt_resolved, b_pt_resolved)
             segments.append(_segment(
                 day_label, "paddle", a["label"], b["label"],
-                d_km, [lake_a["centroid"], lake_b["centroid"]],
+                d_km, [a_pt_resolved, b_pt_resolved],
             ))
             continue
 
         if lake_a and lake_b:
             path = _find_path_through_portages(lake_a, lake_b, lakes, portages)
             if path:
-                # Determine starting point: access-point GPS for the first
-                # leg of the trip, lake centroid otherwise.
                 current_lake = lake_a
-                if i == 1:
-                    access = _resolve_access_point(access_point, lakes)
-                    current_pt = access["gps"] if access["gps"] else lake_a["centroid"]
-                else:
-                    current_pt = lake_a["centroid"]
+                current_pt = a_pt_resolved or lake_a["centroid"]
                 for next_name, portage, ends in path:
                     # Find which endpoint is in current_lake.
                     if ends[0] and ends[0]["name"] == current_lake["name"]:
@@ -356,13 +372,7 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
                     ))
                     current_lake = next_lake
                     current_pt = exit_
-                # Determine ending point: access-point GPS for the last leg
-                # of the trip, lake centroid otherwise.
-                if i == len(waypoints) - 1:
-                    access = _resolve_access_point(access_point, lakes)
-                    end_pt = access["gps"] if access["gps"] else lake_b["centroid"]
-                else:
-                    end_pt = lake_b["centroid"]
+                end_pt = b_pt_resolved or lake_b["centroid"]
                 d_final = _haversine_km(current_pt, end_pt)
                 segments.append(_segment(
                     day_label, "paddle",
@@ -387,10 +397,11 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
                 f"No portage found between {lake_a['name']} and {lake_b['name']} — "
                 "leg shown as straight line."
             )
-        # Use centroids when known, otherwise fall back to a sentinel point
-        # roughly in the middle of the Killarney bbox so the map still renders.
-        a_pt = lake_a["centroid"] if lake_a else [46.02, -81.40]
-        b_pt = lake_b["centroid"] if lake_b else [46.02, -81.40]
+        # Use resolved waypoint points when available (gps override / access
+        # GPS / centroid), otherwise fall back to a sentinel point roughly in
+        # the middle of the Killarney bbox so the map still renders.
+        a_pt = a_pt_resolved if a_pt_resolved else [46.02, -81.40]
+        b_pt = b_pt_resolved if b_pt_resolved else [46.02, -81.40]
         d_km = _haversine_km(a_pt, b_pt)
         segments.append(_segment(
             day_label, "approx", a["label"], b["label"], d_km, [a_pt, b_pt],
