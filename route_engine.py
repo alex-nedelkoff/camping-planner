@@ -118,38 +118,103 @@ def _line_inside_polygon(p1: list, p2: list, polygon: list,
     return True
 
 
+# Cap polygon vertex count for visibility graph computation. Jeff's
+# extracted polygons typically have 80-180 vertices; the visibility graph
+# is O(V²) over polygon vertices and each edge does an O(V) line-inside
+# test, so working on the raw polygons explodes to minutes per trip.
+# Decimating to ≤ this many vertices keeps the geometry good enough for
+# routing-around-peninsulas while making the algorithm sub-second.
+_PADDLE_MAX_POLYGON_VERTICES = 25
+
+
+def _decimate_polygon(polygon: list, max_vertices: int) -> list:
+    """Stride-decimate a polygon down to at most `max_vertices` vertices.
+
+    Lossy but uniformly so — for visibility-graph paddle routing the rough
+    shape is what matters, not sub-vertex precision.
+    """
+    if len(polygon) <= max_vertices:
+        return [list(v) for v in polygon]
+    stride = max(1, len(polygon) // max_vertices)
+    return [list(polygon[i]) for i in range(0, len(polygon), stride)]
+
+
 def _polygon_aware_paddle(start: list, end: list, lake: dict) -> list:
     """Return geometry [start, ..., end] for a paddle staying inside `lake`.
 
-    Tries straight line first. If the line crosses outside the lake polygon
-    (peninsula, L-shaped lake, etc.), searches polygon vertices for a single
-    intermediate waypoint that keeps both legs inside, picking the shortest
-    detour. Falls back to routing via the lake centroid when no vertex works.
+    Builds a visibility graph over {start, end, simplified-polygon vertices}.
+    An edge exists between two nodes if the straight line between them stays
+    inside the (simplified) polygon. Runs Dijkstra to find the shortest path.
+    Naturally chains as many intermediate vertices as needed for multi-bend
+    / U-shaped / L-shaped lakes.
 
-    `lake` is a dict with `polygon` (and optionally `centroid`). If `lake`
-    is falsy or has no polygon, returns the straight line unchanged.
+    Performance: the polygon is stride-decimated to
+    `_PADDLE_MAX_POLYGON_VERTICES` vertices before graph construction, which
+    keeps the O(V²) visibility check sub-second even for Killarney's
+    densely-tessellated lake polygons (typically 80-180 vertices raw).
+
+    Falls back to the straight line if `lake` is missing a polygon, or to
+    the lake centroid as a last-resort midpoint if no graph path exists.
     """
     if not lake or not lake.get("polygon"):
         return [start, end]
-    polygon = lake["polygon"]
+    # Simplify once; reuse for both line tests and graph nodes.
+    polygon = _decimate_polygon(lake["polygon"], _PADDLE_MAX_POLYGON_VERTICES)
+
+    # Fast path: straight line works.
     if _line_inside_polygon(start, end, polygon):
         return [start, end]
-    best_vertex = None
-    best_dist = float("inf")
-    for vertex in polygon:
-        v = [vertex[0], vertex[1]]
-        if (_line_inside_polygon(start, v, polygon) and
-                _line_inside_polygon(v, end, polygon)):
-            d = _haversine_km(start, v) + _haversine_km(v, end)
-            if d < best_dist:
-                best_dist = d
-                best_vertex = v
-    if best_vertex is not None:
-        return [start, best_vertex, end]
-    centroid = lake.get("centroid")
-    if centroid:
-        return [start, list(centroid), end]
-    return [start, end]
+
+    # Build node list: start (0), end (1), then polygon vertices.
+    nodes = [list(start), list(end)] + [[v[0], v[1]] for v in polygon]
+    n = len(nodes)
+
+    # Adjacency list with line-of-sight check.
+    adj: list = [[] for _ in range(n)]
+    for i in range(n):
+        for j in range(i + 1, n):
+            if _line_inside_polygon(nodes[i], nodes[j], polygon):
+                w = _haversine_km(nodes[i], nodes[j])
+                adj[i].append((j, w))
+                adj[j].append((i, w))
+
+    # Dijkstra from 0 (start) to 1 (end).
+    INF = float("inf")
+    dist = [INF] * n
+    parent = [-1] * n
+    dist[0] = 0.0
+    visited = [False] * n
+    while True:
+        u = -1
+        u_dist = INF
+        for k in range(n):
+            if not visited[k] and dist[k] < u_dist:
+                u_dist = dist[k]
+                u = k
+        if u == -1 or u == 1:
+            break
+        visited[u] = True
+        for v, w in adj[u]:
+            alt = dist[u] + w
+            if alt < dist[v]:
+                dist[v] = alt
+                parent[v] = u
+
+    if dist[1] == INF:
+        # No graph path (start or end outside polygon, or polygon is broken).
+        centroid = lake.get("centroid")
+        if centroid:
+            return [list(start), list(centroid), list(end)]
+        return [list(start), list(end)]
+
+    # Reconstruct path from end back to start.
+    path = []
+    cur = 1
+    while cur != -1:
+        path.append(nodes[cur])
+        cur = parent[cur]
+    path.reverse()
+    return path
 
 
 def _path_distance_km(geometry: list) -> float:
