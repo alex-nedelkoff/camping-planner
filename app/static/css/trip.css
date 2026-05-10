@@ -124,3 +124,41 @@
 .mp-modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end; }
 .mp-modal-error { background: #fee2e2; color: #991b1b; padding: 0.5rem; border-radius: 4px; margin-bottom: 0.8rem; }
 .mp-status { color: var(--muted, #52525b); font-size: 0.9em; }
+
+/* Gear plan */
+.gp-header { background: var(--surface, #f4f4f5); padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; }
+.gp-total { font-size: 1.05em; }
+.gp-bywho { color: var(--muted, #52525b); font-size: 0.9em; margin-top: 0.3rem; }
+.gp-warn { color: #b45309; font-size: 0.9em; }
+.gp-legacy-banner { background: #fff7ed; border: 1px solid #fed7aa; padding: 0.6rem 0.8rem; border-radius: 4px; margin-bottom: 0.8rem; font-size: 0.9em; }
+.gp-legacy-banner button { margin-left: 0.5rem; }
+.gp-empty { padding: 2rem; text-align: center; color: var(--muted, #71717a); border: 1px dashed var(--border, #d4d4d8); border-radius: 6px; }
+.gp-table { border: 1px solid var(--border, #d4d4d8); border-radius: 6px; overflow: hidden; }
+.gp-row { display: grid; grid-template-columns: 2.4fr 4rem 7rem 5.5rem 7rem 2fr 1.6rem; gap: 0.4rem; padding: 0.4rem 0.6rem; align-items: center; border-bottom: 1px solid var(--border, #eaeaea); }
+.gp-row:last-child { border-bottom: none; }
+.gp-row-header { background: #f9fafb; font-weight: 600; font-size: 0.85em; color: var(--muted, #52525b); }
+.gp-row.gp-unknown { background: #fef3c7; }
+.gp-item-cell { position: relative; display: flex; flex-direction: column; gap: 0.2rem; }
+.gp-item-input { padding: 0.3rem; }
+.gp-item-meta { display: flex; gap: 0.4rem; align-items: center; font-size: 0.85em; }
+.gp-item-suggestions { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: white; border: 1px solid var(--border, #d4d4d8); border-radius: 4px; list-style: none; margin: 0; padding: 0; max-height: 14rem; overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.gp-item-suggestions li { padding: 0.3rem 0.5rem; cursor: pointer; display: flex; gap: 0.4rem; align-items: center; }
+.gp-item-suggestions li:hover { background: var(--hover, #f4f4f5); }
+.gp-item-suggestions li.gp-create { color: var(--accent, #2563eb); font-style: italic; border-top: 1px solid var(--border, #eaeaea); }
+.gp-qty, .gp-notes, .gp-who { padding: 0.3rem; }
+.gp-wt-cell { display: flex; flex-direction: column; gap: 0.2rem; align-items: flex-start; font-size: 0.9em; }
+.gp-wt-cell .gp-edit-wt, .gp-wt-cell .gp-revert { font-size: 0.8em; color: var(--accent, #2563eb); text-decoration: none; }
+.gp-wt-override { width: 4rem; padding: 0.2rem; }
+.gp-total-wt { font-variant-numeric: tabular-nums; }
+.gp-remove { background: transparent; border: none; color: #b91c1c; cursor: pointer; font-size: 1.2em; }
+.gp-actions { display: flex; gap: 0.6rem; align-items: center; margin-top: 1rem; }
+.gp-status { color: var(--muted, #52525b); font-size: 0.9em; }
+
+/* Gear plan modal (create-new-item, used in Task 15) */
+.gp-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.gp-modal { background: white; padding: 1.5rem; border-radius: 8px; min-width: 22rem; max-width: 30rem; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+.gp-modal h3 { margin: 0 0 0.8rem; }
+.gp-modal label { display: block; margin-bottom: 0.6rem; font-weight: 500; font-size: 0.9em; }
+.gp-modal input, .gp-modal select { display: block; width: 100%; padding: 0.4rem; margin-top: 0.2rem; }
+.gp-modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end; }
+.gp-modal-error { background: #fee2e2; color: #991b1b; padding: 0.5rem; border-radius: 4px; margin-bottom: 0.8rem; }
