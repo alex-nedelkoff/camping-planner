@@ -24,7 +24,9 @@ ACTIVITY_DEFAULTS = {
     "car-camping": 2500,
 }
 
-_FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?(.*)\Z", re.DOTALL)
+_FRONTMATTER_RE = re.compile(
+    r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*\r?\n?(.*)\Z", re.DOTALL,
+)
 
 
 def _trip_dir(slug: str) -> Path:

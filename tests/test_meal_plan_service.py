@@ -73,3 +73,22 @@ def test_load_with_frontmatter_round_trips(tmp_trips):
 def test_load_unknown_trip_raises(tmp_trips):
     with pytest.raises(FileNotFoundError):
         mp.load("nope")
+
+
+def test_load_handles_crlf_line_endings(tmp_trips):
+    """food.md / trip.md edited on Windows can have CRLF line endings."""
+    trip_dir = tmp_trips / "killarney-2026-07"
+    food_md = trip_dir / "food.md"
+    food_md.write_bytes(
+        b"---\r\ncalorie_target:\r\n  activity_level: bikepacking\r\n"
+        b"  kcal_per_person_per_day: 4500\r\ndays: []\r\n---\r\nbody\r\n"
+    )
+    (trip_dir / "trip.md").write_bytes(
+        b"---\r\npark: killarney\r\n"
+        b"start_date: 2026-07-10\r\nend_date: 2026-07-12\r\n"
+        b"participants:\r\n  - Tom\r\n---\r\n"
+    )
+    plan = mp.load("killarney-2026-07")
+    assert plan["calorie_target"]["activity_level"] == "bikepacking"
+    assert plan["legacy_body"] == ""
+    assert plan["participants"] == ["Tom"]
