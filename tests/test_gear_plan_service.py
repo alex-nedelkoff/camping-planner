@@ -147,3 +147,73 @@ def test_compute_totals_unknown_item_id():
     assert row["weight_g_total"] is None
     assert totals["trip_g"] == 0
     assert totals["unknown_count"] == 1
+
+
+def test_render_markdown_body_lists_items_and_totals():
+    body = gp.render_markdown_body(SAMPLE_PLAN, SAMPLE_CATALOG)
+    assert "# Shared gear" in body
+    assert "Total: **176 g (~0.2 kg)**" in body
+    # Per-who line
+    assert "shared 146 g" in body
+    assert "Tom 30 g" in body
+    # Per-row in the markdown table
+    assert "Compass [Navigation]" in body
+    assert "Stove [Cook]" in body
+    assert "30 g" in body
+    assert "146 g" in body
+    # Tent has unknown weight
+    assert "Tent [Other]" in body
+    assert "? g" in body
+
+
+def test_render_markdown_body_warns_on_unknown_count():
+    body = gp.render_markdown_body(SAMPLE_PLAN, SAMPLE_CATALOG)
+    assert "1 item with unknown weight" in body or "1 items with unknown weight" in body
+
+
+def test_save_writes_frontmatter_and_regenerated_body(tmp_trips):
+    write_trip_md(tmp_trips / "killarney-2026-07", None)
+    plan = {
+        "items": [
+            {"item_id": "compass", "qty": 1, "who": "Tom",
+             "notes": "primary nav", "override_weight_g": None},
+        ],
+    }
+    gp.save("killarney-2026-07", plan, catalog=SAMPLE_CATALOG)
+    written = (tmp_trips / "killarney-2026-07" / "gear.md").read_text(encoding="utf-8")
+    assert written.startswith("---\n")
+    assert "item_id: compass" in written
+    assert "<!-- generated from frontmatter on save; edit via UI -->" in written
+    assert "# Shared gear" in written
+    assert "primary nav" in written
+
+
+def test_save_round_trips_through_load(tmp_trips):
+    write_trip_md(tmp_trips / "killarney-2026-07", None)
+    plan = {
+        "items": [
+            {"item_id": "stove", "qty": 1, "who": "shared",
+             "notes": "", "override_weight_g": None},
+        ],
+    }
+    gp.save("killarney-2026-07", plan, catalog=SAMPLE_CATALOG)
+    reloaded = gp.load("killarney-2026-07")
+    assert reloaded["items"][0]["item_id"] == "stove"
+
+
+def test_save_pulls_participants_from_trip_md(tmp_trips):
+    """Body must report the correct people from trip.md, even though plan
+    payloads from the route don't carry participants. Regression test for
+    food-planner bug #2."""
+    write_trip_md(tmp_trips / "killarney-2026-07", None)
+    # write_trip_md sets participants=[Tom, Alex, Jordan] in trip.md
+    plan = {
+        "items": [
+            {"item_id": "compass", "qty": 1, "who": "Tom",
+             "notes": "", "override_weight_g": None},
+        ],
+    }
+    gp.save("killarney-2026-07", plan, catalog=SAMPLE_CATALOG)
+    body = (tmp_trips / "killarney-2026-07" / "gear.md").read_text(encoding="utf-8")
+    # Tom should appear on the by_who line (because trip.md has Tom)
+    assert "Tom 30 g" in body

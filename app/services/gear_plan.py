@@ -8,7 +8,9 @@ the prose under `legacy_body` so the UI can warn before it overwrites.
 
 from __future__ import annotations
 
+import os
 import re
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -113,3 +115,90 @@ def compute_totals(plan: dict, catalog: dict) -> dict:
         "trip_g": trip_g,
         "unknown_count": unknown_count,
     }
+
+
+def _format_weight_g(g: int | None) -> str:
+    if g is None:
+        return "? g"
+    return f"{g:,} g"
+
+
+def render_markdown_body(plan: dict, catalog: dict) -> str:
+    """Build the human-readable markdown body from a plan + catalog."""
+    totals = compute_totals(plan, catalog)
+    trip_g = totals["trip_g"]
+    trip_kg = trip_g / 1000
+
+    lines: list[str] = ["# Shared gear", ""]
+    lines.append(f"Total: **{trip_g:,} g (~{trip_kg:.1f} kg)**")
+
+    if totals["by_who"]:
+        # Always show "shared" first, then participants alphabetically.
+        keys = sorted(totals["by_who"], key=lambda k: (k != "shared", k))
+        per_who = "  ".join(f"{k} {totals['by_who'][k]:,} g" for k in keys)
+        lines.append(per_who)
+    if totals["unknown_count"]:
+        n = totals["unknown_count"]
+        word = "item" if n == 1 else "items"
+        lines.append(f"\n⚠ {n} {word} with unknown weight")
+    lines.append("")
+
+    if totals["items"]:
+        lines.append("| Item | Qty | Who | Weight | Notes |")
+        lines.append("|---|---|---|---|---|")
+        for row in totals["items"]:
+            if row["unknown_item"]:
+                name_disp = f"Unknown ({row['item_id']})"
+                cat_disp = "?"
+            else:
+                name_disp = row["name"] or "?"
+                cat_disp = row["category"] or "?"
+            weight = _format_weight_g(row["weight_g_total"])
+            notes = (row.get("notes") or "").replace("|", "\\|").replace("\n", " ")
+            who = row.get("who") or "shared"
+            lines.append(
+                f"| {name_disp} [{cat_disp}] | {row.get('qty', 0)} | "
+                f"{who} | {weight} | {notes} |"
+            )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _atomic_write(path: Path, text: str) -> None:
+    fd, tmp = tempfile.mkstemp(prefix="gear-", suffix=".md", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fp:
+            fp.write(text)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def save(slug: str, plan: dict, catalog: dict) -> None:
+    """Rewrite trips/<slug>/gear.md with YAML frontmatter + regenerated body."""
+    trip_dir = _trip_dir(slug)
+    fm_dump = yaml.safe_dump(
+        {"items": plan.get("items") or []},
+        sort_keys=False,
+        allow_unicode=True,
+    )
+    # Pull participants from trip.md so the rendered body's by_who line is correct,
+    # even when callers (route handlers) pass plans that don't carry participants.
+    trip_fm = _read_trip_frontmatter(trip_dir)
+    plan_with_participants = {
+        **plan,
+        "participants": list(trip_fm.get("participants") or []),
+    }
+    body = render_markdown_body(plan_with_participants, catalog)
+    text = (
+        "---\n"
+        f"{fm_dump}"
+        "---\n\n"
+        "<!-- generated from frontmatter on save; edit via UI -->\n"
+        f"{body}"
+    )
+    _atomic_write(trip_dir / "gear.md", text)
