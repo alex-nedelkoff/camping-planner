@@ -92,9 +92,10 @@ def test_build_route_same_lake_emits_one_paddle_segment():
     paddle_segs = [s for s in out["segments"] if s["kind"] == "paddle"]
     portage_segs = [s for s in out["segments"] if s["kind"] == "portage"]
 
-    # Day 1 (access -> night 1): same lake, single paddle segment.
-    # Day 2 (night 1 -> night 2): same lake, single paddle segment.
-    assert len(paddle_segs) == 2
+    # Day 1 (access -> night 1): same lake, single paddle.
+    # Day 2 (night 1 -> night 2): same lake, single paddle.
+    # Day 3 (return): same lake, single paddle.
+    assert len(paddle_segs) == 3
     assert len(portage_segs) == 0
     assert out["warnings"] == []
 

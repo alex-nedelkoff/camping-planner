@@ -61,7 +61,7 @@ def _point_in_polygon(point: list, polygon: list) -> bool:
     return inside
 
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 _WEEKDAY_PREFIX = {0: "Mon", 1: "Tue", 2: "Wed", 3: "Thu",
@@ -153,8 +153,22 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
             "location": night["location"],
             "day_label": _day_label(night["date"]),
         })
-    # Note: the return leg (nights[-1] -> access_point) is intentionally omitted.
-    # Task 5 / callers handle the checkout day separately.
+    # Final leg: return to access point on the day after the last night.
+    if nights:
+        last_date = nights[-1]["date"]
+        try:
+            d = datetime.strptime(last_date, "%Y-%m-%d")
+            return_date = (d + timedelta(days=1)).strftime("%Y-%m-%d")
+            return_label = _day_label(return_date)
+        except ValueError:
+            return_label = "Return"
+    else:
+        return_label = "Return"
+    waypoints.append({
+        "label": access_point,
+        "location": access_point,
+        "day_label": return_label,
+    })
 
     # Walk leg by leg.
     for i in range(1, len(waypoints)):
