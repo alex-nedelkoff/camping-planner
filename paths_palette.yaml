@@ -1,0 +1,14 @@
+# HSV thresholds for Jeff's yellow canoe-route lines. Tune empirically
+# against the actual KMZ on first run; defaults are starting points.
+hue:        [22, 38]
+saturation: [120, 255]
+value:      [180, 255]
+
+# Morphology: open kernel drops isolated yellow blobs (text labels);
+# close kernel fills small gaps in the yellow line.
+open_kernel_px:  3
+close_kernel_px: 2
+
+# Polyline filtering
+min_length_px:   30
+simplify_eps_px: 3
