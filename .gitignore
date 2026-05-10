@@ -5,3 +5,5 @@ __pycache__/
 private/
 *.local.md
 .pytest_cache/
+*.kmz
+templates/jeffs_*.png

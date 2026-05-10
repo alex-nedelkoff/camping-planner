@@ -82,3 +82,24 @@ See `CLAUDE.md` for the full API reference, including rate-limit warnings.
 - `templates/trip-template/` — copy this to start a new trip
 - `trips/` — one folder per trip
 - `legacy/` — older Sheet-driven flow, kept for reference
+
+## Jeff's Maps vectorizer (optional)
+
+If you have a Jeff's Maps KMZ for Killarney/French River (paid product),
+you can extract its lake polygons and campsite locations into a cache
+that augments the OSM data.
+
+System dependency — Tesseract OCR binary:
+
+- macOS: `brew install tesseract`
+- Linux: `apt install tesseract-ocr`
+
+Run the extractor (one-shot, only when the map version changes):
+
+```bash
+python3 jeffs_extractor.py path/to/jeffs.kmz \
+  --bbox 45.92,-81.60,46.12,-81.25 \
+  --out jeffs_killarney_cache.json
+```
+
+The KMZ itself is gitignored; only the extracted JSON is committed.
