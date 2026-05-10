@@ -108,14 +108,7 @@ def _point_in_polygon(point: list, polygon: list) -> bool:
 
 def _line_inside_polygon(p1: list, p2: list, polygon: list,
                          samples: int = 50) -> bool:
-    """True if the line from p1 to p2 stays inside polygon (sampled).
-
-    Sampling density (`samples=50`) is calibrated so a typical Killarney
-    paddle leg (a few hundred meters between samples) won't skip past a
-    thin peninsula or shoreline crinkle. The polygon passed here should
-    be the FULL high-resolution polygon — not a decimated one — so the
-    in-water test is accurate.
-    """
+    """True if the line from p1 to p2 stays inside polygon (sampled)."""
     for i in range(samples + 1):
         t = i / samples
         lat = p1[0] + t * (p2[0] - p1[0])
@@ -123,6 +116,52 @@ def _line_inside_polygon(p1: list, p2: list, polygon: list,
         if not _point_in_polygon([lat, lon], polygon):
             return False
     return True
+
+
+def _line_inside_any_polygon(p1: list, p2: list, polygons: list,
+                             samples: int = 50) -> bool:
+    """True if every sample on the line lies inside AT LEAST ONE of polygons.
+
+    Treats a list of polygons as a single union — useful when a paddle leg
+    might cross between adjacent water bodies (named lake + unnamed Jeff
+    polygons + connecting waterways) and we want any of them to count as
+    valid water.
+    """
+    if not polygons:
+        return True  # no polygons to test against; nothing to fail on
+    for i in range(samples + 1):
+        t = i / samples
+        pt = [p1[0] + t * (p2[0] - p1[0]),
+              p1[1] + t * (p2[1] - p1[1])]
+        if not any(_point_in_polygon(pt, poly) for poly in polygons):
+            return False
+    return True
+
+
+def _polygons_overlapping_corridor(start: list, end: list, lakes: list,
+                                   margin_deg: float = 0.015) -> list:
+    """Collect lake polygons whose AABB overlaps the start-end corridor.
+
+    Used to gather all relevant water polygons (named + unnamed) for
+    line-in-water tests. AABB intersection is cheap (no per-sample cost),
+    so we can pre-filter the lakes list down to ~5-15 polygons before the
+    expensive sample-vs-polygon checks.
+    """
+    s_lat = min(start[0], end[0]) - margin_deg
+    n_lat = max(start[0], end[0]) + margin_deg
+    w_lon = min(start[1], end[1]) - margin_deg
+    e_lon = max(start[1], end[1]) + margin_deg
+    out = []
+    for lake in lakes:
+        polygon = lake.get("polygon") or []
+        if not polygon:
+            continue
+        plats = [p[0] for p in polygon]
+        plons = [p[1] for p in polygon]
+        if (max(plats) >= s_lat and min(plats) <= n_lat and
+                max(plons) >= w_lon and min(plons) <= e_lon):
+            out.append(polygon)
+    return out
 
 
 # Cap polygon vertex count for visibility graph computation. Jeff's
@@ -146,46 +185,53 @@ def _decimate_polygon(polygon: list, max_vertices: int) -> list:
     return [list(polygon[i]) for i in range(0, len(polygon), stride)]
 
 
-def _polygon_aware_paddle(start: list, end: list, lake: dict) -> list:
-    """Return geometry [start, ..., end] for a paddle staying inside `lake`.
+def _polygon_aware_paddle(start: list, end: list, lake: dict,
+                          all_lakes: Optional[list] = None) -> list:
+    """Return geometry [start, ..., end] for a paddle staying in water.
 
-    Builds a visibility graph over {start, end, simplified-polygon vertices}.
-    An edge exists between two nodes if the straight line between them stays
-    inside the (simplified) polygon. Runs Dijkstra to find the shortest path.
-    Naturally chains as many intermediate vertices as needed for multi-bend
-    / U-shaped / L-shaped lakes.
+    "Water" = the named `lake`'s polygon + ALL OTHER lake polygons
+    overlapping the start-end corridor (named or unnamed). Treats them as
+    a single union: a sample point is "in water" if any polygon contains it.
+    This handles cases where a paddle leg crosses between a named lake and
+    smaller adjacent unnamed water bodies that Jeff's extractor produced.
 
-    Performance: the polygon is stride-decimated to
-    `_PADDLE_MAX_POLYGON_VERTICES` vertices before graph construction, which
-    keeps the O(V²) visibility check sub-second even for Killarney's
-    densely-tessellated lake polygons (typically 80-180 vertices raw).
+    Builds a visibility graph over {start, end, simplified `lake` polygon
+    vertices}. Edge exists if the line between two nodes stays in water.
+    Dijkstra finds the shortest path. Multi-bend / U-shaped / L-shaped
+    lakes route correctly.
 
     Falls back to the straight line if `lake` is missing a polygon, or to
     the lake centroid as a last-resort midpoint if no graph path exists.
     """
     if not lake or not lake.get("polygon"):
         return [start, end]
-    # FULL polygon for line-in-water tests (accuracy).
     full_polygon = lake["polygon"]
-    # DECIMATED polygon for graph nodes (perf — visibility check is O(V²)).
     graph_vertices = _decimate_polygon(full_polygon, _PADDLE_MAX_POLYGON_VERTICES)
 
-    # Fast path: straight line works against the full-resolution polygon.
-    if _line_inside_polygon(start, end, full_polygon):
+    # Build the multi-polygon water union: the named lake + nearby polygons.
+    if all_lakes is not None:
+        water_polygons = _polygons_overlapping_corridor(start, end, all_lakes)
+        # Always include the lake's own polygon even if AABB filtering missed it.
+        if full_polygon not in water_polygons:
+            water_polygons = [full_polygon] + water_polygons
+    else:
+        water_polygons = [full_polygon]
+
+    # Fast path: straight line works against the water union.
+    if _line_inside_any_polygon(start, end, water_polygons):
         return [start, end]
 
-    # Build node list: start (0), end (1), then decimated polygon vertices.
     nodes = [list(start), list(end)] + [[v[0], v[1]] for v in graph_vertices]
     n = len(nodes)
 
-    # Adjacency list with line-of-sight check against the FULL polygon.
-    # Decimated graph_vertices give us a small node set; the visibility
-    # test still uses full_polygon so we can't shave a corner across a
-    # peninsula that the decimation flattened away.
+    # Adjacency: line-of-sight against the water-polygon union (named lake +
+    # nearby polygons). Decimated graph_vertices give a small node set; the
+    # visibility test still uses full polygons so peninsulas the decimation
+    # flattened away can't be cut across.
     adj: list = [[] for _ in range(n)]
     for i in range(n):
         for j in range(i + 1, n):
-            if _line_inside_polygon(nodes[i], nodes[j], full_polygon):
+            if _line_inside_any_polygon(nodes[i], nodes[j], water_polygons):
                 w = _haversine_km(nodes[i], nodes[j])
                 adj[i].append((j, w))
                 adj[j].append((i, w))
@@ -490,7 +536,9 @@ def build_route(nights: list, access_point: str, osm: dict,
 
         if lake_a and lake_b and lake_a["name"] == lake_b["name"]:
             # Same lake — straight paddle, routed around peninsulas if needed.
-            geom = _polygon_aware_paddle(a_pt_resolved, b_pt_resolved, lake_a)
+            geom = _polygon_aware_paddle(
+                a_pt_resolved, b_pt_resolved, lake_a, all_lakes=lakes,
+            )
             segments.append(_segment(
                 day_label, "paddle", a["label"], b["label"],
                 _path_distance_km(geom), geom,
@@ -553,9 +601,9 @@ def build_route(nights: list, access_point: str, osm: dict,
                         exit_, entry = portage["endpoints"]
                         portage_geom = list(reversed(portage["line"]))
                     # Paddle from current point to portage entry, routed around
-                    # peninsulas if a straight line would cross outside the lake.
+                    # peninsulas if a straight line would cross outside water.
                     paddle_geom = _polygon_aware_paddle(
-                        current_pt, entry, current_lake,
+                        current_pt, entry, current_lake, all_lakes=lakes,
                     )
                     segments.append(_segment(
                         day_label, "paddle",
@@ -574,7 +622,9 @@ def build_route(nights: list, access_point: str, osm: dict,
                     current_lake = next_lake
                     current_pt = exit_
                 end_pt = b_pt_resolved or lake_b["centroid"]
-                final_geom = _polygon_aware_paddle(current_pt, end_pt, lake_b)
+                final_geom = _polygon_aware_paddle(
+                    current_pt, end_pt, lake_b, all_lakes=lakes,
+                )
                 segments.append(_segment(
                     day_label, "paddle",
                     f"{lake_b['name']} portage", b["label"],
