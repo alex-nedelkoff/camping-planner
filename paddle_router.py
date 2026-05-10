@@ -10,8 +10,8 @@ This module replaces the visibility-graph paddle routing in route_engine.
 import math
 
 # Tunable constants — change here, no separate config file.
-SNAP_TOLERANCE_KM = 0.5
-LAKE_COVERAGE_PCT = 0.7
+SNAP_TOLERANCE_KM = 2.0
+LAKE_COVERAGE_PCT = 0.6
 CENTROID_PULL = 0.4
 PULL_RETRY_FACTORS = (0.4, 0.2, 0.0)
 SAMPLES_PER_KM = 30
