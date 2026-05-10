@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Access point — current vs proposed</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  html, body, #map { height: 100%; margin: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  .legend { position: absolute; bottom: 1rem; left: 1rem; z-index: 1000;
+            background: white; padding: 0.6rem 0.8rem; border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2); font-size: 0.85rem;
+            line-height: 1.5; }
+  .legend-swatch { display: inline-block; width: 14px; height: 14px;
+                   border-radius: 50%; margin-right: 0.4rem;
+                   vertical-align: middle; border: 2px solid #000; }
+  .swatch-current { background: #ffeb3b; }
+  .swatch-proposed { background: #4caf50; border-color: #1b5e20; }
+  .opacity-row { margin-top: 0.4rem; display: flex; align-items: center;
+                 gap: 0.4rem; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="legend">
+  <div><span class="legend-swatch swatch-current"></span>
+    Current ([46.0136, -81.4049])</div>
+  <div><span class="legend-swatch swatch-proposed"></span>
+    Proposed ([46.015, -81.4049])</div>
+  <div style="margin-top: 0.5rem; color: #555;">
+    Distance: 156 m
+  </div>
+  <div class="opacity-row">
+    <label>Raster opacity</label>
+    <input id="raster-opacity" type="range" min="0" max="1" step="0.05" value="0.7">
+  </div>
+</div>
+<script>
+const current = [46.0136, -81.4049];
+const proposed = [46.015, -81.4049];
+const rasterBounds = [[46.001865, -81.435197], [46.030643, -81.388395]];
+const rasterUrl = "access_point_preview_raster.jpg";
+
+const map = L.map('map', { center: current, zoom: 14 });
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap',
+  maxZoom: 18,
+}).addTo(map);
+
+let raster = null;
+if (rasterUrl) {
+  raster = L.imageOverlay(rasterUrl, rasterBounds, { opacity: 0.7 }).addTo(map);
+  document.getElementById('raster-opacity').addEventListener('input', e => {
+    raster.setOpacity(parseFloat(e.target.value));
+  });
+}
+
+L.circleMarker(current, {
+  radius: 9, color: '#000', weight: 2,
+  fillColor: '#ffeb3b', fillOpacity: 0.95,
+}).bindPopup('Current: ' + current.join(', ')).addTo(map);
+
+L.circleMarker(proposed, {
+  radius: 9, color: '#1b5e20', weight: 2,
+  fillColor: '#4caf50', fillOpacity: 0.95,
+}).bindPopup('Proposed: ' + proposed.join(', ')).addTo(map);
+
+L.polyline([current, proposed], {
+  color: '#666', weight: 2, dashArray: '4 4',
+}).addTo(map);
+
+map.fitBounds([current, proposed], { padding: [80, 80] });
+</script>
+</body>
+</html>
