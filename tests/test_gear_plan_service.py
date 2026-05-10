@@ -69,3 +69,81 @@ def test_load_handles_crlf_line_endings(tmp_trips):
 def test_load_unknown_trip_raises(tmp_trips):
     with pytest.raises(FileNotFoundError):
         gp.load("nope")
+
+
+SAMPLE_CATALOG = {
+    "version": 1,
+    "categories": ["Navigation", "Cook", "Other"],
+    "items": [
+        {"id": "compass", "name": "Compass", "category": "Navigation", "weight_g": 30},
+        {"id": "stove", "name": "Stove", "category": "Cook", "weight_g": 73},
+        {"id": "tent", "name": "Tent", "category": "Other", "weight_g": None},
+    ],
+}
+
+SAMPLE_PLAN = {
+    "items": [
+        {"item_id": "compass", "qty": 1, "who": "Tom", "notes": "", "override_weight_g": None},
+        {"item_id": "stove", "qty": 2, "who": "shared", "notes": "", "override_weight_g": None},
+        {"item_id": "tent", "qty": 1, "who": "shared", "notes": "", "override_weight_g": None},
+    ],
+    "participants": ["Tom", "Alex"],
+    "legacy_body": "",
+}
+
+
+def test_compute_totals_per_row():
+    totals = gp.compute_totals(SAMPLE_PLAN, SAMPLE_CATALOG)
+    rows = totals["items"]
+    assert rows[0]["weight_g_each"] == 30
+    assert rows[0]["weight_g_total"] == 30
+    assert rows[1]["weight_g_each"] == 73
+    assert rows[1]["weight_g_total"] == 146   # 73 * 2
+    assert rows[2]["weight_g_each"] is None
+    assert rows[2]["weight_g_total"] is None
+    assert rows[2]["unknown_weight"] is True
+
+
+def test_compute_totals_by_who_and_trip():
+    totals = gp.compute_totals(SAMPLE_PLAN, SAMPLE_CATALOG)
+    assert totals["by_who"]["Tom"] == 30
+    assert totals["by_who"]["shared"] == 146  # only the stove counts (tent unknown)
+    assert totals["trip_g"] == 176
+    assert totals["unknown_count"] == 1
+
+
+def test_compute_totals_override_weight():
+    plan = {
+        "items": [
+            {"item_id": "compass", "qty": 1, "who": "Tom",
+             "notes": "", "override_weight_g": 50},
+            {"item_id": "tent", "qty": 1, "who": "shared",
+             "notes": "", "override_weight_g": 1200},
+        ],
+        "participants": ["Tom"],
+        "legacy_body": "",
+    }
+    totals = gp.compute_totals(plan, SAMPLE_CATALOG)
+    assert totals["items"][0]["weight_g_each"] == 50
+    assert totals["items"][1]["weight_g_each"] == 1200
+    assert totals["items"][1]["unknown_weight"] is False
+    assert totals["trip_g"] == 1250
+
+
+def test_compute_totals_unknown_item_id():
+    plan = {
+        "items": [
+            {"item_id": "ghost", "qty": 1, "who": "Tom",
+             "notes": "", "override_weight_g": None},
+        ],
+        "participants": ["Tom"],
+        "legacy_body": "",
+    }
+    totals = gp.compute_totals(plan, SAMPLE_CATALOG)
+    row = totals["items"][0]
+    assert row["unknown_item"] is True
+    assert row["name"] is None
+    assert row["category"] is None
+    assert row["weight_g_total"] is None
+    assert totals["trip_g"] == 0
+    assert totals["unknown_count"] == 1

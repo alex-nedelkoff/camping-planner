@@ -62,3 +62,54 @@ def load(slug: str) -> dict:
         "participants": list(trip_fm.get("participants") or []),
         "legacy_body": "",
     }
+
+
+def compute_totals(plan: dict, catalog: dict) -> dict:
+    """Compute per-row weights, by_who totals, trip total, unknown count.
+
+    Returns:
+        {
+          "items": [{**row, "name", "category", "weight_g_each",
+                     "weight_g_total", "unknown_weight", "unknown_item"}, ...],
+          "by_who": {participant: int, "shared": int, ...},
+          "trip_g": int,
+          "unknown_count": int,
+        }
+    """
+    by_id = {it["id"]: it for it in catalog.get("items", [])}
+    out_rows: list[dict] = []
+    by_who: dict[str, int] = {}
+    trip_g = 0
+    unknown_count = 0
+    for row in plan.get("items", []):
+        item = by_id.get(row.get("item_id"))
+        unknown_item = item is None
+        name = None if unknown_item else item["name"]
+        category = None if unknown_item else item["category"]
+        catalog_weight = None if unknown_item else item.get("weight_g")
+        override = row.get("override_weight_g")
+        weight_each = override if override is not None else catalog_weight
+        qty = int(row.get("qty") or 0)
+        if weight_each is None:
+            weight_total = None
+            unknown_count += 1
+        else:
+            weight_total = int(weight_each) * qty
+            trip_g += weight_total
+            who = row.get("who") or "shared"
+            by_who[who] = by_who.get(who, 0) + weight_total
+        out_rows.append({
+            **row,
+            "name": name,
+            "category": category,
+            "weight_g_each": weight_each,
+            "weight_g_total": weight_total,
+            "unknown_weight": weight_each is None,
+            "unknown_item": unknown_item,
+        })
+    return {
+        "items": out_rows,
+        "by_who": by_who,
+        "trip_g": trip_g,
+        "unknown_count": unknown_count,
+    }
