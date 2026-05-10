@@ -220,3 +220,37 @@ def test_detect_icons_filters_by_area():
                "min_aspect": 0.5, "max_aspect": 2.0}
     icons = detect_icons_in_image(img, palette)
     assert icons == []
+
+
+from unittest.mock import patch
+
+from jeffs_extractor import ocr_icon_number
+
+
+_FAKE_OCR_GOOD = {
+    "level": [1, 2, 3, 4, 5, 5, 5],
+    "conf":  [-1, -1, -1, -1, 92, 88, 70],
+    "text":  ["", "", "", "", "8", "2", ""],
+}
+
+_FAKE_OCR_LOW_CONF = {
+    "level": [1, 2, 3, 4, 5, 5],
+    "conf":  [-1, -1, -1, -1, 30, 25],
+    "text":  ["", "", "", "", "8", "2"],
+}
+
+
+def test_ocr_icon_number_returns_string_when_confident():
+    image = np.full((50, 50, 3), 255, dtype=np.uint8)  # blank crop
+    with patch("jeffs_extractor.pytesseract.image_to_data",
+               return_value=_FAKE_OCR_GOOD):
+        ref = ocr_icon_number(image)
+    assert ref == "82"
+
+
+def test_ocr_icon_number_returns_none_when_unconfident():
+    image = np.full((50, 50, 3), 255, dtype=np.uint8)
+    with patch("jeffs_extractor.pytesseract.image_to_data",
+               return_value=_FAKE_OCR_LOW_CONF):
+        ref = ocr_icon_number(image)
+    assert ref is None

@@ -321,6 +321,45 @@ def detect_icons_in_image(image_bgr: np.ndarray, palette: dict) -> list:
     return icons
 
 
+import pytesseract
+
+
+_OCR_MIN_CONFIDENCE = 60
+
+
+def ocr_icon_number(image_crop: np.ndarray) -> Optional[str]:
+    """Run Tesseract on a small image crop, return the digit string or None.
+
+    Pre-processes (grayscale + blur + Otsu binarize) before invoking
+    pytesseract.image_to_data with PSM=7 and a digit whitelist. Filters
+    individual character results below MIN_CONFIDENCE.
+    """
+    gray = cv2.cvtColor(image_crop, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
+    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    config = "--psm 7 -c tessedit_char_whitelist=0123456789"
+    data = pytesseract.image_to_data(
+        binary, config=config, output_type=pytesseract.Output.DICT,
+    )
+    confs = data.get("conf", [])
+    texts = data.get("text", [])
+    digits = []
+    for conf, text in zip(confs, texts):
+        try:
+            conf_n = int(conf)
+        except (TypeError, ValueError):
+            continue
+        if conf_n < _OCR_MIN_CONFIDENCE:
+            continue
+        clean = "".join(ch for ch in str(text) if ch.isdigit())
+        if clean:
+            digits.append(clean)
+    if not digits:
+        return None
+    return "".join(digits)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Extract vector data from Jeff's Maps KMZ")
     parser.add_argument("kmz", help="Path to KMZ file")
