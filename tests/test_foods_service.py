@@ -81,3 +81,78 @@ def test_load_catalog_caches_and_invalidates_on_mtime(tmp_catalog):
     third = foods_svc.load_catalog()
     assert third is not first
     assert len(third["foods"]) == 1
+
+
+def test_upsert_creates_with_slug_id(tmp_catalog):
+    new_id = foods_svc.upsert({
+        "name": "Snickers Bar",
+        "category": "snack",
+        "kcal_per_serving": 250,
+        "serving_size": "1 bar",
+        "url": None,
+    })
+    assert new_id == "snickers-bar"
+    assert foods_svc.get("snickers-bar")["name"] == "Snickers Bar"
+
+
+def test_upsert_collision_appends_suffix(tmp_catalog):
+    foods_svc.upsert({"name": "Tuna pouch", "category": "snack",
+                      "kcal_per_serving": 100, "serving_size": "1", "url": None})
+    # Catalog already has tuna-pouch, so the new one becomes tuna-pouch-2
+    assert foods_svc.get("tuna-pouch-2") is not None
+
+
+def test_upsert_updates_existing_when_id_provided(tmp_catalog):
+    foods_svc.upsert({
+        "id": "tuna-pouch",
+        "name": "Tuna pouch (renamed)",
+        "category": "snack",
+        "kcal_per_serving": 115,
+        "serving_size": "1 pouch",
+        "url": None,
+    })
+    assert foods_svc.get("tuna-pouch")["kcal_per_serving"] == 115
+    assert foods_svc.get("tuna-pouch")["name"] == "Tuna pouch (renamed)"
+
+
+def test_upsert_validates_required_fields(tmp_catalog):
+    with pytest.raises(ValueError, match="name"):
+        foods_svc.upsert({"category": "snack", "kcal_per_serving": 1,
+                          "serving_size": "1", "url": None})
+
+
+def test_upsert_rejects_unknown_category(tmp_catalog):
+    with pytest.raises(ValueError, match="category"):
+        foods_svc.upsert({"name": "X", "category": "bogus",
+                          "kcal_per_serving": 1, "serving_size": "1", "url": None})
+
+
+def test_upsert_rejects_negative_kcal(tmp_catalog):
+    with pytest.raises(ValueError, match="kcal"):
+        foods_svc.upsert({"name": "X", "category": "snack",
+                          "kcal_per_serving": -1, "serving_size": "1", "url": None})
+
+
+def test_delete_removes_food(tmp_catalog):
+    foods_svc.delete("tuna-pouch")
+    assert foods_svc.get("tuna-pouch") is None
+
+
+def test_delete_unknown_id_raises(tmp_catalog):
+    with pytest.raises(KeyError):
+        foods_svc.delete("nope")
+
+
+def test_find_references_returns_trip_slugs(tmp_catalog, tmp_path, monkeypatch):
+    trips_dir = tmp_path / "trips"
+    (trips_dir / "killarney-2026-07").mkdir(parents=True)
+    (trips_dir / "killarney-2026-07" / "food.md").write_text(
+        "---\ndays:\n  - meals:\n      - items:\n          - food_id: tuna-pouch\n"
+        "            servings: 2\n---\n", encoding="utf-8",
+    )
+    (trips_dir / "killbear-2026-08").mkdir(parents=True)
+    (trips_dir / "killbear-2026-08" / "food.md").write_text("no frontmatter\n", encoding="utf-8")
+    monkeypatch.setattr(foods_svc, "TRIPS_DIR", trips_dir)
+    refs = foods_svc.find_references("tuna-pouch")
+    assert refs == ["killarney-2026-07"]
+    assert foods_svc.find_references("instant-mash") == []
