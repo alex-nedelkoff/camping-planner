@@ -13,3 +13,5 @@ jeffs_review.html
 *.sqlite3-wal
 jeffs_osm_overlay.html
 jeffs_osm_overlay_raster.jpg
+access_point_preview.html
+access_point_preview_raster.jpg

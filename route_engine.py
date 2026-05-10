@@ -32,7 +32,10 @@ MAX_PORTAGE_HOPS = 5
 # first/last paddle segments of a trip so the route line starts/ends at the
 # real put-in instead of a misleading lake centroid.
 KILLARNEY_ACCESS_POINTS = {
-    "George Lake": {"gps": [46.0136, -81.4049], "lake": "George Lake"},
+    # GPS positioned ~150m offshore (in the lake, not at the parking lot)
+    # so paddle legs starting/ending at access points are mostly in water.
+    # Verified visually against Jeff's raster (scripts/preview_access_point.py).
+    "George Lake": {"gps": [46.0150, -81.4049], "lake": "George Lake"},
     "Bell Lake":   {"gps": [46.0822, -81.2680], "lake": "Bell Lake"},
     "Chikanishing": {"gps": [46.0125, -81.4485], "lake": "Chikanishing River"},
 }
