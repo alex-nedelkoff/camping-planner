@@ -16,6 +16,10 @@
     let plan = (payload && payload.plan) || { calorie_target: { activity_level: 'backcountry', kcal_per_person_per_day: 4000 }, days: [], participants: [], legacy_body: '' };
     let totals = (payload && payload.totals) || { trip_kcal: 0, target_kcal: 0, delta_kcal: 0, days: [] };
     let catalog = { foods: [], categories: [] };
+    // Dates the user has expanded. Survives renderAll() rebuilds so the user's
+    // expanded days stay open after add-meal / add-item / etc. Reset on full
+    // page reload (which is the next-best thing to "until server restart").
+    const openDates = new Set();
 
     function recomputeTotals() {
       const byId = Object.fromEntries(catalog.foods.map(f => [f.id, f]));
@@ -71,9 +75,11 @@
     }
 
     function renderDayCard(day) {
-      // Day cards collapsed by default (`<details>`).
+      // Collapsed by default; once expanded, stays open across re-renders
+      // because openDates is restored on each render.
+      const openAttr = openDates.has(day.date) ? ' open' : '';
       return `
-        <details class="mp-day" data-date="${escapeHtml(day.date)}">
+        <details class="mp-day" data-date="${escapeHtml(day.date)}"${openAttr}>
           <summary>
             <span class="mp-day-label">${escapeHtml(day.label || '')} (${escapeHtml(day.date)})</span>
             <span class="mp-day-total">${day.kcal.toLocaleString()} kcal</span>
@@ -182,6 +188,15 @@
     }
 
     function wireDayChrome() {
+      // Track expand/collapse so openDates survives renderAll() rebuilds.
+      sectionEl.querySelectorAll('details.mp-day').forEach(det => {
+        det.addEventListener('toggle', () => {
+          const date = det.dataset.date;
+          if (det.open) openDates.add(date);
+          else openDates.delete(date);
+        });
+      });
+
       // + add meal
       sectionEl.querySelectorAll('.mp-add-meal').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -192,6 +207,7 @@
           if (!choice) return;
           day.meals = day.meals || [];
           day.meals.push({ meal: choice, items: [] });
+          openDates.add(date);   // keep the day expanded after re-render
           recomputeTotals();
           renderAll();
         });
@@ -219,6 +235,7 @@
           const day = plan.days.find(d => d.date === date);
           day.meals[idx].items = day.meals[idx].items || [];
           day.meals[idx].items.push({ food_id: '', servings: 1, who: 'shared', note: '' });
+          openDates.add(date);   // keep the day expanded after re-render
           recomputeTotals();
           renderAll();
         });
