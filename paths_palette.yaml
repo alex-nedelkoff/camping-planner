@@ -10,5 +10,5 @@ open_kernel_px:  3
 close_kernel_px: 2
 
 # Polyline filtering
-min_length_px:   30
+min_length_px:   150
 simplify_eps_px: 3
