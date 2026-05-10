@@ -51,10 +51,18 @@
   }
 
   // -------------------------------------------------------------------------
-  // Gear table editor: contenteditable rows, +/- row buttons, save → markdown.
+  // Generic table editor: contenteditable rows + per-column dropdown support.
+  // POSTs the edited rows to /api/save-section-table?section=<id>.
+  //
+  //   columnTypes: { columnIndex: {type: 'select', options: [str, ...]} }
   // -------------------------------------------------------------------------
-  function initGearEditor(root, slug, onSaved) {
-    var section = root.querySelector('#gear');
+  function initTableEditor(root, sectionId, slug, opts) {
+    opts = opts || {};
+    var columnTypes = opts.columnTypes || {};
+    var labelVerb = opts.labelVerb || 'Edit';
+    var onSaved = opts.onSaved;
+
+    var section = root.querySelector('#' + sectionId);
     if (!section) return;
     var table = section.querySelector('table');
     if (!table) return;
@@ -73,7 +81,7 @@
     var toolbar = document.createElement('div');
     toolbar.className = 'gear-edit-toolbar';
     toolbar.innerHTML =
-      '<button class="gear-btn" data-act="edit">Edit gear</button>' +
+      '<button class="gear-btn" data-act="edit">' + labelVerb + '</button>' +
       '<button class="gear-btn" data-act="add" hidden>+ Add row</button>' +
       '<button class="gear-btn" data-act="save" hidden>Save</button>' +
       '<button class="gear-btn secondary" data-act="cancel" hidden>Cancel</button>' +
@@ -86,6 +94,37 @@
     var cancelBtn = toolbar.querySelector('[data-act=cancel]');
     var status = toolbar.querySelector('.gear-status');
     var snapshot = null;
+
+    function makeSelectCell(value, options) {
+      var sel = document.createElement('select');
+      var blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = '— select —';
+      sel.appendChild(blank);
+      var seen = false;
+      options.forEach(function (opt) {
+        var o = document.createElement('option');
+        o.value = opt;
+        o.textContent = opt;
+        sel.appendChild(o);
+        if (opt === value) seen = true;
+      });
+      if (value && !seen) {
+        var custom = document.createElement('option');
+        custom.value = value;
+        custom.textContent = value;
+        sel.appendChild(custom);
+      }
+      sel.value = value || '';
+      return sel;
+    }
+
+    function cellTextContent(td) {
+      var clone = td.cloneNode(true);
+      var del = clone.querySelector('.row-del');
+      if (del) del.remove();
+      return clone.textContent.replace(/\s+/g, ' ').trim();
+    }
 
     function addDeleteButtons() {
       Array.from(tbody.querySelectorAll('tr')).forEach(function (tr) {
@@ -105,8 +144,27 @@
 
     function setEditing(on) {
       table.classList.toggle('editing', on);
-      Array.from(tbody.querySelectorAll('td')).forEach(function (td) {
-        td.contentEditable = on ? 'true' : 'false';
+      Array.from(tbody.querySelectorAll('tr')).forEach(function (tr) {
+        Array.from(tr.cells).forEach(function (td, idx) {
+          var spec = columnTypes[idx];
+          if (on && spec && spec.type === 'select') {
+            var current = cellTextContent(td);
+            var del = td.querySelector('.row-del');
+            td.innerHTML = '';
+            td.contentEditable = 'false';
+            td.appendChild(makeSelectCell(current, spec.options || []));
+            if (del) td.appendChild(del);
+          } else if (!on && spec && spec.type === 'select') {
+            var sel = td.querySelector('select');
+            var del2 = td.querySelector('.row-del');
+            var value = sel ? sel.value : cellTextContent(td);
+            td.innerHTML = '';
+            td.appendChild(document.createTextNode(value));
+            if (del2) td.appendChild(del2);
+          } else {
+            td.contentEditable = on ? 'true' : 'false';
+          }
+        });
       });
       Array.from(tbody.querySelectorAll('.row-del')).forEach(function (b) {
         b.hidden = !on;
@@ -119,11 +177,13 @@
 
     function rowsAsArray() {
       return Array.from(tbody.querySelectorAll('tr')).map(function (tr) {
-        return Array.from(tr.cells).map(function (td) {
-          var clone = td.cloneNode(true);
-          var del = clone.querySelector('.row-del');
-          if (del) del.remove();
-          return clone.textContent.replace(/\s+/g, ' ').trim();
+        return Array.from(tr.cells).map(function (td, idx) {
+          var spec = columnTypes[idx];
+          if (spec && spec.type === 'select') {
+            var sel = td.querySelector('select');
+            if (sel) return sel.value;
+          }
+          return cellTextContent(td);
         });
       });
     }
@@ -148,13 +208,19 @@
       var tr = document.createElement('tr');
       for (var i = 0; i < ncols; i++) {
         var td = document.createElement('td');
-        td.contentEditable = 'true';
+        var spec = columnTypes[i];
+        if (spec && spec.type === 'select') {
+          td.appendChild(makeSelectCell('', spec.options || []));
+        } else {
+          td.contentEditable = 'true';
+        }
         tr.appendChild(td);
       }
       tbody.appendChild(tr);
       addDeleteButtons();
       Array.from(tr.querySelectorAll('.row-del')).forEach(function (b) { b.hidden = false; });
-      tr.cells[0].focus();
+      var firstControl = tr.cells[0].querySelector('select') || tr.cells[0];
+      if (firstControl.focus) firstControl.focus();
     });
 
     saveBtn.addEventListener('click', async function () {
@@ -169,11 +235,15 @@
       status.textContent = 'Saving…';
       status.className = 'gear-status';
       try {
-        var r = await fetch('/api/save-gear?trip=' + encodeURIComponent(slug), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rows: rows }),
-        });
+        var r = await fetch(
+          '/api/save-section-table?trip=' + encodeURIComponent(slug)
+            + '&section=' + encodeURIComponent(sectionId),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rows: rows }),
+          }
+        );
         var j = await r.json();
         if (j.ok) {
           status.textContent = 'Saved ✓';
@@ -192,6 +262,17 @@
         cancelBtn.disabled = false;
       }
     });
+  }
+
+  // Find the column index whose header text matches `headerText` (case-insensitive).
+  function findColumnIndex(table, headerText) {
+    var thead = table.querySelector('thead tr');
+    if (!thead) return -1;
+    var target = headerText.toLowerCase();
+    for (var i = 0; i < thead.cells.length; i++) {
+      if (thead.cells[i].textContent.trim().toLowerCase() === target) return i;
+    }
+    return -1;
   }
 
   // -------------------------------------------------------------------------
@@ -303,10 +384,35 @@
   }
 
   global.TripPane = {
-    init: function (root, slug, currentUser, onSaved) {
+    init: function (root, slug, currentUser, onSaved, opts) {
+      opts = opts || {};
+      var participants = opts.participants || [];
       runEmbeddedScripts(root);
       initChecklist(root, slug, currentUser);
-      initGearEditor(root, slug, onSaved);
+
+      // Gear: simple contenteditable rows.
+      initTableEditor(root, 'gear', slug, {
+        labelVerb: 'Edit gear',
+        onSaved: onSaved,
+      });
+
+      // Costs: 'Who paid' column becomes a dropdown of trip participants
+      // (preserves any legacy values not in the participants list).
+      var costsSection = root.querySelector('#costs');
+      var costsTable = costsSection && costsSection.querySelector('table');
+      var costsColumnTypes = {};
+      if (costsTable && participants.length) {
+        var whoPaidIdx = findColumnIndex(costsTable, 'Who paid');
+        if (whoPaidIdx >= 0) {
+          costsColumnTypes[whoPaidIdx] = { type: 'select', options: participants };
+        }
+      }
+      initTableEditor(root, 'costs', slug, {
+        labelVerb: 'Edit costs',
+        columnTypes: costsColumnTypes,
+        onSaved: onSaved,
+      });
+
       initSectionEditors(root, slug, onSaved);
     },
     escapeHtml: escapeHtml,
