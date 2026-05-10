@@ -158,7 +158,9 @@ _FAKE_WEATHER = {
 
 def test_build_html_assembles_full_page():
     fixture = Path(__file__).parent / "fixtures" / "sample-trip"
-    with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER):
+    with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER), \
+         patch("build_trip._osm_data.load_killarney_features",
+               side_effect=FileNotFoundError("no cache")):
         html = build_html(fixture)
 
     # Sections present in expected order.
