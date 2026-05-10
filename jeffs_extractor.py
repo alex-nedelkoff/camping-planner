@@ -281,6 +281,46 @@ def assign_lake_names(jeffs_lakes: list, osm_lakes: list, overrides: dict) -> li
     return out
 
 
+def detect_icons_in_image(image_bgr: np.ndarray, palette: dict) -> list:
+    """HSV color-seg + connected components to find campsite icons in one image.
+
+    Returns a list of dicts:
+      {"pixel_center": (px, py), "bbox": (x, y, w, h)}
+    Coordinates are in the image's local pixel space.
+    """
+    hsv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)
+    low = np.array([palette["hue"][0], palette["saturation"][0], palette["value"][0]])
+    high = np.array([palette["hue"][1], palette["saturation"][1], palette["value"][1]])
+    mask = cv2.inRange(hsv, low, high)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE,
+                            cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
+
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
+        mask, connectivity=8
+    )
+
+    min_a = palette.get("min_area_px", 50)
+    max_a = palette.get("max_area_px", 2000)
+    min_r = palette.get("min_aspect", 0.5)
+    max_r = palette.get("max_aspect", 2.0)
+
+    icons = []
+    # Skip label 0 (background).
+    for i in range(1, num_labels):
+        x, y, w, h, area = stats[i]
+        if area < min_a or area > max_a:
+            continue
+        aspect = w / h if h > 0 else 0
+        if aspect < min_r or aspect > max_r:
+            continue
+        cx, cy = centroids[i]
+        icons.append({
+            "pixel_center": (float(cx), float(cy)),
+            "bbox": (int(x), int(y), int(w), int(h)),
+        })
+    return icons
+
+
 def main():
     parser = argparse.ArgumentParser(description="Extract vector data from Jeff's Maps KMZ")
     parser.add_argument("kmz", help="Path to KMZ file")

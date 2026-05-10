@@ -185,3 +185,38 @@ def test_assign_lake_names_osm_wins_over_override_when_both_match():
     overrides = {"lakes": [{"centroid_near": [46.05, -81.40], "name": "Wrong Override"}]}
     named = assign_lake_names(jeffs_lakes, osm_lakes, overrides)
     assert named[0]["name"] == "Killarney Lake"
+
+
+from jeffs_extractor import detect_icons_in_image
+
+
+def _tile_with_red_dots(tile_w=400, tile_h=400, dot_centers=((100, 100), (300, 300))):
+    """Draw red dots (~20px) on a white background — simulates Jeff's campsite icons."""
+    img = np.full((tile_h, tile_w, 3), 255, dtype=np.uint8)  # white BGR
+    for cx, cy in dot_centers:
+        # OpenCV uses BGR. Pure red is (0, 0, 255).
+        cv2.circle(img, (cx, cy), 12, (0, 0, 255), thickness=-1)
+    return img
+
+
+def test_detect_icons_finds_each_red_dot():
+    img = _tile_with_red_dots(dot_centers=((100, 100), (300, 300)))
+    palette = {"hue": [0, 15], "saturation": [120, 255], "value": [120, 255],
+               "min_area_px": 50, "max_area_px": 2000,
+               "min_aspect": 0.5, "max_aspect": 2.0}
+    icons = detect_icons_in_image(img, palette)
+    assert len(icons) == 2
+    centers = sorted((round(i["pixel_center"][0]), round(i["pixel_center"][1]))
+                     for i in icons)
+    assert centers == [(100, 100), (300, 300)]
+
+
+def test_detect_icons_filters_by_area():
+    """A tiny dot below min_area should be ignored."""
+    img = np.full((400, 400, 3), 255, dtype=np.uint8)
+    cv2.circle(img, (100, 100), 2, (0, 0, 255), thickness=-1)  # ~12px² area
+    palette = {"hue": [0, 15], "saturation": [120, 255], "value": [120, 255],
+               "min_area_px": 50, "max_area_px": 2000,
+               "min_aspect": 0.5, "max_aspect": 2.0}
+    icons = detect_icons_in_image(img, palette)
+    assert icons == []

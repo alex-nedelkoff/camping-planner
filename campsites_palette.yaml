@@ -1,0 +1,11 @@
+# HSV thresholds for Jeff's campsite icon color (typically red/orange).
+# Tune empirically against the actual KMZ on first run.
+hue:        [0, 15]
+saturation: [120, 255]
+value:      [120, 255]
+
+# Connected-component blob filter
+min_area_px: 50
+max_area_px: 2000
+min_aspect:  0.5    # min width/height ratio
+max_aspect:  2.0    # max width/height ratio
