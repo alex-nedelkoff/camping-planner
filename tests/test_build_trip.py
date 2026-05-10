@@ -186,3 +186,43 @@ def test_build_html_assembles_full_page():
 
     # No route file in fixture → no map section.
     assert "Route Map" not in html
+
+
+def test_build_html_renders_auto_route_table_when_no_gpx():
+    """When no route file is present and OSM cache is loadable, an auto route table appears."""
+    fixture = Path(__file__).parent / "fixtures" / "sample-trip"
+
+    fake_osm = {
+        "lakes": [
+            {
+                "name": "Killarney Lake",
+                "polygon": [
+                    [46.00, -81.50], [46.00, -81.30],
+                    [46.10, -81.30], [46.10, -81.50],
+                    [46.00, -81.50],
+                ],
+                "centroid": [46.05, -81.40],
+            },
+        ],
+        "portages": [],
+    }
+    with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER), \
+         patch("build_trip._osm_data.load_killarney_features", return_value=fake_osm):
+        html = build_html(fixture)
+
+    # The auto-route renders a "Route" heading with a per-day estimates table.
+    assert "Route" in html
+    # Per-day table headers.
+    for header in ("Day", "Paddle", "Portage", "Est. time"):
+        assert header in html
+
+
+def test_build_html_omits_route_when_no_osm_cache():
+    """When OSM cache load fails AND no route file, route section is omitted."""
+    fixture = Path(__file__).parent / "fixtures" / "sample-trip"
+    with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER), \
+         patch("build_trip._osm_data.load_killarney_features",
+               side_effect=FileNotFoundError("no cache")):
+        html = build_html(fixture)
+    # No OSM cache and no GPX -> no Route section.
+    assert "<section id=\"route\">" not in html

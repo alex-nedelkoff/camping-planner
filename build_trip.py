@@ -17,6 +17,8 @@ import yaml
 
 import weather as _weather
 import route_map as _route_map
+import osm_data as _osm_data
+import route_engine as _route_engine
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -221,12 +223,117 @@ def render_weather_section(park_slug: str, start_date: str, end_date: str) -> st
     )
 
 
-def render_route_section(route_file) -> str:
-    """Render the route map section, or empty string if no route file."""
-    if route_file is None:
+def render_route_section(trip) -> str:
+    """Render the route map section.
+
+    Three modes:
+      1. trip['route_file'] set -> use the user-supplied GPX/KML (existing behavior).
+      2. No route file but trip frontmatter has 'nights' + 'access_point' ->
+         auto-route from cached OSM data.
+      3. Neither -> return ''.
+
+    Accepts either a trip dict (preferred, new) or a Path/None (legacy: route_file).
+    """
+    # Backward-compat: accept the old (route_file) signature where caller passed
+    # a Path or None. If caller passes a dict, treat it as the trip dict.
+    if trip is None:
         return ""
-    data = _route_map.parse_route_file(str(route_file))
-    return _route_map.generate_map_section(data)
+    if not isinstance(trip, dict):
+        # Legacy path-only invocation.
+        if trip is None:
+            return ""
+        data = _route_map.parse_route_file(str(trip))
+        return _route_map.generate_map_section(data)
+
+    route_file = trip.get("route_file")
+    if route_file is not None:
+        data = _route_map.parse_route_file(str(route_file))
+        return _route_map.generate_map_section(data)
+
+    fm = trip.get("frontmatter", {}) or {}
+    nights = fm.get("nights") or []
+    access_point = fm.get("access_point")
+    if not (nights and access_point):
+        return ""
+
+    try:
+        osm = _osm_data.load_killarney_features()
+    except FileNotFoundError:
+        return ""
+
+    route = _route_engine.build_route(
+        nights=nights, access_point=access_point, osm=osm,
+    )
+    return _render_auto_route(route)
+
+
+def _render_auto_route(route: dict) -> str:
+    """Render the OSM-driven route section: map + per-day estimates table."""
+    days = _route_engine.build_day_estimates(route["segments"])
+
+    # Build a route_map-compatible structure to pass to generate_map_section.
+    tracks = []
+    waypoints = []
+    for seg in route["segments"]:
+        if not seg["geometry"]:
+            continue
+        # Each segment becomes a track; route_map.py will color-cycle them.
+        track_name = f"{seg['from']} → {seg['to']} ({seg['kind']})"
+        tracks.append({
+            "name": track_name,
+            "points": [tuple(pt) for pt in seg["geometry"]],
+        })
+    map_html = _route_map.generate_map_section({
+        "waypoints": waypoints, "tracks": tracks, "source": "auto",
+    })
+
+    # Per-day estimates table.
+    rows = []
+    total_paddle = 0.0
+    total_portage = 0.0
+    total_minutes = 0
+    for day in days:
+        approx_marker = " ⚠" if day["approx"] else ""
+        portage_cell = (
+            "(approx)" if day["approx"] and day["portage_km"] == 0
+            else f"{day['portage_km']} km"
+        )
+        rows.append(
+            f"<tr><td>{day['day']}</td>"
+            f"<td>{day['label']}{approx_marker}</td>"
+            f"<td>{day['paddle_km']} km</td>"
+            f"<td>{portage_cell}</td>"
+            f"<td>{day['human_time']}</td></tr>"
+        )
+        total_paddle += day["paddle_km"]
+        total_portage += day["portage_km"]
+        total_minutes += day["minutes"]
+
+    rows.append(
+        f"<tr><td><strong>Total</strong></td><td></td>"
+        f"<td><strong>{round(total_paddle, 1)} km</strong></td>"
+        f"<td><strong>{round(total_portage, 1)} km</strong></td>"
+        f"<td><strong>{_route_engine.format_human_time(total_minutes)}</strong></td></tr>"
+    )
+
+    warnings_html = ""
+    if route.get("warnings"):
+        items = "".join(f"<li>{w}</li>" for w in route["warnings"])
+        warnings_html = f'<div class="warnings"><ul>{items}</ul></div>'
+
+    table_html = (
+        "<table><thead><tr><th>Day</th><th>Leg</th>"
+        "<th>Paddle</th><th>Portage</th><th>Est. time</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table>"
+    )
+
+    return (
+        f'<section id="route"><h2>Route</h2>'
+        f"{warnings_html}"
+        f"{map_html}"
+        f"{table_html}"
+        f"</section>"
+    )
 
 # ---------------------------------------------------------------------------
 # Top-level orchestration
@@ -246,7 +353,7 @@ def build_html(trip_dir) -> str:
         f'<section id="itinerary"><h2>Itinerary</h2>'
         f'{render_section(trip["itinerary"], "itinerary")}</section>'
     )
-    sections_html.append(render_route_section(trip["route_file"]))
+    sections_html.append(render_route_section(trip))
     sections_html.append(render_weather_section(
         fm.get("park", ""), fm.get("start_date", ""), fm.get("end_date", ""),
     ))
@@ -288,7 +395,14 @@ def build_html(trip_dir) -> str:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("trip_dir", help="Path to trip directory (contains trip.md)")
+    parser.add_argument(
+        "--refresh-osm", action="store_true",
+        help="Re-fetch the Killarney OSM cache from Overpass before rendering.",
+    )
     args = parser.parse_args(argv)
+
+    if args.refresh_osm:
+        _osm_data.refresh_killarney_cache()
 
     trip_dir = Path(args.trip_dir)
     html = build_html(trip_dir)
