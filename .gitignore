@@ -8,3 +8,6 @@ private/
 *.kmz
 templates/jeffs_*.png
 jeffs_review.html
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal

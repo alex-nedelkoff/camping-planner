@@ -130,7 +130,7 @@ def parse_route_file(filepath: str) -> dict:
         return parse_kml(filepath)
     else:
         # Try to detect from content
-        with open(filepath) as f:
+        with open(filepath, encoding="utf-8") as f:
             first_line = f.readline(500).lower()
         if "gpx" in first_line:
             return parse_gpx(filepath)

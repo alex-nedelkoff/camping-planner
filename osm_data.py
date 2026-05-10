@@ -170,7 +170,7 @@ def load_killarney_features() -> dict:
             f"{CACHE_PATH}: cache missing. "
             "Run `python3 build_trip.py --refresh-osm <trip-dir>` to populate."
         )
-    osm = json.loads(CACHE_PATH.read_text())
+    osm = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
     out = {
         "lakes": list(osm.get("lakes", [])),
         "portages": list(osm.get("portages", [])),
@@ -178,7 +178,7 @@ def load_killarney_features() -> dict:
     }
 
     if JEFFS_CACHE_PATH.exists():
-        jeffs = json.loads(JEFFS_CACHE_PATH.read_text())
+        jeffs = json.loads(JEFFS_CACHE_PATH.read_text(encoding="utf-8"))
         jeffs_lakes = jeffs.get("lakes", [])
         jeffs_names = {l["name"] for l in jeffs_lakes if "name" in l}
         out["lakes"] = (

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Camping Trips{% endblock %}
+{% block body %}
+<header class="trip-header">
+  <h1>🏕 Camping Trips</h1>
+  <div class="header-actions">
+    <button id="user-pill" class="user-pill unset" onclick="switchUser()" title="Click to set / change name">…</button>
+    <button class="btn" onclick="toggleNewTrip()">+ New Trip</button>
+  </div>
+</header>
+
+<section id="new-trip" hidden>
+  <h2>New Trip</h2>
+  <form onsubmit="createTrip(event)">
+    <label>Park
+      <select name="park" required>
+        <option value="">— select —</option>
+        {% for slug, name in park_options %}
+        <option value="{{ slug }}">{{ name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Start date <input type="date" name="start" required></label>
+    <label>End date <input type="date" name="end" required></label>
+    <label>Participants (comma separated)
+      <input type="text" name="participants" placeholder="Alex, Jordan">
+    </label>
+    <button type="submit" class="btn">Create</button>
+    <span id="new-trip-status" class="status"></span>
+  </form>
+</section>
+
+{% if broken %}
+<section>
+  <h2>⚠ Trips with errors</h2>
+  {% for trip in broken %}
+    {% include "partials/trip_card.html" %}
+  {% endfor %}
+</section>
+{% endif %}
+
+<section>
+  <h2>Upcoming</h2>
+  {% if upcoming %}
+    {% for trip in upcoming %}
+      {% include "partials/trip_card.html" %}
+    {% endfor %}
+  {% else %}
+    <p class="empty">No upcoming trips.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Past</h2>
+  {% if past %}
+    {% for trip in past %}
+      {% include "partials/trip_card.html" %}
+    {% endfor %}
+  {% else %}
+    <p class="empty">No past trips.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Check Park Availability</h2>
+  <p class="warn">⚠ Ontario Parks rate-limits aggressively (Azure WAF will ban your IP for 30+ min after ~15 rapid requests). One check at a time, please.</p>
+  <form onsubmit="checkAvail(event)">
+    <label>Park
+      <select name="park" required>
+        <option value="">— select —</option>
+        {% for slug, name in park_options %}
+        <option value="{{ slug }}">{{ name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Start <input type="date" name="start" required></label>
+    <label>End <input type="date" name="end" required></label>
+    <button type="submit" class="btn" id="avail-btn">Check</button>
+  </form>
+  <div id="avail-results"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/index.js"></script>
+{% endblock %}
