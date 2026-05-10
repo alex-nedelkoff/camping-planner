@@ -161,3 +161,37 @@ class MealPlanOut(BaseModel):
     ok: bool = True
     plan: dict
     totals: dict
+
+
+class GearItemIn(BaseModel):
+    name: str = Field(min_length=1)
+    category: str
+    weight_g: int | None = Field(default=None, ge=0)
+
+
+class GearItemOut(GearItemIn):
+    id: str
+
+
+class GearCatalogResponse(BaseModel):
+    ok: bool = True
+    categories: list[str]
+    items: list[GearItemOut]
+
+
+class GearItemCreatedResponse(BaseModel):
+    ok: bool = True
+    id: str
+
+
+class GearReferencesResponse(BaseModel):
+    ok: bool = True
+    references: list[str]
+
+
+class CategoryRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+
+
+class CategoryRenameRequest(BaseModel):
+    new_name: str = Field(min_length=1, max_length=40)
