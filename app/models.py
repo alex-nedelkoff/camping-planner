@@ -41,6 +41,8 @@ class TripSection(BaseModel):
     title: str
     html: str
     editable: bool
+    kind: str = "html"
+    payload: dict | None = None
 
 
 class TripPayloadResponse(BaseModel):
@@ -97,3 +99,65 @@ class WhoamiResponse(BaseModel):
 
 class WhoamiSetRequest(BaseModel):
     user: str = Field(min_length=1, max_length=40)
+
+
+class FoodIn(BaseModel):
+    name: str = Field(min_length=1)
+    category: str
+    kcal_per_serving: int = Field(ge=0)
+    serving_size: str = Field(min_length=1)
+    url: str | None = None
+
+
+class FoodOut(FoodIn):
+    id: str
+
+
+class FoodsCatalogResponse(BaseModel):
+    ok: bool = True
+    categories: list[str]
+    foods: list[FoodOut]
+
+
+class FoodCreatedResponse(BaseModel):
+    ok: bool = True
+    id: str
+
+
+class FoodReferencesResponse(BaseModel):
+    ok: bool = True
+    references: list[str]
+
+
+class MealItem(BaseModel):
+    food_id: str
+    servings: int = Field(ge=0)
+    who: str = ""
+    note: str = ""
+
+
+class MealEntry(BaseModel):
+    meal: str
+    items: list[MealItem] = Field(default_factory=list)
+
+
+class DayPlan(BaseModel):
+    date: str
+    label: str = ""
+    meals: list[MealEntry] = Field(default_factory=list)
+
+
+class CalorieTarget(BaseModel):
+    activity_level: str
+    kcal_per_person_per_day: int = Field(ge=0)
+
+
+class MealPlanIn(BaseModel):
+    calorie_target: CalorieTarget
+    days: list[DayPlan] = Field(default_factory=list)
+
+
+class MealPlanOut(BaseModel):
+    ok: bool = True
+    plan: dict
+    totals: dict

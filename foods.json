@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "categories": ["meal", "snack", "drink", "condiment", "other"],
+  "foods": [
+    {"id": "mountain-house-lasagna", "name": "Mountain House Lasagna with Meat Sauce", "category": "meal", "kcal_per_serving": 570, "serving_size": "1 pouch (113 g)", "url": "https://mountainhouse.com/products/lasagna-with-meat-sauce"},
+    {"id": "mountain-house-beef-stew", "name": "Mountain House Beef Stew", "category": "meal", "kcal_per_serving": 540, "serving_size": "1 pouch (110 g)", "url": null},
+    {"id": "backpackers-pantry-pad-thai", "name": "Backpacker's Pantry Pad Thai", "category": "meal", "kcal_per_serving": 670, "serving_size": "1 pouch (170 g)", "url": null},
+    {"id": "instant-mash", "name": "Instant mashed potatoes", "category": "meal", "kcal_per_serving": 160, "serving_size": "1/2 cup dry (~30 g)", "url": null},
+    {"id": "instant-oatmeal-pkt", "name": "Instant oatmeal packet", "category": "meal", "kcal_per_serving": 120, "serving_size": "1 packet (43 g)", "url": null},
+    {"id": "instant-rice", "name": "Instant rice (cup)", "category": "meal", "kcal_per_serving": 200, "serving_size": "1 cup dry (~50 g)", "url": null},
+    {"id": "clif-bar-chocolate-chip", "name": "Clif Bar — Chocolate Chip", "category": "snack", "kcal_per_serving": 250, "serving_size": "1 bar (68 g)", "url": null},
+    {"id": "gorp", "name": "GORP (trail mix)", "category": "snack", "kcal_per_serving": 280, "serving_size": "1/2 cup (~50 g)", "url": null},
+    {"id": "peanut-butter-single", "name": "Peanut butter (single-serve)", "category": "snack", "kcal_per_serving": 190, "serving_size": "1 packet (32 g)", "url": null},
+    {"id": "tuna-pouch", "name": "Tuna pouch", "category": "snack", "kcal_per_serving": 110, "serving_size": "1 pouch (74 g)", "url": null},
+    {"id": "canned-chicken", "name": "Canned chicken", "category": "snack", "kcal_per_serving": 120, "serving_size": "1/2 can (~60 g)", "url": null},
+    {"id": "instant-coffee-pkt", "name": "Instant coffee packet", "category": "drink", "kcal_per_serving": 5, "serving_size": "1 packet (2 g)", "url": null},
+    {"id": "hot-chocolate-pkt", "name": "Hot chocolate packet", "category": "drink", "kcal_per_serving": 110, "serving_size": "1 packet (28 g)", "url": null},
+    {"id": "olive-oil-small", "name": "Olive oil (small bottle)", "category": "condiment", "kcal_per_serving": 120, "serving_size": "1 tbsp (14 g)", "url": null}
+  ]
+}

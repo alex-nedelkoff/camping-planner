@@ -5,6 +5,9 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="/static/js/trip.js" defer></script>
+<script src="/static/js/meal-plan.js" defer></script>
+<link rel="stylesheet" href="/static/css/foods.css">
+<script src="/static/js/foods.js" defer></script>
 {% endblock %}
 {% block body %}
 <div class="app-shell">
@@ -17,6 +20,7 @@
       <button class="nav-btn" data-route="/">Home</button>
       <button class="nav-btn" data-route="/new">+ New Trip</button>
       <button class="nav-btn" data-route="/availability">Check Availability</button>
+      <button class="nav-btn" data-route="/foods">Foods DB</button>
     </nav>
     <div class="sidebar-section-label">Upcoming</div>
     <ul id="trips-upcoming" class="trip-list"></ul>
@@ -80,6 +84,25 @@
       <button type="submit" class="btn">Check</button>
     </form>
     <div data-results></div>
+  </section>
+</template>
+
+<template id="tpl-foods">
+  <section class="foods-page">
+    <header class="foods-header">
+      <h2>Foods</h2>
+      <div class="foods-toolbar">
+        <input type="search" id="foods-search" placeholder="Search foods…">
+        <select id="foods-category-filter">
+          <option value="">All categories</option>
+        </select>
+        <button id="foods-add" class="btn">+ Add food</button>
+      </div>
+    </header>
+    <div class="foods-body">
+      <ul id="foods-list" class="foods-list"></ul>
+      <div id="foods-detail" class="foods-detail"></div>
+    </div>
   </section>
 </template>
 {% endblock %}

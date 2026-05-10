@@ -185,6 +185,12 @@
       wireAvailForm();
       return;
     }
+    if (path === '/foods') {
+      state.activeSlug = null;
+      paintActiveSidebar();
+      if (window.FoodsPage) window.FoodsPage.mount(mainPane);
+      return;
+    }
     const tripMatch = path.match(/^\/trips\/([^/]+)\/?$/);
     if (tripMatch) {
       state.activeSlug = tripMatch[1];
@@ -227,6 +233,14 @@
       + payload.sections.map(function (s) { return wrapSection(s); }).join('');
     mainPane.innerHTML = '';
     mainPane.appendChild(wrap);
+
+    // Dispatch meal-plan sections to MealPlan.init instead of leaving them as empty HTML.
+    payload.sections.forEach(function (s) {
+      if (s.kind === 'meal-plan' && window.MealPlan) {
+        var sectEl = wrap.querySelector('#' + CSS.escape(s.id) + ' .section-body');
+        if (sectEl) window.MealPlan.init(sectEl, slug, s.payload || {});
+      }
+    });
 
     if (window.TripPane) {
       window.TripPane.init(wrap, slug, state.user, function () {
