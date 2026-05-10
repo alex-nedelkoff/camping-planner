@@ -67,3 +67,27 @@
                .section-header { background: white; color: #1f3a3a;
                                  border-bottom: 2px solid #2d5016; }
                .section-header h2 { color: #1f3a3a; } }
+
+/* Meal planner */
+.mp-header { background: var(--surface, #f4f4f5); padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; }
+.mp-target-row { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; }
+.mp-target-row label { display: flex; flex-direction: column; font-size: 0.85em; gap: 0.2rem; }
+.mp-target-row input, .mp-target-row select { padding: 0.3rem; }
+.mp-summary { margin-left: auto; font-size: 0.95em; }
+.mp-progress { position: relative; height: 1.4rem; background: #e4e4e7; border-radius: 4px; margin-top: 0.6rem; overflow: hidden; }
+.mp-progress[data-status=ok] .mp-bar { background: #16a34a; }
+.mp-progress[data-status=warn] .mp-bar { background: #f59e0b; }
+.mp-bar { height: 100%; transition: width 0.2s; }
+.mp-progress-label { position: absolute; left: 0.5rem; top: 0; line-height: 1.4rem; color: #18181b; font-size: 0.85em; }
+.mp-days { display: flex; flex-direction: column; gap: 0.5rem; }
+.mp-day { border: 1px solid var(--border, #d4d4d8); border-radius: 6px; }
+.mp-day summary { padding: 0.6rem 0.8rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.mp-day summary::-webkit-details-marker { color: var(--muted, #71717a); }
+.mp-day-total { font-variant-numeric: tabular-nums; color: var(--muted, #52525b); }
+.mp-meals { padding: 0 0.8rem 0.8rem; }
+.mp-meal { padding: 0.4rem 0; }
+.mp-meal h4 { margin: 0.4rem 0; font-size: 0.95em; }
+.mp-add-meal { background: transparent; color: var(--accent, #2563eb); border: 1px dashed var(--accent, #2563eb); padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; }
+.mp-actions { display: flex; gap: 0.6rem; align-items: center; margin-top: 1rem; }
+.mp-legacy-banner { background: #fff7ed; border: 1px solid #fed7aa; padding: 0.6rem 0.8rem; border-radius: 4px; margin-bottom: 0.8rem; font-size: 0.9em; }
+.mp-legacy-banner button { margin-left: 0.5rem; }

@@ -234,6 +234,14 @@
     mainPane.innerHTML = '';
     mainPane.appendChild(wrap);
 
+    // Dispatch meal-plan sections to MealPlan.init instead of leaving them as empty HTML.
+    payload.sections.forEach(function (s) {
+      if (s.kind === 'meal-plan' && window.MealPlan) {
+        var sectEl = wrap.querySelector('#' + CSS.escape(s.id) + ' .section-body');
+        if (sectEl) window.MealPlan.init(sectEl, slug, s.payload || {});
+      }
+    });
+
     if (window.TripPane) {
       window.TripPane.init(wrap, slug, state.user, function () {
         renderTrip(slug);
