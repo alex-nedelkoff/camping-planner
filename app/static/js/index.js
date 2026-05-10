@@ -229,8 +229,11 @@
     mainPane.appendChild(wrap);
 
     if (window.TripPane) {
+      const fm = payload.frontmatter || {};
       window.TripPane.init(wrap, slug, state.user, function () {
         renderTrip(slug);
+      }, {
+        participants: Array.isArray(fm.participants) ? fm.participants : [],
       });
     }
   }

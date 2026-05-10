@@ -57,11 +57,19 @@
 #gear table.editing td { background: #fffbe6; }
 #gear table.editing td[contenteditable=true]:focus { outline: 2px solid #2d5016;
                      outline-offset: -2px; background: #fff; }
-#gear .row-del { background: transparent; border: none; color: #c00;
+#gear .row-del, #costs .row-del { background: transparent; border: none; color: #c00;
                  cursor: pointer; font-size: 1.1rem; padding: 0 0.3rem;
                  margin-left: 0.4rem; }
+#costs table.editing td { background: #fffbe6; }
+#costs table.editing td[contenteditable=true]:focus { outline: 2px solid #2d5016;
+                     outline-offset: -2px; background: #fff; }
+#costs select { width: 100%; padding: 0.25rem; font-family: inherit;
+                font-size: 0.92rem; border: 1px solid #ccc; border-radius: 4px; }
 .gear-status { font-size: 0.9rem; color: #555; margin-left: 0.25rem; }
 .gear-status.error { color: #c00; }
+.costs-summary { margin-top: 0.75rem; padding: 0.6rem 0.85rem;
+                 background: #f0f4ee; border-left: 4px solid #2d5016;
+                 border-radius: 4px; }
 @media print { .trip-pane section { box-shadow: none; }
                .gear-edit-toolbar, .section-actions { display: none; }
                .section-header { background: white; color: #1f3a3a;

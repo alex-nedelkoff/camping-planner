@@ -158,6 +158,24 @@ def test_get_trip_missing_returns_404(client):
     assert r.status_code == 404
 
 
+def test_get_trip_costs_section_includes_per_person_summary(client):
+    """The costs section's HTML carries the auto-computed total + per-person split."""
+    from unittest.mock import patch
+
+    fake_weather = {"source": "unavailable", "days": []}
+    with patch("build_trip.weather_provider", return_value=fake_weather), \
+         patch("build_trip._osm_data.load_killarney_features",
+               side_effect=FileNotFoundError("no cache")):
+        r = client.get("/api/trip/killarney-2026-05")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    costs = next(s for s in body["sections"] if s["id"] == "costs")
+    # killarney trip: 99 + 400 + 122 = 621; 2 participants → 310.50
+    assert "costs-summary" in costs["html"]
+    assert "$621.00" in costs["html"]
+    assert "$310.50" in costs["html"]
+
+
 # ---------------------------------------------------------------------------
 # POST /api/save-gear
 # ---------------------------------------------------------------------------
@@ -189,8 +207,8 @@ def test_save_gear_rejects_malformed_rows(client):
 def test_save_section_table_works_for_costs(client):
     slug = "killarney-2026-05"
     new_rows = [
-        ["Permit / reservation", "Alex", "$70"],
-        ["Gas", "Jordan", "$120"],
+        ["Permit / reservation", "Alex", "70"],
+        ["Gas", "Jordan", "120"],
     ]
     r = client.post(
         "/api/save-section-table",
@@ -201,10 +219,11 @@ def test_save_section_table_works_for_costs(client):
     md = client.get(
         "/api/section", params={"trip": slug, "section": "costs"},
     ).json()["markdown"]
-    assert "Alex" in md and "$70" in md
-    assert "Jordan" in md and "$120" in md
-    # The trailing **Total per person:** line should be preserved
-    assert "**Total per person:**" in md
+    assert "Alex" in md and "70" in md
+    assert "Jordan" in md and "120" in md
+    # Total per person is no longer a stored markdown placeholder — it's
+    # computed at render time in load_trip_payload.
+    assert "**Total per person:**" not in md
 
 
 def test_save_section_table_rejects_non_table_section(client):
