@@ -190,7 +190,10 @@ def extract_lakes_from_mosaic(mosaic, mosaic_bounds: tuple, palette: dict) -> li
 
     # Optional: union a "paths" mask (e.g., yellow canoe-route lines drawn
     # on top of water bodies). Without this, the route graphics split single
-    # lakes into multiple polygons.
+    # lakes into multiple polygons. Yellow drawn ACROSS LAND between lakes
+    # (Jeff's portage indications) must NOT be unioned, or it bridges
+    # separate water bodies into one giant blob — only union yellow that's
+    # already adjacent to existing blue water.
     paths_cfg = palette.get("paths_yellow") or {}
     if paths_cfg.get("enabled"):
         plow = np.array([paths_cfg["hue"][0],
@@ -207,6 +210,18 @@ def extract_lakes_from_mosaic(mosaic, mosaic_bounds: tuple, palette: dict) -> li
                 path_mask, cv2.MORPH_OPEN,
                 cv2.getStructuringElement(cv2.MORPH_RECT, (open_px, open_px)),
             )
+        # Restrict yellow to pixels adjacent to existing water. The blue
+        # mask is dilated by `proximity_dilate_px` and AND'd with yellow —
+        # yellow that reaches into a lake is kept, yellow bridging across
+        # land between lakes is dropped.
+        proximity_px = int(paths_cfg.get("proximity_dilate_px", 6) or 0)
+        if proximity_px > 0:
+            water_dilated = cv2.dilate(
+                mask,
+                cv2.getStructuringElement(cv2.MORPH_RECT,
+                                          (proximity_px, proximity_px)),
+            )
+            path_mask = cv2.bitwise_and(path_mask, water_dilated)
         mask = cv2.bitwise_or(mask, path_mask)
 
     # Clean: close holes, then open to drop specks.

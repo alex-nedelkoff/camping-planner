@@ -20,3 +20,9 @@ paths_yellow:
   # Morphological open to drop isolated yellow blobs (text labels, trail
   # icons on land). Width in px of the kernel — set 0 to disable.
   open_kernel_px: 3
+  # Restrict yellow to pixels within this many pixels of existing blue
+  # water. Yellow drawn across land (Jeff's portage indications) gets
+  # dropped; yellow drawn on a lake (canoe-route within a water body) is
+  # kept. Set 0 to disable proximity filter (NOT recommended — without
+  # it, yellow paths can bridge land between lakes into one blob).
+  proximity_dilate_px: 6
