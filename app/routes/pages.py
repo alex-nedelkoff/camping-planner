@@ -42,3 +42,8 @@ def availability_page(request: Request):
 @router.get("/foods", response_class=HTMLResponse)
 def foods_page(request: Request):
     return _render_shell(request)
+
+
+@router.get("/gear", response_class=HTMLResponse)
+def gear_page(request: Request):
+    return _render_shell(request)

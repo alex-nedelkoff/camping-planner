@@ -191,6 +191,12 @@
       if (window.FoodsPage) window.FoodsPage.mount(mainPane);
       return;
     }
+    if (path === '/gear') {
+      state.activeSlug = null;
+      paintActiveSidebar();
+      if (window.GearPage) window.GearPage.mount(mainPane);
+      return;
+    }
     const tripMatch = path.match(/^\/trips\/([^/]+)\/?$/);
     if (tripMatch) {
       state.activeSlug = tripMatch[1];
