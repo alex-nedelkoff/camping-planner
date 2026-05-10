@@ -92,3 +92,102 @@ def test_load_catalog_caches_and_invalidates_on_mtime(tmp_catalog):
     third = gear_svc.load_catalog()
     assert third is not first
     assert len(third["items"]) == 1
+
+
+def test_upsert_creates_with_slug_id(tmp_catalog):
+    new_id = gear_svc.upsert({
+        "name": "Snow Peak Trek 700",
+        "category": "Cook",
+        "weight_g": 145,
+    })
+    assert new_id == "snow-peak-trek-700"
+    assert gear_svc.get("snow-peak-trek-700")["weight_g"] == 145
+
+
+def test_upsert_collision_appends_suffix(tmp_catalog):
+    gear_svc.upsert({"name": "Compass", "category": "Navigation", "weight_g": 25})
+    assert gear_svc.get("compass-2") is not None
+
+
+def test_upsert_updates_existing_when_id_provided(tmp_catalog):
+    gear_svc.upsert({
+        "id": "compass",
+        "name": "Compass (renamed)",
+        "category": "Navigation",
+        "weight_g": 35,
+    })
+    assert gear_svc.get("compass")["weight_g"] == 35
+    assert gear_svc.get("compass")["name"] == "Compass (renamed)"
+
+
+def test_upsert_accepts_null_weight(tmp_catalog):
+    new_id = gear_svc.upsert({
+        "name": "Custom Tent",
+        "category": "Other",
+        "weight_g": None,
+    })
+    assert gear_svc.get(new_id)["weight_g"] is None
+
+
+def test_upsert_validates_required_fields(tmp_catalog):
+    with pytest.raises(ValueError, match="name"):
+        gear_svc.upsert({"category": "Cook", "weight_g": 100})
+
+
+def test_upsert_rejects_unknown_category(tmp_catalog):
+    with pytest.raises(ValueError, match="category"):
+        gear_svc.upsert({"name": "X", "category": "bogus", "weight_g": 1})
+
+
+def test_upsert_rejects_negative_weight(tmp_catalog):
+    with pytest.raises(ValueError, match="weight"):
+        gear_svc.upsert({"name": "X", "category": "Cook", "weight_g": -1})
+
+
+def test_delete_removes_item(tmp_catalog):
+    gear_svc.delete("compass")
+    assert gear_svc.get("compass") is None
+
+
+def test_delete_unknown_id_raises(tmp_catalog):
+    with pytest.raises(KeyError):
+        gear_svc.delete("nope")
+
+
+def test_find_references_returns_trip_slugs(tmp_catalog, tmp_path, monkeypatch):
+    trips_dir = tmp_path / "trips"
+    (trips_dir / "killarney-2026-07").mkdir(parents=True)
+    (trips_dir / "killarney-2026-07" / "gear.md").write_text(
+        "---\nitems:\n  - item_id: compass\n    qty: 1\n    who: shared\n---\n",
+        encoding="utf-8",
+    )
+    (trips_dir / "killbear-2026-08").mkdir(parents=True)
+    (trips_dir / "killbear-2026-08" / "gear.md").write_text(
+        "no frontmatter here\n", encoding="utf-8",
+    )
+    monkeypatch.setattr(gear_svc, "TRIPS_DIR", trips_dir)
+    refs = gear_svc.find_references("compass")
+    assert refs == ["killarney-2026-07"]
+    assert gear_svc.find_references("msr-pocket-rocket") == []
+
+
+def test_find_references_does_not_prefix_match(tmp_catalog, tmp_path, monkeypatch):
+    """`comp` must NOT match `compass` — regression from the foods feature."""
+    trips_dir = tmp_path / "trips"
+    (trips_dir / "trip-a").mkdir(parents=True)
+    (trips_dir / "trip-a" / "gear.md").write_text(
+        "---\nitems:\n  - item_id: compass\n    qty: 1\n---\n", encoding="utf-8",
+    )
+    monkeypatch.setattr(gear_svc, "TRIPS_DIR", trips_dir)
+    assert gear_svc.find_references("comp") == []
+    assert gear_svc.find_references("compass") == ["trip-a"]
+
+
+def test_find_references_matches_quoted_form(tmp_catalog, tmp_path, monkeypatch):
+    trips_dir = tmp_path / "trips"
+    (trips_dir / "trip-q").mkdir(parents=True)
+    (trips_dir / "trip-q" / "gear.md").write_text(
+        "---\nitems:\n  - item_id: 'compass'\n    qty: 1\n---\n", encoding="utf-8",
+    )
+    monkeypatch.setattr(gear_svc, "TRIPS_DIR", trips_dir)
+    assert gear_svc.find_references("compass") == ["trip-q"]
