@@ -155,6 +155,70 @@ def delete(item_id: str) -> None:
     raise KeyError(f"gear: no item with id {item_id!r}")
 
 
+PROTECTED_CATEGORIES = frozenset({"Other"})
+_CATEGORY_MAX_LEN = 40
+
+
+def _categories_lower_set(categories: list[str]) -> set[str]:
+    return {c.lower() for c in categories}
+
+
+def add_category(name: str) -> None:
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("gear: category name is empty")
+    if len(name) > _CATEGORY_MAX_LEN:
+        raise ValueError(f"gear: category name too long (max {_CATEGORY_MAX_LEN})")
+    cat = load_catalog()
+    if name.lower() in _categories_lower_set(cat["categories"]):
+        raise ValueError(f"gear: category {name!r} already exists")
+    cat["categories"].append(name)
+    _atomic_write(GEAR_JSON, cat)
+    _invalidate_cache()
+
+
+def rename_category(old: str, new: str) -> None:
+    old = (old or "").strip()
+    new = (new or "").strip()
+    if not new:
+        raise ValueError("gear: new category name is empty")
+    if len(new) > _CATEGORY_MAX_LEN:
+        raise ValueError(f"gear: category name too long (max {_CATEGORY_MAX_LEN})")
+    if old in PROTECTED_CATEGORIES:
+        raise ValueError(f"gear: category {old!r} is protected and cannot be renamed")
+    cat = load_catalog()
+    if old not in cat["categories"]:
+        raise KeyError(f"gear: no category {old!r}")
+    if new.lower() != old.lower() and new.lower() in _categories_lower_set(cat["categories"]):
+        raise ValueError(f"gear: category {new!r} already exists")
+    cat["categories"] = [new if c == old else c for c in cat["categories"]]
+    for it in cat["items"]:
+        if it["category"] == old:
+            it["category"] = new
+    _atomic_write(GEAR_JSON, cat)
+    _invalidate_cache()
+
+
+def delete_category(name: str, force: bool = False) -> None:
+    name = (name or "").strip()
+    if name in PROTECTED_CATEGORIES:
+        raise ValueError(f"gear: category {name!r} is protected and cannot be deleted")
+    cat = load_catalog()
+    if name not in cat["categories"]:
+        raise KeyError(f"gear: no category {name!r}")
+    in_use = [it for it in cat["items"] if it["category"] == name]
+    if in_use and not force:
+        raise ValueError(
+            f"gear: category {name!r} is in use by {len(in_use)} item(s)"
+        )
+    if in_use and force:
+        for it in in_use:
+            it["category"] = "Other"
+    cat["categories"] = [c for c in cat["categories"] if c != name]
+    _atomic_write(GEAR_JSON, cat)
+    _invalidate_cache()
+
+
 def find_references(item_id: str) -> list[str]:
     """Scan trips/*/gear.md frontmatter for occurrences of item_id."""
     if not TRIPS_DIR.exists():

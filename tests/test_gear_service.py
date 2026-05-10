@@ -191,3 +191,73 @@ def test_find_references_matches_quoted_form(tmp_catalog, tmp_path, monkeypatch)
     )
     monkeypatch.setattr(gear_svc, "TRIPS_DIR", trips_dir)
     assert gear_svc.find_references("compass") == ["trip-q"]
+
+
+def test_add_category_appends(tmp_catalog):
+    gear_svc.add_category("Photography")
+    assert "Photography" in gear_svc.load_catalog()["categories"]
+
+
+def test_add_category_rejects_duplicate_case_insensitive(tmp_catalog):
+    with pytest.raises(ValueError, match="already exists"):
+        gear_svc.add_category("cook")  # 'Cook' already exists
+
+
+def test_add_category_rejects_blank(tmp_catalog):
+    with pytest.raises(ValueError, match="empty"):
+        gear_svc.add_category("   ")
+
+
+def test_add_category_rejects_too_long(tmp_catalog):
+    with pytest.raises(ValueError, match="too long"):
+        gear_svc.add_category("x" * 41)
+
+
+def test_rename_category_updates_items(tmp_catalog):
+    gear_svc.rename_category("Cook", "Cooking")
+    cat = gear_svc.load_catalog()
+    assert "Cooking" in cat["categories"]
+    assert "Cook" not in cat["categories"]
+    assert gear_svc.get("msr-pocket-rocket")["category"] == "Cooking"
+
+
+def test_rename_category_rejects_unknown(tmp_catalog):
+    with pytest.raises(KeyError):
+        gear_svc.rename_category("Bogus", "X")
+
+
+def test_rename_category_rejects_collision(tmp_catalog):
+    with pytest.raises(ValueError, match="already exists"):
+        gear_svc.rename_category("Cook", "Navigation")
+
+
+def test_rename_category_rejects_protected(tmp_catalog):
+    with pytest.raises(ValueError, match="protected"):
+        gear_svc.rename_category("Other", "Misc")
+
+
+def test_delete_category_blocked_when_in_use(tmp_catalog):
+    with pytest.raises(ValueError, match="in use"):
+        gear_svc.delete_category("Cook", force=False)
+
+
+def test_delete_category_unused_succeeds(tmp_catalog):
+    gear_svc.add_category("Photography")
+    gear_svc.delete_category("Photography", force=False)
+    assert "Photography" not in gear_svc.load_catalog()["categories"]
+
+
+def test_delete_category_force_reassigns_to_other(tmp_catalog):
+    gear_svc.delete_category("Cook", force=True)
+    assert "Cook" not in gear_svc.load_catalog()["categories"]
+    assert gear_svc.get("msr-pocket-rocket")["category"] == "Other"
+
+
+def test_delete_category_protected_other(tmp_catalog):
+    with pytest.raises(ValueError, match="protected"):
+        gear_svc.delete_category("Other", force=True)
+
+
+def test_delete_category_unknown_raises(tmp_catalog):
+    with pytest.raises(KeyError):
+        gear_svc.delete_category("Bogus", force=False)
