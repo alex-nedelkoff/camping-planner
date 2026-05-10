@@ -258,7 +258,8 @@ def _segment(day: str, kind: str, frm: str, to: str,
     }
 
 
-def build_route(nights: list, access_point: str, osm: dict) -> dict:
+def build_route(nights: list, access_point: str, osm: dict,
+                library: Optional[dict] = None) -> dict:
     """Build per-leg segments + warnings from frontmatter nights + OSM data.
 
     Each "leg" is the travel between consecutive waypoints. Legs are:
@@ -266,8 +267,16 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
       - Day N: nights[N-1] -> nights[N]
       - Last day: nights[-1] -> access_point
 
-    Returns {"segments": [...], "warnings": [...]}.
+    For each leg the engine consults `library` (curated GPX connectors) first
+    and uses real geometry when a matching lake-pair connector is found.
+    Falls back to the OSM portage graph + straight-line paddle when no library
+    match exists, and finally to an `approx` straight-line segment when even
+    OSM lacks connecting data.
+
+    Returns {"segments": [...], "warnings": [...], "markers": [...]}.
     """
+    if library is None:
+        library = {"connectors": []}
     lakes = osm["lakes"] + LAKE_SUPPLEMENT  # add hardcoded supplements
     portages = osm["portages"]
     segments: list = []
@@ -342,6 +351,48 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
             continue
 
         if lake_a and lake_b:
+            # Library path (possibly multi-hop) takes precedence over OSM.
+            from gpx_library import find_library_path
+            lib_path = find_library_path(lake_a["name"], lake_b["name"], library)
+            if lib_path:
+                # Walk each connector in the chain, emitting paddle / portage /
+                # paddle for each hop. Inter-hop paddles between two connectors
+                # use the geometry from the prior connector's `departure` and
+                # the next connector's `approach`.
+                for hop_idx, conn in enumerate(lib_path):
+                    is_first_hop = hop_idx == 0
+                    is_last_hop = hop_idx == len(lib_path) - 1
+
+                    # Approach paddle is only emitted on the FIRST hop. For
+                    # subsequent hops, the previous hop's `departure` already
+                    # covers the same intermediate-lake traversal — skipping
+                    # avoids double-counting both distance and geometry.
+                    if is_first_hop:
+                        approach_geom = ([a_pt_resolved] + conn["approach"]
+                                         if a_pt_resolved else conn["approach"])
+                        segments.append(_segment(
+                            day_label, "paddle", a["label"],
+                            f"{conn['lake_a']} portage",
+                            conn["approach_km"], approach_geom,
+                        ))
+                    segments.append(_segment(
+                        day_label, "portage",
+                        f"{conn['lake_a']} portage",
+                        f"{conn['lake_b']} portage",
+                        conn["portage_km"], conn["portage"],
+                    ))
+                    if is_last_hop and b_pt_resolved:
+                        departure_geom = conn["departure"] + [b_pt_resolved]
+                    else:
+                        departure_geom = conn["departure"]
+                    segments.append(_segment(
+                        day_label, "paddle",
+                        f"{conn['lake_b']} portage",
+                        b["label"] if is_last_hop else conn["lake_b"],
+                        conn["departure_km"], departure_geom,
+                    ))
+                continue
+
             path = _find_path_through_portages(lake_a, lake_b, lakes, portages)
             if path:
                 current_lake = lake_a

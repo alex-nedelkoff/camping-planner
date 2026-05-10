@@ -45,7 +45,7 @@ input[type=checkbox] { margin-right: 0.5rem; transform: scale(1.2); }
 .gear-status.error { color: #c00; }
 @media print { body { background: white; } section { box-shadow: none; }
                .gear-edit-toolbar { display: none; } }
-</style></head><body><header class="trip-header"><button id="user-pill" class="user-pill unset" onclick="switchUser()" title="Click to set / change name">…</button><h1>Killarney &middot; 2026-05-15 → 2026-05-18</h1><div class="trip-meta"><span><strong>Participants:</strong> Alex, pizza-zip</span><span><strong>Access:</strong> George Lake</span><span><strong>Drive from Ajax:</strong> 4.5 hrs</span></div><table><thead><tr><th>Date</th><th>Site</th><th>Location</th></tr></thead><tbody><tr><td>2026-05-15</td><td>61</td><td>OSA Lake</td></tr><tr><td>2026-05-16</td><td>82</td><td>Baie Fine</td></tr><tr><td>2026-05-17</td><td>12</td><td>Killarney Lake</td></tr></tbody></table></header><section id="intro"><h1>Killarney 2026-05-15 → 2026-05-18</h1>
+</style></head><body><header class="trip-header"><h1>Killarney &middot; 2026-05-15 → 2026-05-18</h1><div class="trip-meta"><span><strong>Participants:</strong> Alex, pizza-zip</span><span><strong>Access:</strong> George Lake</span><span><strong>Drive from Ajax:</strong> 4.5 hrs</span></div><table><thead><tr><th>Date</th><th>Site</th><th>Location</th></tr></thead><tbody><tr><td>2026-05-15</td><td>61</td><td>OSA Lake</td></tr><tr><td>2026-05-16</td><td>82</td><td>Baie Fine</td></tr><tr><td>2026-05-17</td><td>12</td><td>Killarney Lake</td></tr></tbody></table></header><section id="intro"><h1>Killarney 2026-05-15 → 2026-05-18</h1>
 <p>3-night interior canoe trip in Killarney Provincial Park. George Lake put-in,
 moving sites each day: OSA Lake → Baie Fine → Killarney Lake → back to George
 Lake on Monday. La Cloche white quartzite ridges, deep clear lakes, classic
@@ -84,7 +84,7 @@ Group of Seven country.</p></section>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function() {
-  var map = L.map('route-map').setView([46.04342882441037, -81.37378198316529], 12);
+  var map = L.map('route-map').setView([46.04342882441034, -81.37378198316529], 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 18
