@@ -175,6 +175,9 @@ def test_load_trip_payload_assembles_sections(tmp_path, monkeypatch):
     from app.services import meal_plan as mp_svc
     monkeypatch.setattr(mp_svc, "TRIPS_DIR", fixture.parent)
 
+    from app.services import gear_plan as gp_svc
+    monkeypatch.setattr(gp_svc, "TRIPS_DIR", fixture.parent)
+
     with patch("build_trip.weather_provider", return_value=_FAKE_WEATHER), \
          patch("build_trip._osm_data.load_killarney_features",
                side_effect=FileNotFoundError("no cache")):
@@ -190,8 +193,16 @@ def test_load_trip_payload_assembles_sections(tmp_path, monkeypatch):
     assert "route" not in section_ids
 
     full = _all_html(payload)
-    for marker in ("Welcome to the test trip", "Day 1", "Canoe", "Tent", "Permit"):
+    # Gear is now a gear-plan section (html: ""); check non-gear markers in HTML.
+    for marker in ("Welcome to the test trip", "Day 1", "Tent", "Permit"):
         assert marker in full, f"missing: {marker}"
+
+    # Gear section is now a structured gear-plan section, not raw HTML.
+    gear_section = next(s for s in payload["sections"] if s["id"] == "gear")
+    assert gear_section["kind"] == "gear-plan"
+    assert gear_section["editable"] is False
+    # The fixture gear.md has no frontmatter — legacy_body surfaces the old prose.
+    assert "Canoe" in gear_section["payload"]["plan"]["legacy_body"]
 
     # Food section is now a structured meal-plan section, not raw HTML.
     food_section = next(s for s in payload["sections"] if s["id"] == "food")

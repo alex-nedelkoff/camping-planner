@@ -8,6 +8,9 @@
 <script src="/static/js/meal-plan.js" defer></script>
 <link rel="stylesheet" href="/static/css/foods.css">
 <script src="/static/js/foods.js" defer></script>
+<link rel="stylesheet" href="/static/css/gear.css">
+<script src="/static/js/gear.js" defer></script>
+<script src="/static/js/gear-plan.js" defer></script>
 {% endblock %}
 {% block body %}
 <div class="app-shell">
@@ -21,6 +24,7 @@
       <button class="nav-btn" data-route="/new">+ New Trip</button>
       <button class="nav-btn" data-route="/availability">Check Availability</button>
       <button class="nav-btn" data-route="/foods">Foods DB</button>
+      <button class="nav-btn" data-route="/gear">Gear DB</button>
     </nav>
     <div class="sidebar-section-label">Upcoming</div>
     <ul id="trips-upcoming" class="trip-list"></ul>
@@ -102,6 +106,25 @@
     <div class="foods-body">
       <ul id="foods-list" class="foods-list"></ul>
       <div id="foods-detail" class="foods-detail"></div>
+    </div>
+  </section>
+</template>
+<template id="tpl-gear">
+  <section class="gear-page">
+    <header class="gear-header">
+      <h2>Gear</h2>
+      <div class="gear-toolbar">
+        <input type="search" id="gear-search" placeholder="Search gear…">
+        <select id="gear-category-filter">
+          <option value="">All categories</option>
+        </select>
+        <button id="gear-manage-cats" class="btn secondary">Manage categories…</button>
+        <button id="gear-add" class="btn">+ Add item</button>
+      </div>
+    </header>
+    <div class="gear-body">
+      <ul id="gear-list" class="gear-list"></ul>
+      <div id="gear-detail" class="gear-detail"></div>
     </div>
   </section>
 </template>

@@ -191,6 +191,12 @@
       if (window.FoodsPage) window.FoodsPage.mount(mainPane);
       return;
     }
+    if (path === '/gear') {
+      state.activeSlug = null;
+      paintActiveSidebar();
+      if (window.GearPage) window.GearPage.mount(mainPane);
+      return;
+    }
     const tripMatch = path.match(/^\/trips\/([^/]+)\/?$/);
     if (tripMatch) {
       state.activeSlug = tripMatch[1];
@@ -235,10 +241,15 @@
     mainPane.appendChild(wrap);
 
     // Dispatch meal-plan sections to MealPlan.init instead of leaving them as empty HTML.
+    // Dispatch gear-plan sections to GearPlan.init in the same pass.
     payload.sections.forEach(function (s) {
       if (s.kind === 'meal-plan' && window.MealPlan) {
         var sectEl = wrap.querySelector('#' + CSS.escape(s.id) + ' .section-body');
         if (sectEl) window.MealPlan.init(sectEl, slug, s.payload || {});
+      }
+      if (s.kind === 'gear-plan' && window.GearPlan) {
+        var sectEl = wrap.querySelector('#' + CSS.escape(s.id) + ' .section-body');
+        if (sectEl) window.GearPlan.init(sectEl, slug, s.payload || {});
       }
     });
 

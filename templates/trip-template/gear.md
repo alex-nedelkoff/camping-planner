@@ -1,16 +1,8 @@
-## Shared gear
+---
+items: []
+---
 
-| Item | Who's bringing | Notes |
-|---|---|---|
-| Canoe | | |
-| Paddles | | |
-| PFDs | | |
-| Tarp | | |
-| Stove + fuel | | |
-| Water filter | | |
-| First aid kit | | |
-| Map + compass | | |
+<!-- generated from frontmatter on save; edit via UI -->
+# Shared gear
 
-## Personal gear
-
-Each person brings their own — see `packing.md`.
+Open this section in the trip pane to plan shared gear.

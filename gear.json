@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "categories": ["Navigation", "Shelter", "Sleep", "Cook", "Water", "Food storage", "Safety", "Lighting", "Tools", "Paddling", "Clothing", "Other"],
+  "items": [
+    {"id": "canoe-rental", "name": "Canoe (rental)", "category": "Paddling", "weight_g": 24500},
+    {"id": "paddle", "name": "Paddle", "category": "Paddling", "weight_g": 800},
+    {"id": "pfd", "name": "PFD", "category": "Paddling", "weight_g": 700},
+    {"id": "map-waterproof", "name": "Map (waterproof)", "category": "Navigation", "weight_g": 60},
+    {"id": "compass", "name": "Compass", "category": "Navigation", "weight_g": 30},
+    {"id": "tent-3-person", "name": "Tent (3-person)", "category": "Shelter", "weight_g": null},
+    {"id": "tarp-10x10", "name": "Tarp 10x10 + ridgeline", "category": "Shelter", "weight_g": 900},
+    {"id": "sleeping-bag", "name": "Sleeping bag", "category": "Sleep", "weight_g": null},
+    {"id": "sleeping-pad", "name": "Sleeping pad", "category": "Sleep", "weight_g": null},
+    {"id": "msr-pocket-rocket", "name": "MSR Pocket Rocket stove", "category": "Cook", "weight_g": 73},
+    {"id": "cookpot-with-lid", "name": "Cookpot + lid", "category": "Cook", "weight_g": 350},
+    {"id": "spork", "name": "Spork", "category": "Cook", "weight_g": 15},
+    {"id": "water-filter", "name": "Water filter", "category": "Water", "weight_g": 320},
+    {"id": "nalgene-1l", "name": "Nalgene 1 L", "category": "Water", "weight_g": 180},
+    {"id": "bear-barrel", "name": "Bear barrel", "category": "Food storage", "weight_g": 1500},
+    {"id": "first-aid-kit", "name": "First aid kit", "category": "Safety", "weight_g": 400},
+    {"id": "headlamp", "name": "Headlamp", "category": "Lighting", "weight_g": 90},
+    {"id": "multitool", "name": "Multitool", "category": "Tools", "weight_g": 200},
+    {"id": "lighter", "name": "Lighter", "category": "Tools", "weight_g": 20},
+    {"id": "dry-bag", "name": "Dry bag", "category": "Other", "weight_g": 120}
+  ]
+}

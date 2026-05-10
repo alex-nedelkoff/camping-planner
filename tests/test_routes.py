@@ -66,6 +66,13 @@ def test_foods_page_serves_shell(client):
     assert "Foods DB" in r.text  # sidebar link
 
 
+def test_gear_page_serves_shell(client):
+    r = client.get("/gear")
+    assert r.status_code == 200
+    assert 'id="main-pane"' in r.text
+    assert "Gear DB" in r.text  # sidebar link
+
+
 def test_trips_list_endpoint(client):
     r = client.get("/api/trips")
     assert r.status_code == 200
@@ -189,12 +196,15 @@ def test_get_trip_costs_section_includes_per_person_summary(client):
 
 
 def test_save_gear_missing_trip_returns_404(client):
+    # /api/save-gear is a back-compat wrapper for the old gear-table editor.
+    # Now that gear is managed by the gear-plan UI (not a markdown table),
+    # save_section_table rejects it with 400 before it can reach the 404.
     r = client.post(
         "/api/save-gear",
         params={"trip": "no-such-trip"},
         json={"rows": [["Tent", "Alex", ""]]},
     )
-    assert r.status_code == 404
+    assert r.status_code == 400
 
 
 def test_save_gear_rejects_malformed_rows(client):
@@ -243,9 +253,10 @@ def test_save_section_table_rejects_non_table_section(client):
 
 
 def test_save_section_table_404_on_unknown_trip(client):
+    # gear is no longer table-editable; use costs to test the 404 path.
     r = client.post(
         "/api/save-section-table",
-        params={"trip": "nope", "section": "gear"},
+        params={"trip": "nope", "section": "costs"},
         json={"rows": [["x"]]},
     )
     assert r.status_code == 404
@@ -257,14 +268,15 @@ def test_save_section_table_404_on_unknown_trip(client):
 
 
 def test_get_section_returns_raw_markdown(client):
+    # gear is now managed by the gear-plan UI; use packing to test the section endpoint.
     r = client.get(
         "/api/section",
-        params={"trip": "killarney-2026-05", "section": "gear"},
+        params={"trip": "killarney-2026-05", "section": "packing"},
     )
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["section"] == "gear"
-    assert "Item" in body["markdown"]
+    assert body["section"] == "packing"
+    assert isinstance(body["markdown"], str)
 
 
 def test_get_intro_returns_body_after_frontmatter(client):
@@ -286,9 +298,10 @@ def test_get_section_rejects_unknown_name(client):
 
 
 def test_get_section_404_on_unknown_trip(client):
+    # gear is no longer in EDITABLE_SECTIONS; use packing to test the 404 path.
     r = client.get(
         "/api/section",
-        params={"trip": "no-such-trip", "section": "gear"},
+        params={"trip": "no-such-trip", "section": "packing"},
     )
     assert r.status_code == 404
 
@@ -334,9 +347,10 @@ def test_save_section_rejects_unknown_section(client):
 
 
 def test_save_section_404_on_unknown_trip(client):
+    # gear is no longer in EDITABLE_SECTIONS; use packing to test the 404 path.
     r = client.post(
         "/api/save-section",
-        params={"trip": "no-such-trip", "section": "gear"},
+        params={"trip": "no-such-trip", "section": "packing"},
         json={"markdown": "x"},
     )
     assert r.status_code == 404
