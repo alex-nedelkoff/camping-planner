@@ -1,0 +1,71 @@
+"""Tests for jeffs_extractor.py."""
+from pathlib import Path
+
+import pytest
+
+from tests.fixtures.synthetic_kmz import write_synthetic_kmz
+from jeffs_extractor import walk_kmz, tile_pixel_to_gps
+
+
+def test_walk_kmz_yields_tiles_in_bbox(tmp_path):
+    kmz = tmp_path / "synthetic.kmz"
+    # Four tiles: two inside target bbox, two outside.
+    write_synthetic_kmz(kmz, level=6, tiles=[
+        # Inside bbox (45.0..46.0, -82.0..-81.0):
+        {"filename": "a.png", "bounds": (45.5, 45.4, -81.5, -81.6)},
+        {"filename": "b.png", "bounds": (45.7, 45.6, -81.3, -81.4)},
+        # Outside bbox:
+        {"filename": "c.png", "bounds": (50.0, 49.9, -81.5, -81.6)},  # north of bbox
+        {"filename": "d.png", "bounds": (45.5, 45.4, -70.0, -70.1)},  # east of bbox
+    ])
+
+    bbox = (45.0, -82.0, 46.0, -81.0)  # (south, west, north, east)
+    tiles = list(walk_kmz(kmz, bbox=bbox, zoom_level=6))
+    names = sorted(t.image_path.name for t in tiles)
+    assert names == ["a.png", "b.png"]
+
+
+def test_tile_pixel_to_gps_linear_interpolation():
+    # Tile covering 1 deg x 1 deg, image 100x100. Pixel (50, 50) is center.
+    class FakeTile:
+        north = 46.0
+        south = 45.0
+        east = -81.0
+        west = -82.0
+
+    lat, lon = tile_pixel_to_gps(FakeTile, 50, 50, img_w=100, img_h=100)
+    assert abs(lat - 45.5) < 0.001
+    assert abs(lon - -81.5) < 0.001
+
+    # Top-left pixel (0, 0) should be (north, west) = (46.0, -82.0).
+    lat, lon = tile_pixel_to_gps(FakeTile, 0, 0, img_w=100, img_h=100)
+    assert abs(lat - 46.0) < 0.001
+    assert abs(lon - -82.0) < 0.001
+
+    # Bottom-right pixel (100, 100) should be (south, east) = (45.0, -81.0).
+    lat, lon = tile_pixel_to_gps(FakeTile, 100, 100, img_w=100, img_h=100)
+    assert abs(lat - 45.0) < 0.001
+    assert abs(lon - -81.0) < 0.001
+
+
+def test_walk_kmz_rejects_rotated_tiles(tmp_path):
+    """Non-zero rotation requires homography; we hard-fail rather than silently skew."""
+    kmz = tmp_path / "synthetic.kmz"
+    write_synthetic_kmz(kmz, level=6, tiles=[
+        {"filename": "a.png", "bounds": (45.5, 45.4, -81.5, -81.6)},
+    ])
+    # Patch the KML to set rotation=15 instead of 0.
+    import zipfile
+    with zipfile.ZipFile(kmz, "r") as z:
+        contents = {n: z.read(n) for n in z.namelist()}
+    for name in list(contents):
+        if name.endswith(".kml") and name != "doc.kml":
+            contents[name] = contents[name].replace(b"<rotation>0</rotation>",
+                                                    b"<rotation>15</rotation>")
+    with zipfile.ZipFile(kmz, "w", zipfile.ZIP_DEFLATED) as z:
+        for n, b in contents.items():
+            z.writestr(n, b)
+
+    bbox = (45.0, -82.0, 46.0, -81.0)
+    with pytest.raises(ValueError, match="rotation"):
+        list(walk_kmz(kmz, bbox=bbox, zoom_level=6))
