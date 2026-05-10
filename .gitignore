@@ -12,3 +12,4 @@ jeffs_review.html
 *.sqlite3-shm
 *.sqlite3-wal
 jeffs_osm_overlay.html
+jeffs_osm_overlay_raster.jpg
