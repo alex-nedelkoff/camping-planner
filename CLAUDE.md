@@ -176,8 +176,13 @@ page.goto(url, timeout=45000, wait_until="domcontentloaded")
   - `app/templates/` — Jinja2 templates (`base.html`, `index.html` SPA shell)
   - `app/static/css/` — `index.css` (shell + sidebar) and `trip.css` (trip pane visuals)
   - `app/static/js/` — `index.js` (router + sidebar + forms) and `trip.js` (per-trip behaviours: checklist sync, gear editor, embedded-script bootstrapping)
+  - `app/static/js/foods.js` — `/foods` master-detail UI.
+  - `app/static/js/meal-plan.js` — trip-page meal planner section.
+  - `app/services/foods.py` — load/search/upsert/delete foods; mtime-invalidated cache.
+  - `app/services/meal_plan.py` — read/write the YAML meal plan in `trips/<slug>/food.md`; compute calorie totals against an activity-level target.
 - `camping.sqlite3` — gitignored. Caches + checklist state. Safe to delete; app re-creates the schema empty on next boot. Trip content is *not* in here.
 - `build_trip.py` — markdown → rendered HTML fragments (header, sections, weather, route map). Pure render library; the FastAPI layer composes these via `load_trip_payload`. No more `trip.html` artifact.
+- `foods.json` — git-tracked foods catalog (name, category, kcal/serving, serving size, url). Edited via the `/foods` page; loaded once and cached in-memory by `app/services/foods.py`.
 - `ontario_parks.py` — availability checker (API + Playwright fallback)
 - `weather.py` — weather data via Open-Meteo API (historical averages + forecast)
 - `route_map.py` — KML/GPX parser, Leaflet map + SVG offline map generator
@@ -192,7 +197,7 @@ page.goto(url, timeout=45000, wait_until="domcontentloaded")
 - `legacy/` — pre-FastAPI sheet-driven flow (`trip_planner.py`, sample resource data, etc.). Kept for reference.
 - `FastAPI-refactor.md` — phase history (Phases 1–3 complete) and rationale for what was skipped
 
-**Source of truth:** markdown files in `trips/<slug>/` for trip *content*. SQLite (`camping.sqlite3`) holds operational state only — caches and per-user checklist toggles. Disaster-recovery story: git restores trip content; the DB is rebuildable on demand.
+**Source of truth:** markdown files in `trips/<slug>/` for trip *content*. `parks.json` for park metadata. `foods.json` for the foods catalog. SQLite (`camping.sqlite3`) holds operational state only — caches and per-user checklist toggles. Disaster-recovery story: git restores trip content + foods catalog; the DB is rebuildable on demand.
 
 **Identity:** cookie-based, no password. The `cp_user` cookie names the active user; empty/absent = "shared" bucket. Phase 2 checklist rows (no user) auto-migrate to the shared bucket on first Phase 3 boot. See `FastAPI-refactor.md` for phase history.
 
@@ -241,7 +246,7 @@ Slug convention is `<park>-<YYYY-MM>` derived from `park` + `start_date`.
 | `trip.md`      | YAML frontmatter (park, dates, participants, nights, access_point) + intro markdown |
 | `itinerary.md` | Day-by-day schedule                                                   |
 | `gear.md`      | Shared gear table — editable in-browser via the Edit gear button     |
-| `food.md`      | Shared meal plan                                                      |
+| `food.md`     | YAML frontmatter for structured per-day meal plan; markdown body regenerated on save. Edit via the in-pane meal planner. |
 | `packing.md`   | Personal packing list (the only file with task-list checkboxes)       |
 | `costs.md`     | Expense splits                                                        |
 | `route.gpx` / `route.kml` | Optional route file; auto-rendered as Leaflet + SVG          |
@@ -260,6 +265,19 @@ Slug convention is `<park>-<YYYY-MM>` derived from `park` + `start_date`.
 - **Static SVG diagram** (offline) — route shape, waypoints, distances, scale bar, in a collapsible `<details>`
 
 If `trip.md` has `nights` + `access_point` but no `route.gpx`/`.kml`, `route_engine.py` auto-routes paddling + portage segments using the cached OSM data in `osm_killarney_cache.json` and produces per-day estimates.
+
+### Foods catalog & meal planner
+
+`foods.json` (repo root) is the catalog of camping foods. Edit it via the `/foods` page (master-detail UI: search/filter on the left, edit form on the right).
+
+Each trip's `food.md` holds a structured meal plan as YAML frontmatter. The meal planner on the trip page lets you add per-day meals, pick foods from the catalog (autocomplete; create-new opens a modal that updates `foods.json`), and shows live calorie totals against an activity-level target. The four activity levels and their default kcal/person/day:
+
+- backcountry → 4000
+- bikepacking → 4500
+- boat-camping → 3500
+- car-camping → 2500
+
+The body of `food.md` is regenerated on every save; hand-edit only the YAML frontmatter (or, better, edit via the UI).
 
 ### Trip pane features
 

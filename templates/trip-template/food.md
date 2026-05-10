@@ -1,17 +1,11 @@
-## Friday dinner
+---
+calorie_target:
+  activity_level: backcountry
+  kcal_per_person_per_day: 4000
+days: []
+---
 
-- _meal idea_ — _who's bringing_
+<!-- generated from frontmatter on save; edit via UI -->
+# Food plan
 
-## Saturday breakfast
-
-## Saturday lunch
-
-## Saturday dinner
-
-## Sunday breakfast
-
-## Sunday lunch
-
-## Sunday dinner
-
-## Monday breakfast
+Open this section in the trip pane to plan meals.
