@@ -18,6 +18,7 @@ from pathlib import Path
 import requests
 
 CACHE_PATH = Path(__file__).parent / "osm_killarney_cache.json"
+JEFFS_CACHE_PATH = Path(__file__).parent / "jeffs_killarney_cache.json"
 
 # Killarney Provincial Park bounding box (south, west, north, east).
 KILLARNEY_BBOX = (45.92, -81.60, 46.12, -81.25)
@@ -156,13 +157,41 @@ def refresh_killarney_cache() -> None:
 
 
 def load_killarney_features() -> dict:
-    """Read the cached features. Raises FileNotFoundError if cache is missing."""
+    """Read cached features. Merges Jeff's cache when present.
+
+    Lakes: BOTH Jeff's and OSM polygons are kept. Jeff's are first in the list
+    so name lookups (`_find_lake`) return Jeff's centroid (typically more
+    accurate). OSM polygons remain so point-in-polygon tests (used by the
+    portage classifier) still match against OSM-shaped portage endpoints —
+    otherwise OSM portages get dropped because Jeff's tighter polygons don't
+    contain the OSM-tagged endpoints.
+
+    Portages: OSM only (Phase 1 doesn't extract portages).
+    Campsites: Jeff's only (new top-level key; absent OSM-only loads).
+
+    Raises FileNotFoundError if the OSM cache is missing.
+    """
     if not CACHE_PATH.exists():
         raise FileNotFoundError(
             f"{CACHE_PATH}: cache missing. "
             "Run `python3 build_trip.py --refresh-osm <trip-dir>` to populate."
         )
-    return json.loads(CACHE_PATH.read_text(encoding="utf-8"))
+    osm = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
+    out = {
+        "lakes": list(osm.get("lakes", [])),
+        "portages": list(osm.get("portages", [])),
+        "campsites": [],
+    }
+
+    if JEFFS_CACHE_PATH.exists():
+        jeffs = json.loads(JEFFS_CACHE_PATH.read_text(encoding="utf-8"))
+        jeffs_lakes = jeffs.get("lakes", [])
+        # Jeff's lakes prepended → name lookup finds Jeff's first.
+        # OSM lakes preserved → portage point-in-polygon still resolves.
+        out["lakes"] = list(jeffs_lakes) + out["lakes"]
+        out["campsites"] = jeffs.get("campsites", [])
+
+    return out
 
 
 if __name__ == "__main__":

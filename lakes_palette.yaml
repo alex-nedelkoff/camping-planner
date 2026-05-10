@@ -1,0 +1,8 @@
+# HSV thresholds for Jeff's lake water color. Tune empirically against
+# the actual KMZ on first run; defaults are starting points.
+hue:        [85, 110]
+saturation: [40, 200]
+value:      [180, 255]
+
+# Minimum contour area in pixels (drops label boxes, decorative water symbols)
+min_area_px: 500

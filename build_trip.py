@@ -227,8 +227,15 @@ def render_route_section(trip) -> str:
     except FileNotFoundError:
         return ""
 
+    # Optional GPX library — used when a real trace exists for a lake-pair
+    # leg. Falls back to OSM portage graph otherwise.
+    import gpx_library as _gpx_library
+    library = _gpx_library.load_library_index(
+        Path(__file__).parent / "routes" / "killarney" / "library"
+    )
+
     route = _route_engine.build_route(
-        nights=nights, access_point=access_point, osm=osm,
+        nights=nights, access_point=access_point, osm=osm, library=library,
     )
     return _render_auto_route(route)
 

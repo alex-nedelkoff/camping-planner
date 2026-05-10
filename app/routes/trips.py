@@ -1,4 +1,4 @@
-"""Trip endpoints (new, save-gear, fetch rendered payload)."""
+"""Trip endpoints: list, fetch, mutate."""
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -7,6 +7,8 @@ from app.models import (
     NewTripResponse,
     OkResponse,
     SaveGearRequest,
+    SaveSectionRequest,
+    SectionResponse,
     TripListItem,
     TripListResponse,
     TripPayloadResponse,
@@ -39,8 +41,51 @@ def new_trip(body: NewTripRequest):
 
 @router.post("/save-gear", response_model=OkResponse)
 def save_gear(body: SaveGearRequest, trip: str = Query(..., min_length=1)):
+    """Back-compat for older trip pages. Prefer /api/save-section-table."""
     try:
         trips_svc.save_gear_table(slug=trip, rows=body.rows)
+    except TripError as exc:
+        _raise(exc)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail={"ok": False, "error": str(exc)})
+    return OkResponse()
+
+
+@router.post("/save-section-table", response_model=OkResponse)
+def save_section_table(
+    body: SaveGearRequest,
+    trip: str = Query(..., min_length=1),
+    section: str = Query(..., min_length=1),
+):
+    try:
+        trips_svc.save_section_table(slug=trip, section=section, rows=body.rows)
+    except TripError as exc:
+        _raise(exc)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail={"ok": False, "error": str(exc)})
+    return OkResponse()
+
+
+@router.get("/section", response_model=SectionResponse)
+def get_section(
+    trip: str = Query(..., min_length=1),
+    section: str = Query(..., min_length=1),
+):
+    try:
+        md = trips_svc.load_section(slug=trip, section=section)
+    except TripError as exc:
+        _raise(exc)
+    return SectionResponse(section=section, markdown=md)
+
+
+@router.post("/save-section", response_model=OkResponse)
+def save_section(
+    body: SaveSectionRequest,
+    trip: str = Query(..., min_length=1),
+    section: str = Query(..., min_length=1),
+):
+    try:
+        trips_svc.save_section(slug=trip, section=section, markdown=body.markdown)
     except TripError as exc:
         _raise(exc)
     except Exception as exc:

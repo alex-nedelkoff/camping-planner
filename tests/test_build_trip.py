@@ -169,12 +169,10 @@ def _all_html(payload) -> str:
 
 def test_load_trip_payload_assembles_sections(tmp_path, monkeypatch):
     fixture = Path(__file__).parent / "fixtures" / "sample-trip"
-    # Redirect the service's TRIPS_DIR to the fixture's parent so the slug
-    # "sample-trip" resolves to fixture/.
     from app.services import trips as trips_svc
     monkeypatch.setattr(trips_svc, "TRIPS_DIR", fixture.parent)
 
-    with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER), \
+    with patch("build_trip.weather_provider", return_value=_FAKE_WEATHER), \
          patch("build_trip._osm_data.load_killarney_features",
                side_effect=FileNotFoundError("no cache")):
         payload = load_trip_payload("sample-trip")
@@ -221,7 +219,7 @@ def test_load_trip_payload_renders_auto_route_when_no_gpx(tmp_path, monkeypatch)
         ],
         "portages": [],
     }
-    with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER), \
+    with patch("build_trip.weather_provider", return_value=_FAKE_WEATHER), \
          patch("build_trip._osm_data.load_killarney_features", return_value=fake_osm):
         payload = load_trip_payload("sample-trip")
 
@@ -237,7 +235,7 @@ def test_load_trip_payload_omits_route_when_no_osm_cache(tmp_path, monkeypatch):
     from app.services import trips as trips_svc
     monkeypatch.setattr(trips_svc, "TRIPS_DIR", fixture.parent)
 
-    with patch("build_trip._weather.get_weather", return_value=_FAKE_WEATHER), \
+    with patch("build_trip.weather_provider", return_value=_FAKE_WEATHER), \
          patch("build_trip._osm_data.load_killarney_features",
                side_effect=FileNotFoundError("no cache")):
         payload = load_trip_payload("sample-trip")

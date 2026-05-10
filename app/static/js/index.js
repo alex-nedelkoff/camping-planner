@@ -9,6 +9,27 @@
 (function () {
   'use strict';
 
+  // Auto-fill end date = start + 5 days when the end input is left empty.
+  function plusDaysISO(iso, days) {
+    const d = new Date(iso + 'T00:00:00');
+    if (isNaN(d.getTime())) return '';
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function wireAutoEnd(form) {
+    if (!form) return;
+    const start = form.querySelector('input[name=start]');
+    const end = form.querySelector('input[name=end]');
+    if (!start || !end) return;
+    start.addEventListener('change', function () {
+      if (end.value || !start.value) return;
+      const bumped = plusDaysISO(start.value, 5);
+      if (bumped) end.value = bumped;
+    });
+  }
+
+
   const state = {
     user: '',
     trips: [],
@@ -237,6 +258,7 @@
   function wireNewTripForm() {
     const form = document.getElementById('new-trip-form');
     if (!form) return;
+    wireAutoEnd(form);
     const status = form.querySelector('[data-status]');
     form.addEventListener('submit', async function (ev) {
       ev.preventDefault();
@@ -277,6 +299,7 @@
   function wireAvailForm() {
     const form = document.getElementById('avail-form');
     if (!form) return;
+    wireAutoEnd(form);
     const out = form.parentElement.querySelector('[data-results]');
     const btn = form.querySelector('button[type=submit]');
     form.addEventListener('submit', async function (ev) {

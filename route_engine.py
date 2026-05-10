@@ -126,6 +126,8 @@ def _find_lake(name: str, lakes: list) -> Optional[dict]:
     """Look up a lake by name (normalized). Returns lake dict or None."""
     target = _norm_lake_name(name)
     for lake in lakes:
+        if "name" not in lake:
+            continue
         if _norm_lake_name(lake["name"]) == target:
             return lake
     return None
@@ -202,10 +204,12 @@ def _find_connecting_portage(lake_a: dict, lake_b: dict, portages: list) -> Opti
 
 def _build_lake_graph(lakes: list, portages: list) -> dict:
     """Build adjacency: {lake_name: [(neighbor_name, portage_dict, ends), ...]}."""
-    graph: dict = {l["name"]: [] for l in lakes}
+    graph: dict = {l["name"]: [] for l in lakes if "name" in l}
     for p in portages:
         ends = _classify_portage_endpoints(p, lakes)
         if ends[0] is None or ends[1] is None:
+            continue
+        if "name" not in ends[0] or "name" not in ends[1]:
             continue
         a_name = ends[0]["name"]
         b_name = ends[1]["name"]
@@ -258,7 +262,8 @@ def _segment(day: str, kind: str, frm: str, to: str,
     }
 
 
-def build_route(nights: list, access_point: str, osm: dict) -> dict:
+def build_route(nights: list, access_point: str, osm: dict,
+                library: Optional[dict] = None) -> dict:
     """Build per-leg segments + warnings from frontmatter nights + OSM data.
 
     Each "leg" is the travel between consecutive waypoints. Legs are:
@@ -266,8 +271,16 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
       - Day N: nights[N-1] -> nights[N]
       - Last day: nights[-1] -> access_point
 
-    Returns {"segments": [...], "warnings": [...]}.
+    For each leg the engine consults `library` (curated GPX connectors) first
+    and uses real geometry when a matching lake-pair connector is found.
+    Falls back to the OSM portage graph + straight-line paddle when no library
+    match exists, and finally to an `approx` straight-line segment when even
+    OSM lacks connecting data.
+
+    Returns {"segments": [...], "warnings": [...], "markers": [...]}.
     """
+    if library is None:
+        library = {"connectors": []}
     lakes = osm["lakes"] + LAKE_SUPPLEMENT  # add hardcoded supplements
     portages = osm["portages"]
     segments: list = []
@@ -278,11 +291,23 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
     access_info = _resolve_access_point(access_point, lakes)
 
     def _night_point(night: dict) -> Optional[list]:
-        """Best [lat, lon] for a night: gps override > lake centroid > None."""
+        """Best [lat, lon] for a night.
+
+        Resolution order:
+          1. Frontmatter `gps:` override.
+          2. Auto-resolve from osm['campsites'] by (ref, lake).
+          3. Lake centroid.
+          4. None if even the lake doesn't resolve.
+        """
         gps = night.get("gps")
         if gps and len(gps) == 2:
             return [gps[0], gps[1]]
-        lake = _find_lake(night["location"], lakes)
+        site_ref = str(night.get("site", ""))
+        location = night.get("location", "")
+        for cs in osm.get("campsites", []) or []:
+            if cs.get("ref") == site_ref and cs.get("lake") == location:
+                return [cs["gps"][0], cs["gps"][1]]
+        lake = _find_lake(location, lakes)
         return lake["centroid"] if lake else None
 
     # Build the ordered list of waypoint dicts. Each carries a `point` that
@@ -342,6 +367,48 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
             continue
 
         if lake_a and lake_b:
+            # Library path (possibly multi-hop) takes precedence over OSM.
+            from gpx_library import find_library_path
+            lib_path = find_library_path(lake_a["name"], lake_b["name"], library)
+            if lib_path:
+                # Walk each connector in the chain, emitting paddle / portage /
+                # paddle for each hop. Inter-hop paddles between two connectors
+                # use the geometry from the prior connector's `departure` and
+                # the next connector's `approach`.
+                for hop_idx, conn in enumerate(lib_path):
+                    is_first_hop = hop_idx == 0
+                    is_last_hop = hop_idx == len(lib_path) - 1
+
+                    # Approach paddle is only emitted on the FIRST hop. For
+                    # subsequent hops, the previous hop's `departure` already
+                    # covers the same intermediate-lake traversal — skipping
+                    # avoids double-counting both distance and geometry.
+                    if is_first_hop:
+                        approach_geom = ([a_pt_resolved] + conn["approach"]
+                                         if a_pt_resolved else conn["approach"])
+                        segments.append(_segment(
+                            day_label, "paddle", a["label"],
+                            f"{conn['lake_a']} portage",
+                            conn["approach_km"], approach_geom,
+                        ))
+                    segments.append(_segment(
+                        day_label, "portage",
+                        f"{conn['lake_a']} portage",
+                        f"{conn['lake_b']} portage",
+                        conn["portage_km"], conn["portage"],
+                    ))
+                    if is_last_hop and b_pt_resolved:
+                        departure_geom = conn["departure"] + [b_pt_resolved]
+                    else:
+                        departure_geom = conn["departure"]
+                    segments.append(_segment(
+                        day_label, "paddle",
+                        f"{conn['lake_b']} portage",
+                        b["label"] if is_last_hop else conn["lake_b"],
+                        conn["departure_km"], departure_geom,
+                    ))
+                continue
+
             path = _find_path_through_portages(lake_a, lake_b, lakes, portages)
             if path:
                 current_lake = lake_a
@@ -363,7 +430,7 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
                         d_paddle, [current_pt, entry],
                     ))
                     # Portage.
-                    next_lake = next((l for l in lakes if l["name"] == next_name), None)
+                    next_lake = next((l for l in lakes if "name" in l and l["name"] == next_name), None)
                     segments.append(_segment(
                         day_label, "portage",
                         f"{current_lake['name']} portage",
@@ -418,6 +485,7 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
             "kind": "access",
         })
     for night in nights:
+        # Use the same resolution priority as _night_point above.
         gps = night.get("gps")
         if gps and len(gps) == 2:
             markers.append({
@@ -427,7 +495,22 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
                 "kind": "site",
             })
             continue
-        lake = _find_lake(night["location"], lakes)
+        site_ref = str(night.get("site", ""))
+        location = night.get("location", "")
+        campsite = next(
+            (cs for cs in (osm.get("campsites") or [])
+             if cs.get("ref") == site_ref and cs.get("lake") == location),
+            None,
+        )
+        if campsite:
+            markers.append({
+                "label": f"Site {night['site']}, {night['location']}",
+                "lat": campsite["gps"][0],
+                "lon": campsite["gps"][1],
+                "kind": "site",
+            })
+            continue
+        lake = _find_lake(location, lakes)
         if lake:
             markers.append({
                 "label": f"Site {night['site']}, {night['location']} (lake center)",
