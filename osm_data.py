@@ -27,6 +27,7 @@ OVERPASS_QUERY = """
 [out:json][timeout:30];
 (
   way["natural"="water"]["name"]({s},{w},{n},{e});
+  relation["natural"="water"]["name"]({s},{w},{n},{e});
   way["portage"]({s},{w},{n},{e});
   way["canoe"="portage"]({s},{w},{n},{e});
   way["highway"="path"]["name"~"[Pp]ortage"]({s},{w},{n},{e});
@@ -81,32 +82,56 @@ def _is_portage(tags: dict) -> bool:
     return False
 
 
+def _first_outer_polygon(members: list) -> list:
+    """Return the first 'outer'-role member way's geometry as a list of [lat, lon]."""
+    for m in members:
+        if m.get("type") != "way":
+            continue
+        if m.get("role") != "outer":
+            continue
+        geom = m.get("geometry") or []
+        return [[p["lat"], p["lon"]] for p in geom]
+    return []
+
+
 def _parse_overpass_response(data: dict) -> dict:
     """Convert raw Overpass JSON into our normalized {lakes, portages} shape."""
     lakes = []
     portages = []
     for el in data.get("elements", []):
-        if el.get("type") != "way":
-            continue
+        el_type = el.get("type")
         tags = el.get("tags", {})
-        geom = el.get("geometry") or []
-        points = [[p["lat"], p["lon"]] for p in geom]
-        if not points:
-            continue
 
-        if _is_lake(tags):
+        if el_type == "way":
+            geom = el.get("geometry") or []
+            points = [[p["lat"], p["lon"]] for p in geom]
+            if not points:
+                continue
+
+            if _is_lake(tags):
+                lakes.append({
+                    "name": tags["name"],
+                    "polygon": points,
+                    "centroid": _polygon_centroid(points),
+                })
+            elif _is_portage(tags):
+                portages.append({
+                    "name": tags.get("name") or None,
+                    "line": points,
+                    "length_km": round(_line_length_km(points), 3),
+                    "endpoints": [points[0], points[-1]],
+                })
+        elif el_type == "relation" and _is_lake(tags):
+            # Multipolygon water relation. Use the first outer member as the polygon.
+            outer_points = _first_outer_polygon(el.get("members") or [])
+            if not outer_points:
+                continue
             lakes.append({
                 "name": tags["name"],
-                "polygon": points,
-                "centroid": _polygon_centroid(points),
+                "polygon": outer_points,
+                "centroid": _polygon_centroid(outer_points),
             })
-        elif _is_portage(tags):
-            portages.append({
-                "name": tags.get("name") or None,
-                "line": points,
-                "length_km": round(_line_length_km(points), 3),
-                "endpoints": [points[0], points[-1]],
-            })
+
     return {"lakes": lakes, "portages": portages}
 
 

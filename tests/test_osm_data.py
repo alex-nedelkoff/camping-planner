@@ -71,3 +71,55 @@ def test_parse_filters_unrelated_ways():
     assert "lakes" in out and "portages" in out
     # Verify the residential way was dropped.
     assert len(out["lakes"]) + len(out["portages"]) == 2
+
+
+def test_parse_extracts_multipolygon_relation():
+    """Killarney's major lakes are tagged as multipolygon relations, not simple ways."""
+    data = {
+        "version": 0.6,
+        "elements": [
+            {
+                "type": "relation",
+                "id": 100,
+                "tags": {
+                    "natural": "water",
+                    "name": "Big Lake",
+                    "type": "multipolygon",
+                },
+                "members": [
+                    {
+                        "type": "way",
+                        "ref": 200,
+                        "role": "outer",
+                        "geometry": [
+                            {"lat": 46.0, "lon": -81.0},
+                            {"lat": 46.0, "lon": -81.1},
+                            {"lat": 46.1, "lon": -81.1},
+                            {"lat": 46.1, "lon": -81.0},
+                            {"lat": 46.0, "lon": -81.0},
+                        ],
+                    },
+                    {
+                        "type": "way",
+                        "ref": 201,
+                        "role": "inner",  # an island, ignored
+                        "geometry": [
+                            {"lat": 46.04, "lon": -81.05},
+                            {"lat": 46.06, "lon": -81.05},
+                            {"lat": 46.06, "lon": -81.04},
+                            {"lat": 46.04, "lon": -81.05},
+                        ],
+                    },
+                ],
+            },
+        ],
+    }
+    out = _parse_overpass_response(data)
+    assert len(out["lakes"]) == 1
+    lake = out["lakes"][0]
+    assert lake["name"] == "Big Lake"
+    # Polygon is from the outer member, not the inner island.
+    assert len(lake["polygon"]) == 5  # 5 points incl. closure
+    cx, cy = lake["centroid"]
+    assert 45.99 < cx < 46.11
+    assert -81.11 < cy < -80.99
