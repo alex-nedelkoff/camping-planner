@@ -221,3 +221,77 @@ def test_build_day_estimates_marks_approx_days():
     ]
     days = build_day_estimates(segments)
     assert days[0]["approx"] is True
+
+
+def test_build_route_uses_access_point_gps_for_first_and_last_legs():
+    """First/last paddle endpoints use KILLARNEY_ACCESS_POINTS GPS, not the
+    access lake's centroid."""
+    osm = {
+        "lakes": [
+            {
+                "name": "George Lake",
+                "polygon": [
+                    [46.00, -81.39], [46.00, -81.41],
+                    [46.05, -81.41], [46.05, -81.39],
+                    [46.00, -81.39],
+                ],
+                "centroid": [46.025, -81.40],  # offset from access GPS
+            },
+            {
+                "name": "Killarney Lake",
+                "polygon": [
+                    [46.04, -81.34], [46.04, -81.36],
+                    [46.07, -81.36], [46.07, -81.34],
+                    [46.04, -81.34],
+                ],
+                "centroid": [46.055, -81.35],
+            },
+        ],
+        "portages": [
+            {
+                "name": "test portage",
+                "line": [[46.04, -81.40], [46.05, -81.36]],
+                "length_km": 4.5,
+                "endpoints": [[46.04, -81.40], [46.05, -81.36]],
+            },
+        ],
+    }
+    nights = [
+        {"date": "2026-05-15", "site": "1", "location": "Killarney Lake"},
+    ]
+    out = build_route(nights=nights, access_point="George Lake", osm=osm)
+    paddle_segs = [s for s in out["segments"] if s["kind"] == "paddle"]
+    # First paddle starts at access GPS, not George Lake centroid.
+    first_start = paddle_segs[0]["geometry"][0]
+    assert first_start == [46.0136, -81.4049]
+    # Last paddle ends at access GPS, not George Lake centroid.
+    last_end = paddle_segs[-1]["geometry"][-1]
+    assert last_end == [46.0136, -81.4049]
+
+
+def test_build_route_emits_markers_for_access_and_each_night():
+    osm = {
+        "lakes": [
+            {
+                "name": "George Lake",
+                "polygon": [
+                    [46.00, -81.39], [46.00, -81.41],
+                    [46.05, -81.41], [46.05, -81.39],
+                    [46.00, -81.39],
+                ],
+                "centroid": [46.025, -81.40],
+            },
+        ],
+        "portages": [],
+    }
+    nights = [
+        {"date": "2026-05-15", "site": "7", "location": "George Lake"},
+    ]
+    out = build_route(nights=nights, access_point="George Lake", osm=osm)
+    markers = out.get("markers", [])
+    assert len(markers) == 2
+    access = [m for m in markers if m["kind"] == "access"][0]
+    site = [m for m in markers if m["kind"] == "site"][0]
+    assert access["lat"] == 46.0136 and access["lon"] == -81.4049
+    assert "Site 7" in site["label"]
+    assert "lake center" in site["label"]

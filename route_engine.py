@@ -28,6 +28,15 @@ PORTAGE_TOLERANCE_KM = 0.3
 # Maximum number of portage hops to search when pathfinding between lakes.
 MAX_PORTAGE_HOPS = 5
 
+# Hardcoded GPS for Killarney's main access points. Used to anchor the
+# first/last paddle segments of a trip so the route line starts/ends at the
+# real put-in instead of a misleading lake centroid.
+KILLARNEY_ACCESS_POINTS = {
+    "George Lake": {"gps": [46.0136, -81.4049], "lake": "George Lake"},
+    "Bell Lake":   {"gps": [46.0822, -81.2680], "lake": "Bell Lake"},
+    "Chikanishing": {"gps": [46.0125, -81.4485], "lake": "Chikanishing River"},
+}
+
 # OSM doesn't tag Baie Fine as a separate lake (it's part of Lake Huron /
 # North Channel). Hardcode an approximate polygon and centroid so the route
 # engine can resolve trips that visit Baie Fine.
@@ -109,6 +118,22 @@ def _find_lake(name: str, lakes: list) -> Optional[dict]:
         if _norm_lake_name(lake["name"]) == target:
             return lake
     return None
+
+
+def _resolve_access_point(name: str, lakes: list) -> dict:
+    """Resolve an access point name to {gps, lake}.
+
+    Tries the hardcoded KILLARNEY_ACCESS_POINTS table first; for unknown
+    names falls back to treating the name as a lake and using its centroid,
+    so non-Killarney trips still work approximately.
+    """
+    info = KILLARNEY_ACCESS_POINTS.get(name)
+    if info:
+        return {"gps": info["gps"], "lake": _find_lake(info["lake"], lakes)}
+    lake = _find_lake(name, lakes)
+    if lake:
+        return {"gps": lake["centroid"], "lake": lake}
+    return {"gps": None, "lake": None}
 
 
 def _min_dist_to_polygon_vertex(point: list, polygon: list) -> float:
@@ -286,10 +311,14 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
         if lake_a and lake_b:
             path = _find_path_through_portages(lake_a, lake_b, lakes, portages)
             if path:
-                # Walk: lake_a centroid -> (portage entry, portage line,
-                # portage exit, next lake centroid) per hop.
+                # Determine starting point: access-point GPS for the first
+                # leg of the trip, lake centroid otherwise.
                 current_lake = lake_a
-                current_pt = lake_a["centroid"]
+                if i == 1:
+                    access = _resolve_access_point(access_point, lakes)
+                    current_pt = access["gps"] if access["gps"] else lake_a["centroid"]
+                else:
+                    current_pt = lake_a["centroid"]
                 for next_name, portage, ends in path:
                     # Find which endpoint is in current_lake.
                     if ends[0] and ends[0]["name"] == current_lake["name"]:
@@ -316,12 +345,18 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
                     ))
                     current_lake = next_lake
                     current_pt = exit_
-                # Final paddle from last portage exit to lake_b centroid.
-                d_final = _haversine_km(current_pt, lake_b["centroid"])
+                # Determine ending point: access-point GPS for the last leg
+                # of the trip, lake centroid otherwise.
+                if i == len(waypoints) - 1:
+                    access = _resolve_access_point(access_point, lakes)
+                    end_pt = access["gps"] if access["gps"] else lake_b["centroid"]
+                else:
+                    end_pt = lake_b["centroid"]
+                d_final = _haversine_km(current_pt, end_pt)
                 segments.append(_segment(
                     day_label, "paddle",
                     f"{lake_b['name']} portage", b["label"],
-                    d_final, [current_pt, lake_b["centroid"]],
+                    d_final, [current_pt, end_pt],
                 ))
                 continue
 
@@ -350,7 +385,27 @@ def build_route(nights: list, access_point: str, osm: dict) -> dict:
             day_label, "approx", a["label"], b["label"], d_km, [a_pt, b_pt],
         ))
 
-    return {"segments": segments, "warnings": warnings}
+    # Build markers: one for the access point, one per night.
+    markers: list = []
+    access = _resolve_access_point(access_point, lakes)
+    if access["gps"]:
+        markers.append({
+            "label": access_point,
+            "lat": access["gps"][0],
+            "lon": access["gps"][1],
+            "kind": "access",
+        })
+    for night in nights:
+        lake = _find_lake(night["location"], lakes)
+        if lake:
+            markers.append({
+                "label": f"Site {night['site']}, {night['location']} (lake center)",
+                "lat": lake["centroid"][0],
+                "lon": lake["centroid"][1],
+                "kind": "site",
+            })
+
+    return {"segments": segments, "warnings": warnings, "markers": markers}
 
 
 def estimate_minutes(paddle_km: float, portage_km: float) -> int:

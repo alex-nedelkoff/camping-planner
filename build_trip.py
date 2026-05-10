@@ -273,7 +273,6 @@ def _render_auto_route(route: dict) -> str:
 
     # Build a route_map-compatible structure to pass to generate_map_section.
     tracks = []
-    waypoints = []
     for seg in route["segments"]:
         if not seg["geometry"]:
             continue
@@ -283,6 +282,11 @@ def _render_auto_route(route: dict) -> str:
             "name": track_name,
             "points": [tuple(pt) for pt in seg["geometry"]],
         })
+    # Markers (access point + per-night site centroids) become Leaflet pins.
+    waypoints = [
+        {"lat": m["lat"], "lon": m["lon"], "name": m["label"], "desc": ""}
+        for m in route.get("markers", [])
+    ]
     map_html = _route_map.generate_map_section({
         "waypoints": waypoints, "tracks": tracks, "source": "auto",
     })
