@@ -1,7 +1,5 @@
-| Item | Who paid | Amount |
+| Item | Who paid | Amount ($) |
 |---|---|---|
 | Permit / reservation | | |
 | Gas | | |
 | Groceries | | |
-
-**Total per person:**

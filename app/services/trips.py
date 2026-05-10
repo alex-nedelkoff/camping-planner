@@ -340,6 +340,73 @@ def save_gear_table(
 
 
 # ---------------------------------------------------------------------------
+# Costs auto-summary
+# ---------------------------------------------------------------------------
+
+
+def _parse_amount(text: str) -> float | None:
+    """Best-effort parse of a cost cell to a float. Strips $, commas, spaces."""
+    cleaned = (text or "").replace("$", "").replace(",", "").strip()
+    if not cleaned:
+        return None
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def costs_summary_html(costs_md: str, participant_count: int) -> str:
+    """Compute total + per-person from the costs markdown table.
+
+    Returns an HTML fragment to append after the rendered table. Returns "" if
+    the table is empty or absent — the section just shows an unannotated table.
+    """
+    match = _MD_TABLE_RE.search(costs_md)
+    if not match:
+        return ""
+    header_line = match.group(1).splitlines()[0]
+    headers = [h.strip().lower() for h in header_line.strip().strip("|").split("|")]
+    amount_idx = next(
+        (i for i, h in enumerate(headers) if "amount" in h),
+        None,
+    )
+    if amount_idx is None:
+        return ""
+
+    total = 0.0
+    counted = 0
+    for row_line in match.group(2).strip().splitlines():
+        cells = [c.strip() for c in row_line.strip().strip("|").split("|")]
+        if amount_idx >= len(cells):
+            continue
+        amount = _parse_amount(cells[amount_idx])
+        if amount is None:
+            continue
+        total += amount
+        counted += 1
+    if counted == 0:
+        return ""
+
+    if participant_count > 0:
+        per_person = total / participant_count
+        per_person_label = (
+            f'<strong>Per person ({participant_count}):</strong> '
+            f'${per_person:,.2f}'
+        )
+    else:
+        per_person_label = (
+            '<strong>Per person:</strong> '
+            '<em>add participants to compute split</em>'
+        )
+
+    return (
+        '<p class="costs-summary">'
+        f'<strong>Total:</strong> ${total:,.2f} &middot; {per_person_label}'
+        '</p>'
+    )
+
+
+# ---------------------------------------------------------------------------
 # Trip rendering payload (consumed by /api/trip/<slug>)
 # ---------------------------------------------------------------------------
 
@@ -403,6 +470,7 @@ def load_trip_payload(slug: str, trips_dir: Path | None = None) -> dict:
             "html": weather_html,
         })
 
+    participant_count = len(fm.get("participants", []) or [])
     for section_id in ("gear", "food", "packing", "costs"):
         if section_id == "food":
             try:
@@ -420,13 +488,16 @@ def load_trip_payload(slug: str, trips_dir: Path | None = None) -> dict:
                 "payload": {"plan": plan, "totals": totals},
             })
         else:
+            section_html = build_trip.render_section(trip[section_id], section_id)
+            if section_id == "costs":
+                section_html += costs_summary_html(trip["costs"], participant_count)
             sections.append({
                 "id": section_id,
                 "title": section_id.capitalize(),
                 "editable": True,
                 "kind": "html",
                 "payload": None,
-                "html": build_trip.render_section(trip[section_id], section_id),
+                "html": section_html,
             })
 
     return {
