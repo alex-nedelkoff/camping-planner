@@ -222,23 +222,63 @@ if (tripMarkers && tripMarkers.length) {
   layerOverlays['Trip waypoints'] = tripWaypointLayer;
 }
 
+// Catmull-Rom interpolation: subdivide a polyline into many smooth-curve
+// points that pass through every original vertex. Used to render route
+// segments as splines instead of jagged straight-line connections.
+function _catmullRomPoint(p0, p1, p2, p3, t) {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return [
+    0.5 * ((2 * p1[0]) +
+           (-p0[0] + p2[0]) * t +
+           (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 +
+           (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
+    0.5 * ((2 * p1[1]) +
+           (-p0[1] + p2[1]) * t +
+           (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 +
+           (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3),
+  ];
+}
+
+function smoothPolyline(points, stepsPerSegment) {
+  // Need at least 3 points to interpolate; otherwise return as-is.
+  if (!Array.isArray(points) || points.length < 3) return points;
+  const steps = stepsPerSegment || 12;
+  const out = [points[0]];
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] || points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || points[i + 1];
+    for (let s = 1; s <= steps; s++) {
+      out.push(_catmullRomPoint(p0, p1, p2, p3, s / steps));
+    }
+  }
+  return out;
+}
+
 if (tripSegments && tripSegments.length) {
   const paddleLines = [];
   const portageLines = [];
   const approxLines = [];
   tripSegments.forEach(function(s) {
-    const coords = (s.geometry || []).filter(function(p) {
+    const rawCoords = (s.geometry || []).filter(function(p) {
       return Array.isArray(p) && p.length === 2;
     });
-    if (coords.length < 2) return;
+    if (rawCoords.length < 2) return;
+    // Render as smoothed spline. Approx segments stay straight (only
+    // 2 points anyway, and they're "we don't know the route" markers).
+    const coords = (s.kind === 'approx') ? rawCoords : smoothPolyline(rawCoords);
     const popup = s.from + ' → ' + s.to + ' (' + s.distance_km + ' km)';
     if (s.kind === 'paddle') {
       paddleLines.push(L.polyline(coords, {
         color: '#0d47a1', weight: 4, opacity: 0.85,
+        smoothFactor: 0,  // use our own smoothing, not Leaflet's simplifier
       }).bindPopup(popup));
     } else if (s.kind === 'portage') {
       portageLines.push(L.polyline(coords, {
         color: '#b53d00', weight: 4, opacity: 0.95,
+        smoothFactor: 0,
       }).bindPopup(popup));
     } else if (s.kind === 'approx') {
       approxLines.push(L.polyline(coords, {
