@@ -117,13 +117,65 @@ def _sample_count_for(distance_km):
     return max(SAMPLES_MIN, math.ceil(distance_km * SAMPLES_PER_KM))
 
 
+def _curve_samples(entry, exit, centroid, pull, area, n_samples):
+    """Generate Bezier samples for the given pull factor and lake area."""
+    if area < 1.0:
+        # Quadratic — single control point pulled from the entry-exit midpoint
+        # toward the centroid. Pull=1 puts it at centroid, pull=0 at midpoint.
+        midpoint = [(entry[0] + exit[0]) / 2, (entry[1] + exit[1]) / 2]
+        cp = [midpoint[0] + pull * (centroid[0] - midpoint[0]),
+              midpoint[1] + pull * (centroid[1] - midpoint[1])]
+        sampler = lambda t: _bezier_quadratic(entry, cp, exit, t)
+    elif area < 5.0:
+        cp1 = _control_point(entry, centroid, pull)
+        cp2 = _control_point(exit, centroid, pull)
+        sampler = lambda t: _bezier_cubic(entry, cp1, cp2, exit, t)
+    else:
+        # Quartic: 3 anchors at fractions 0.25, 0.5, 0.75 along the
+        # entry-exit STRAIGHT line, each pulled toward centroid by `pull`.
+        # At pull=0 the anchors stay on the straight line, so the curve
+        # degenerates to a straight line — same property the cubic branch
+        # already has.
+        straight_25 = [entry[0] + 0.25 * (exit[0] - entry[0]),
+                       entry[1] + 0.25 * (exit[1] - entry[1])]
+        straight_50 = [entry[0] + 0.50 * (exit[0] - entry[0]),
+                       entry[1] + 0.50 * (exit[1] - entry[1])]
+        straight_75 = [entry[0] + 0.75 * (exit[0] - entry[0]),
+                       entry[1] + 0.75 * (exit[1] - entry[1])]
+        cp1 = _control_point(straight_25, centroid, pull)
+        cp2 = _control_point(straight_50, centroid, pull)
+        cp3 = _control_point(straight_75, centroid, pull)
+        sampler = lambda t: _bezier_quartic(entry, cp1, cp2, cp3, exit, t)
+
+    out = []
+    for i in range(n_samples + 1):
+        t = i / n_samples
+        out.append(sampler(t))
+    out[0] = [entry[0], entry[1]]
+    out[-1] = [exit[0], exit[1]]
+    return out
+
+
+def _all_samples_in_polygon(samples, polygon):
+    """True if every sample point lies inside the polygon. Endpoints excluded
+    (they're often on the polygon boundary by construction)."""
+    for pt in samples[1:-1]:
+        if not _point_in_polygon(pt, polygon):
+            return False
+    return True
+
+
 def fit_paddle_curve(entry, exit, lake):
     """Fit a Bezier curve from entry to exit pulling toward the lake centroid.
 
     Curve order scales with polygon area:
-      area < 1 km²   → quadratic (1 control point at centroid)
-      1 ≤ area < 5   → cubic    (2 control points pulled toward centroid)
-      area ≥ 5       → quartic  (3 control points distributed entry→centroid→exit)
+      area < 1 km²   → quadratic (1 control point)
+      1 ≤ area < 5   → cubic    (2 control points)
+      area ≥ 5       → quartic  (3 control points)
+
+    Tries pull factors from PULL_RETRY_FACTORS in order; returns the first
+    curve whose intermediate samples all lie inside the polygon. Pull 0.0
+    degenerates to a straight line, so this always returns SOMETHING valid.
 
     Returns a densely-sampled polyline of [lat, lon] points starting at
     entry and ending at exit.
@@ -136,30 +188,11 @@ def fit_paddle_curve(entry, exit, lake):
     n_samples = _sample_count_for(distance)
     area = _polygon_area_km2(polygon)
 
-    if area < 1.0:
-        sampler = lambda t: _bezier_quadratic(entry, centroid, exit, t)
-    elif area < 5.0:
-        cp1 = _control_point(entry, centroid, CENTROID_PULL)
-        cp2 = _control_point(exit, centroid, CENTROID_PULL)
-        sampler = lambda t: _bezier_cubic(entry, cp1, cp2, exit, t)
-    else:
-        # Quartic: 3 controls distributed at fractions 0.25, 0.5, 0.75 of
-        # the entry → centroid → exit polyline, each pulled toward centroid.
-        # Anchors first:
-        a25 = [entry[0] + 0.5 * (centroid[0] - entry[0]),
-               entry[1] + 0.5 * (centroid[1] - entry[1])]
-        a50 = list(centroid)
-        a75 = [exit[0] + 0.5 * (centroid[0] - exit[0]),
-               exit[1] + 0.5 * (centroid[1] - exit[1])]
-        cp1 = _control_point(a25, centroid, CENTROID_PULL)
-        cp2 = _control_point(a50, centroid, CENTROID_PULL)
-        cp3 = _control_point(a75, centroid, CENTROID_PULL)
-        sampler = lambda t: _bezier_quartic(entry, cp1, cp2, cp3, exit, t)
-
-    out = []
-    for i in range(n_samples + 1):
-        t = i / n_samples
-        out.append(sampler(t))
-    out[0] = [entry[0], entry[1]]
-    out[-1] = [exit[0], exit[1]]
-    return out
+    last_geom = None
+    for pull in PULL_RETRY_FACTORS:
+        geom = _curve_samples(entry, exit, centroid, pull, area, n_samples)
+        if _all_samples_in_polygon(geom, polygon):
+            return geom
+        last_geom = geom
+    # All retries failed → return the straightest version (last attempted).
+    return last_geom or [list(entry), list(exit)]

@@ -129,3 +129,32 @@ def test_fit_paddle_curve_quartic_for_large_lake():
     assert geom[-1] == [exit[0], exit[1]]
     for pt in geom[1:-1]:
         assert _point_in_polygon(pt, poly), f"Sample outside polygon: {pt}"
+
+
+def test_fit_paddle_curve_retries_with_lower_pull_when_curve_leaves_polygon():
+    """U-shaped polygon where 0.4 pull dips into the notch; retry to a lower
+    pull eventually finds a curve (or the straight line) that stays inside.
+    """
+    # U-shape (upside down): outer rectangle minus a notch from the bottom.
+    # Vertices ordered counter-clockwise.
+    poly = [
+        [0.000, 0.000], [0.000, 1.000],
+        [1.000, 1.000], [1.000, 0.000],
+        [0.700, 0.000], [0.700, 0.700],
+        [0.300, 0.700], [0.300, 0.000],
+        [0.000, 0.000],
+    ]
+    # Centroid placed in the NOTCH so 0.4 pull arcs the curve into it.
+    lake = {"polygon": poly, "centroid": [0.5, 0.35]}
+    # Entry/exit at the TOPS of the arms — straight line at y=0.9 is
+    # above the notch top (y=0.7), so pull=0 is a valid escape hatch.
+    entry = [0.1, 0.9]
+    exit = [0.9, 0.9]
+    geom = fit_paddle_curve(entry, exit, lake)
+    # Endpoints preserved exactly.
+    assert geom[0] == [entry[0], entry[1]]
+    assert geom[-1] == [exit[0], exit[1]]
+    # Final geometry's intermediate samples must all be inside the polygon.
+    for pt in geom[1:-1]:
+        assert _point_in_polygon(pt, poly), \
+            f"Final geometry leaves polygon at {pt}"
