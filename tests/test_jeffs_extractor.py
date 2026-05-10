@@ -69,3 +69,74 @@ def test_walk_kmz_rejects_rotated_tiles(tmp_path):
     bbox = (45.0, -82.0, 46.0, -81.0)
     with pytest.raises(ValueError, match="rotation"):
         list(walk_kmz(kmz, bbox=bbox, zoom_level=6))
+
+
+import io
+
+import cv2
+import numpy as np
+from PIL import Image, ImageDraw
+
+from jeffs_extractor import build_mosaic, extract_lakes_from_mosaic
+
+
+def _solid_blue_tile_bytes(w=200, h=200, blue=(100, 200, 220)):
+    """200x200 PNG, mostly white, with a blue circle in the middle (HSV blue range)."""
+    img = Image.new("RGB", (w, h), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    # Note: PIL uses RGB; OpenCV reads BGR. Choose color so HSV-blue triggers.
+    draw.ellipse((40, 40, 160, 160), fill=blue)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def test_build_mosaic_pastes_tiles_at_correct_positions(tmp_path):
+    kmz = tmp_path / "synthetic.kmz"
+    write_synthetic_kmz(kmz, level=6, tiles=[
+        # 2-tile horizontal strip: (45.0..46.0, -82.0..-81.5) and (45.0..46.0, -81.5..-81.0).
+        {"filename": "left.png",
+         "bounds": (46.0, 45.0, -81.5, -82.0),
+         "image": _solid_blue_tile_bytes(100, 100)},
+        {"filename": "right.png",
+         "bounds": (46.0, 45.0, -81.0, -81.5),
+         "image": _solid_blue_tile_bytes(100, 100)},
+    ])
+
+    bbox = (45.0, -82.0, 46.0, -81.0)
+    tiles = list(walk_kmz(kmz, bbox=bbox, zoom_level=6,
+                          extract_dir=tmp_path / "extracted"))
+    mosaic, mosaic_bounds = build_mosaic(tiles)
+    # Mosaic should be wider than tall (covers 1 deg lat, 1 deg lon at lat 45):
+    assert mosaic.shape[0] > 0 and mosaic.shape[1] > 0
+    # Bounds should match the union of tile bounds.
+    n, s, e, w = mosaic_bounds
+    assert abs(n - 46.0) < 1e-6
+    assert abs(s - 45.0) < 1e-6
+    assert abs(e - -81.0) < 1e-6
+    assert abs(w - -82.0) < 1e-6
+
+
+def test_extract_lakes_finds_synthetic_blue_blob(tmp_path):
+    """One blue circle in a tile should produce one lake polygon."""
+    kmz = tmp_path / "synthetic.kmz"
+    write_synthetic_kmz(kmz, level=6, tiles=[
+        {"filename": "a.png",
+         "bounds": (46.0, 45.0, -81.0, -82.0),
+         "image": _solid_blue_tile_bytes(200, 200)},
+    ])
+    bbox = (45.0, -82.0, 46.0, -81.0)
+    tiles = list(walk_kmz(kmz, bbox=bbox, zoom_level=6,
+                          extract_dir=tmp_path / "extracted"))
+    mosaic, mosaic_bounds = build_mosaic(tiles)
+    palette = {"hue": [90, 130], "saturation": [80, 255], "value": [80, 255],
+               "min_area_px": 100}
+    lakes = extract_lakes_from_mosaic(mosaic, mosaic_bounds, palette)
+    assert len(lakes) == 1
+    lake = lakes[0]
+    # Centroid should be near the center of the tile (lat 45.5, lon -81.5).
+    cx, cy = lake["centroid"]
+    assert 45.4 < cx < 45.6
+    assert -81.6 < cy < -81.4
+    # Polygon has at least 4 vertices.
+    assert len(lake["polygon"]) >= 4

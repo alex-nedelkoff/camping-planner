@@ -109,6 +109,117 @@ def tile_pixel_to_gps(tile: Tile, px: float, py: float,
     return (lat, lon)
 
 
+import cv2
+import numpy as np
+from PIL import Image as _PIL_Image
+
+
+def build_mosaic(tiles: list) -> tuple:
+    """Stitch tiles into one BGR numpy mosaic.
+
+    Returns (mosaic_array, mosaic_bounds) where mosaic_bounds is
+    (north, south, east, west) of the union of all tile bounds.
+
+    The mosaic's pixel scale is taken from the first tile (tiles at the
+    same zoom level have the same pixels-per-degree, so this is consistent).
+    """
+    if not tiles:
+        raise ValueError("build_mosaic: no tiles provided")
+
+    norths = [t.north for t in tiles]
+    souths = [t.south for t in tiles]
+    easts = [t.east for t in tiles]
+    wests = [t.west for t in tiles]
+    bounds = (max(norths), min(souths), max(easts), min(wests))
+    n, s, e, w = bounds
+
+    # Determine pixels-per-degree from the first tile.
+    sample = tiles[0]
+    sample_img = np.array(_PIL_Image.open(sample.image_path).convert("RGB"))
+    sample_h, sample_w = sample_img.shape[:2]
+    px_per_deg_lon = sample_w / (sample.east - sample.west)
+    px_per_deg_lat = sample_h / (sample.north - sample.south)
+
+    mosaic_w = max(1, round((e - w) * px_per_deg_lon))
+    mosaic_h = max(1, round((n - s) * px_per_deg_lat))
+    mosaic = np.full((mosaic_h, mosaic_w, 3), 255, dtype=np.uint8)
+
+    for tile in tiles:
+        img = np.array(_PIL_Image.open(tile.image_path).convert("RGB"))
+        h, w_px = img.shape[:2]
+        # Top-left of tile in mosaic pixel coords:
+        x0 = round((tile.west - w) * px_per_deg_lon)
+        y0 = round((n - tile.north) * px_per_deg_lat)
+        x1 = x0 + w_px
+        y1 = y0 + h
+        # Clip to mosaic bounds.
+        sx0, sy0 = max(0, -x0), max(0, -y0)
+        dx0, dy0 = max(0, x0), max(0, y0)
+        dx1, dy1 = min(mosaic_w, x1), min(mosaic_h, y1)
+        if dx1 <= dx0 or dy1 <= dy0:
+            continue
+        crop = img[sy0:sy0 + (dy1 - dy0), sx0:sx0 + (dx1 - dx0)]
+        # PIL gave us RGB; OpenCV expects BGR. Convert before pasting.
+        mosaic[dy0:dy1, dx0:dx1] = cv2.cvtColor(crop, cv2.COLOR_RGB2BGR)
+
+    return mosaic, bounds
+
+
+def _mosaic_pixel_to_gps(mosaic_bounds: tuple, mosaic_shape: tuple,
+                         px: float, py: float) -> tuple:
+    """Inverse of mosaic pixel placement."""
+    n, s, e, w = mosaic_bounds
+    h, w_px = mosaic_shape[:2]
+    lon = w + (px / w_px) * (e - w)
+    lat = n - (py / h) * (n - s)
+    return (lat, lon)
+
+
+def extract_lakes_from_mosaic(mosaic, mosaic_bounds: tuple, palette: dict) -> list:
+    """Find lake polygons via HSV color seg + contour finding.
+
+    Returns a list of dicts:
+      {"polygon": [[lat, lon], ...], "centroid": [lat, lon]}
+
+    Names are NOT assigned here — that's a separate naming step.
+    """
+    hsv = cv2.cvtColor(mosaic, cv2.COLOR_BGR2HSV)
+    low = np.array([palette["hue"][0], palette["saturation"][0], palette["value"][0]])
+    high = np.array([palette["hue"][1], palette["saturation"][1], palette["value"][1]])
+    mask = cv2.inRange(hsv, low, high)
+
+    # Clean: close holes, then open to drop specks.
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE,
+                            cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN,
+                            cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
+                                   cv2.CHAIN_APPROX_SIMPLE)
+    min_area = palette.get("min_area_px", 500)
+    lakes = []
+    for c in contours:
+        if cv2.contourArea(c) < min_area:
+            continue
+        # Simplify.
+        epsilon = 0.001 * cv2.arcLength(c, closed=True)
+        approx = cv2.approxPolyDP(c, epsilon, closed=True)
+        # Project to GPS.
+        polygon_gps = []
+        for pt in approx:
+            px, py = float(pt[0][0]), float(pt[0][1])
+            lat, lon = _mosaic_pixel_to_gps(mosaic_bounds, mosaic.shape, px, py)
+            polygon_gps.append([lat, lon])
+        # Centroid: simple average of vertices.
+        cx = sum(p[0] for p in polygon_gps) / len(polygon_gps)
+        cy = sum(p[1] for p in polygon_gps) / len(polygon_gps)
+        lakes.append({
+            "polygon": polygon_gps,
+            "centroid": [cx, cy],
+        })
+    return lakes
+
+
 def main():
     parser = argparse.ArgumentParser(description="Extract vector data from Jeff's Maps KMZ")
     parser.add_argument("kmz", help="Path to KMZ file")
