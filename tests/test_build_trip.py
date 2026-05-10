@@ -60,6 +60,17 @@ def test_load_trip_picks_up_gpx_route(tmp_path):
     assert result["route_file"].name == "route.gpx"
 
 
+def test_load_trip_picks_up_kml_route(tmp_path):
+    trip_dir = tmp_path / "test-trip"
+    _write_minimal_trip(trip_dir)
+    (trip_dir / "route.kml").write_text("<kml></kml>")
+
+    result = load_trip(trip_dir)
+
+    assert result["route_file"] is not None
+    assert result["route_file"].name == "route.kml"
+
+
 def test_load_trip_prefers_gpx_over_kml(tmp_path):
     trip_dir = tmp_path / "test-trip"
     _write_minimal_trip(trip_dir)
@@ -69,6 +80,14 @@ def test_load_trip_prefers_gpx_over_kml(tmp_path):
     result = load_trip(trip_dir)
 
     assert result["route_file"].name == "route.gpx"
+
+
+def test_load_trip_raises_on_missing_trip_md(tmp_path):
+    trip_dir = tmp_path / "test-trip"
+    trip_dir.mkdir()
+    # No trip.md created.
+    with pytest.raises(ValueError, match="trip.md not found"):
+        load_trip(trip_dir)
 
 
 def test_load_trip_raises_on_missing_frontmatter(tmp_path):

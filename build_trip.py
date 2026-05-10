@@ -3,6 +3,7 @@ Generate a self-contained trip HTML page from a directory of markdown files.
 
 Usage: python3 build_trip.py trips/<trip-name>/
 """
+import datetime
 import re
 from pathlib import Path
 
@@ -13,8 +14,7 @@ FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?(.*)", re.DOTALL)
 
 
 def _stringify_dates(obj):
-    """Recursively convert date/datetime objects to ISO strings in parsed YAML."""
-    import datetime
+    """Recursively convert date/datetime values to ISO strings in parsed YAML."""
     if isinstance(obj, (datetime.date, datetime.datetime)):
         return obj.isoformat()
     if isinstance(obj, dict):
@@ -35,6 +35,8 @@ def load_trip(trip_dir) -> dict:
     """
     trip_dir = Path(trip_dir)
     trip_md_path = trip_dir / "trip.md"
+    if not trip_md_path.exists():
+        raise ValueError(f"{trip_md_path}: trip.md not found")
     trip_md = trip_md_path.read_text()
 
     match = FRONTMATTER_RE.match(trip_md)
