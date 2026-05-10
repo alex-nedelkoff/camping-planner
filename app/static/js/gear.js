@@ -212,6 +212,131 @@
     renderDetail();
   }
 
+  function openManageCatsModal() {
+    const overlay = document.createElement('div');
+    overlay.className = 'gear-cat-modal-overlay';
+    overlay.innerHTML = `
+      <div class="gear-cat-modal">
+        <h3>Manage categories</h3>
+        <div class="gear-cat-error" hidden></div>
+        <ul class="gear-cat-list"></ul>
+        <div class="gear-cat-add">
+          <input type="text" id="gca-new" maxlength="40" placeholder="Add category…">
+          <button class="btn" id="gca-add-btn">Add</button>
+          <button class="btn secondary" id="gca-close">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('#gca-close').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#gca-add-btn').addEventListener('click', () => addCategory(overlay));
+    renderCategoryList(overlay);
+  }
+
+  function showCatError(overlay, msg) {
+    const el = overlay.querySelector('.gear-cat-error');
+    el.textContent = msg;
+    el.hidden = !msg;
+    if (msg) el.style.cssText = 'background:#fee2e2;color:#991b1b;padding:0.5rem;border-radius:4px;margin-bottom:0.6rem';
+  }
+
+  function renderCategoryList(overlay) {
+    const ul = overlay.querySelector('.gear-cat-list');
+    ul.innerHTML = state.catalog.categories.map(c => {
+      if (c === 'Other') {
+        return `<li class="protected"><span>${escapeHtml(c)}  (default — can't remove)</span></li>`;
+      }
+      return `<li data-cat="${escapeHtml(c)}">
+        <span class="gear-cat-name">${escapeHtml(c)}</span>
+        <span>
+          <button data-act="rename">Rename</button>
+          <button class="danger" data-act="delete">× Delete</button>
+        </span>
+      </li>`;
+    }).join('');
+    ul.querySelectorAll('li[data-cat]').forEach(li => {
+      const cat = li.dataset.cat;
+      li.querySelector('[data-act="rename"]').addEventListener('click',
+        () => beginRename(overlay, li, cat));
+      li.querySelector('[data-act="delete"]').addEventListener('click',
+        () => deleteCategory(overlay, cat));
+    });
+  }
+
+  function beginRename(overlay, li, cat) {
+    const span = li.querySelector('.gear-cat-name');
+    const actions = li.querySelector('span:last-child');
+    span.outerHTML = `<input class="gear-cat-rename" type="text" value="${escapeHtml(cat)}" maxlength="40" style="flex:1;padding:0.2rem">`;
+    actions.innerHTML = `
+      <button data-act="save">Save</button>
+      <button class="secondary" data-act="cancel">Cancel</button>
+    `;
+    li.querySelector('[data-act="save"]').addEventListener('click', async () => {
+      const newName = li.querySelector('.gear-cat-rename').value.trim();
+      if (!newName || newName === cat) { renderCategoryList(overlay); return; }
+      const r = await fetch(`/api/gear/categories/${encodeURIComponent(cat)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_name: newName }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        showCatError(overlay, (j.detail && j.detail.error) || `HTTP ${r.status}`);
+        return;
+      }
+      showCatError(overlay, '');
+      state.catalog = await fetchCatalog();
+      renderCategoryFilter();
+      renderList();
+      renderCategoryList(overlay);
+    });
+    li.querySelector('[data-act="cancel"]').addEventListener('click', () => renderCategoryList(overlay));
+  }
+
+  async function deleteCategory(overlay, cat) {
+    let r = await fetch(`/api/gear/categories/${encodeURIComponent(cat)}`, { method: 'DELETE' });
+    if (r.status === 409) {
+      const j = await r.json();
+      const msg = (j.detail && j.detail.error) || 'in use';
+      if (!confirm(`${msg}\n\nReassign affected items to "Other" and delete?`)) return;
+      r = await fetch(`/api/gear/categories/${encodeURIComponent(cat)}?force=true`,
+                       { method: 'DELETE' });
+    }
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      showCatError(overlay, (j.detail && j.detail.error) || `HTTP ${r.status}`);
+      return;
+    }
+    showCatError(overlay, '');
+    state.catalog = await fetchCatalog();
+    renderCategoryFilter();
+    renderList();
+    renderCategoryList(overlay);
+  }
+
+  async function addCategory(overlay) {
+    const inp = overlay.querySelector('#gca-new');
+    const name = inp.value.trim();
+    if (!name) return;
+    const r = await fetch('/api/gear/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      showCatError(overlay, (j.detail && j.detail.error) || `HTTP ${r.status}`);
+      return;
+    }
+    showCatError(overlay, '');
+    inp.value = '';
+    state.catalog = await fetchCatalog();
+    renderCategoryFilter();
+    renderList();
+    renderCategoryList(overlay);
+  }
+
   async function mount(root) {
     const tpl = document.getElementById('tpl-gear');
     root.innerHTML = '';
@@ -235,10 +360,7 @@
       if (state.dirty && !confirm('Discard unsaved changes?')) return;
       select('__new__');
     });
-    document.getElementById('gear-manage-cats').addEventListener('click', () => {
-      // Implemented in Task 13.
-      alert('Manage categories modal added in Task 13.');
-    });
+    document.getElementById('gear-manage-cats').addEventListener('click', openManageCatsModal);
   }
 
   global.GearPage = { mount };
