@@ -490,7 +490,7 @@ def _load_yaml(path: Path) -> dict:
 def _load_osm_lakes_for_naming() -> list:
     """Load OSM cache for naming Jeff's polygons (best-effort)."""
     repo_root = Path(__file__).parent
-    osm_path = repo_root / "osm_killarney_cache.json"
+    osm_path = repo_root / "data" / "osm_killarney_cache.json"
     if not osm_path.exists():
         return []
     osm = json.loads(osm_path.read_text())

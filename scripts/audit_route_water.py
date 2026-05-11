@@ -103,7 +103,7 @@ def main(argv=None):
     # Load Jeff's cache directly so we get unnamed polygons too. The
     # osm_features merge keeps both, but easier to read directly.
     import json
-    jeffs_path = REPO_ROOT / "jeffs_killarney_cache.json"
+    jeffs_path = REPO_ROOT / "data" / "jeffs_killarney_cache.json"
     jeffs_cache = json.loads(jeffs_path.read_text()) if jeffs_path.exists() else {}
 
     polygons = _polygons_for_test(args.source, osm_features, jeffs_cache)

@@ -473,9 +473,9 @@ def _features_center(features):
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--osm-cache",
-                        default=str(REPO_ROOT / "osm_killarney_cache.json"))
+                        default=str(REPO_ROOT / "data" / "osm_killarney_cache.json"))
     parser.add_argument("--jeffs-cache",
-                        default=str(REPO_ROOT / "jeffs_killarney_cache.json"))
+                        default=str(REPO_ROOT / "data" / "jeffs_killarney_cache.json"))
     parser.add_argument("--bbox",
                         help="Optional 'south,west,north,east' filter — show "
                              "only polygons that intersect this bbox. Useful "
