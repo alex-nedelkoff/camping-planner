@@ -253,5 +253,20 @@ def load_killarney_features() -> dict:
     return out
 
 
+def find_campsite(name: str, campsites: list):
+    """Resolve a trip night's `site: <number>` → campsite dict.
+
+    Case-insensitive string match on the `name` field. Returns None if no
+    match. Caller should fall back to existing lake-centroid behavior on None.
+    """
+    if not name:
+        return None
+    needle = str(name).lower()
+    for cs in campsites or []:
+        if str(cs.get("name", "")).lower() == needle:
+            return cs
+    return None
+
+
 if __name__ == "__main__":
     refresh_killarney_cache()

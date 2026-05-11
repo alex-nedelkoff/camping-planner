@@ -376,3 +376,59 @@ def test_build_route_frontmatter_gps_wins_over_campsite():
     # Frontmatter override wins.
     assert site_marker["lat"] == 99.0
     assert site_marker["lon"] == -99.0
+
+
+def test_build_route_resolves_site_gps_from_gpx_campsites():
+    """When osm['campsites'] is GPX-shaped (name + lat + lon), the route
+    engine looks up the night's site number and uses that GPS instead of
+    falling back to the lake centroid."""
+    osm = {
+        "lakes": [
+            {"name": "Killarney Lake",
+             "polygon": [[46.05, -81.36], [46.05, -81.38],
+                         [46.07, -81.38], [46.07, -81.36],
+                         [46.05, -81.36]],
+             "centroid": [46.06, -81.37]},
+        ],
+        "portages": [],
+        "campsites": [
+            {"name": "61", "lat": 46.05199, "lon": -81.36224,
+             "desc": "Killarney 61"},
+        ],
+    }
+    nights = [
+        {"date": "2026-06-01", "site": "61", "location": "Killarney Lake"},
+    ]
+    out = build_route(nights=nights, access_point="George Lake", osm=osm)
+    site_markers = [m for m in out.get("markers", []) if m["kind"] == "site"]
+    assert len(site_markers) == 1
+    # Marker GPS comes from GPX campsite, not the lake centroid (46.06, -81.37).
+    assert abs(site_markers[0]["lat"] - 46.05199) < 1e-5
+    assert abs(site_markers[0]["lon"] - -81.36224) < 1e-5
+
+
+def test_build_route_falls_back_to_centroid_when_site_not_in_campsites():
+    """If the night's site number isn't found in osm['campsites'], the route
+    engine falls back to the lake centroid (existing behavior preserved)."""
+    osm = {
+        "lakes": [
+            {"name": "Killarney Lake",
+             "polygon": [[46.05, -81.36], [46.05, -81.38],
+                         [46.07, -81.38], [46.07, -81.36],
+                         [46.05, -81.36]],
+             "centroid": [46.06, -81.37]},
+        ],
+        "portages": [],
+        "campsites": [
+            {"name": "99", "lat": 46.0, "lon": -81.0, "desc": "Wrong site"},
+        ],
+    }
+    nights = [
+        {"date": "2026-06-01", "site": "61", "location": "Killarney Lake"},
+    ]
+    out = build_route(nights=nights, access_point="George Lake", osm=osm)
+    site_markers = [m for m in out.get("markers", []) if m["kind"] == "site"]
+    assert len(site_markers) == 1
+    # Falls back to the centroid.
+    assert site_markers[0]["lat"] == 46.06
+    assert site_markers[0]["lon"] == -81.37

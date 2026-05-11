@@ -334,6 +334,13 @@ def build_route(nights: list, access_point: str, osm: dict,
             return [gps[0], gps[1]]
         site_ref = str(night.get("site", ""))
         location = night.get("location", "")
+        # Try GPX-shape campsite (name/lat/lon) first.
+        from osm_data import find_campsite
+        cs = find_campsite(site_ref, osm.get("campsites", []))
+        if cs is not None:
+            return [cs["lat"], cs["lon"]]
+        # Legacy Jeff's-shape fallback (ref/gps/lake) — kept for any old
+        # caches that still use the original shape.
         for cs in osm.get("campsites", []) or []:
             if cs.get("ref") == site_ref and cs.get("lake") == location:
                 return [cs["gps"][0], cs["gps"][1]]
@@ -542,16 +549,29 @@ def build_route(nights: list, access_point: str, osm: dict,
             continue
         site_ref = str(night.get("site", ""))
         location = night.get("location", "")
-        campsite = next(
+        # Try GPX-shape campsite (name/lat/lon) first.
+        from osm_data import find_campsite
+        campsite = find_campsite(site_ref, osm.get("campsites", []))
+        if campsite is not None:
+            markers.append({
+                "label": f"Site {night['site']}, {night['location']}",
+                "lat": campsite["lat"],
+                "lon": campsite["lon"],
+                "kind": "site",
+            })
+            continue
+        # Legacy Jeff's-shape fallback (ref/gps/lake) — kept for any old
+        # caches that still use the original shape.
+        legacy_campsite = next(
             (cs for cs in (osm.get("campsites") or [])
              if cs.get("ref") == site_ref and cs.get("lake") == location),
             None,
         )
-        if campsite:
+        if legacy_campsite:
             markers.append({
                 "label": f"Site {night['site']}, {night['location']}",
-                "lat": campsite["gps"][0],
-                "lon": campsite["gps"][1],
+                "lat": legacy_campsite["gps"][0],
+                "lon": legacy_campsite["gps"][1],
                 "kind": "site",
             })
             continue
