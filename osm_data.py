@@ -15,6 +15,7 @@ import json
 import math
 from pathlib import Path
 
+import gpx_loader
 import requests
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -160,6 +161,45 @@ def refresh_killarney_cache() -> None:
           f"portages to {CACHE_PATH}")
 
 
+def _merge_portages(osm_portages: list, gpx_portages: list,
+                    spatial_dedup_m: int = 200) -> list:
+    """Merge OSM and GPX portages. GPX is canonical for Killarney; OSM
+    portages whose midpoint is within spatial_dedup_m of any GPX portage
+    midpoint are dropped as duplicates. OSM portages outside that radius
+    (other parks, gaps) are kept.
+
+    Returns the union, with GPX portages first.
+    """
+    def midpoint(portage):
+        ep = portage.get("endpoints") or portage.get("line") or []
+        if len(ep) < 2:
+            return None
+        return [(ep[0][0] + ep[-1][0]) / 2.0, (ep[0][1] + ep[-1][1]) / 2.0]
+
+    gpx_mids = [midpoint(p) for p in gpx_portages]
+    gpx_mids = [m for m in gpx_mids if m is not None]
+    dedup_km = spatial_dedup_m / 1000.0
+
+    kept_osm = []
+    for o in osm_portages:
+        om = midpoint(o)
+        if om is None:
+            kept_osm.append(o)
+            continue
+        too_close = False
+        for gm in gpx_mids:
+            # Cheap great-circle approximation at ~46° N: 1 deg lat ≈ 111 km;
+            # lon scales by cos(lat). Adequate for the 200m gate.
+            dlat = (om[0] - gm[0]) * 111.0
+            dlon = (om[1] - gm[1]) * 111.0 * math.cos(math.radians(om[0]))
+            if (dlat * dlat + dlon * dlon) ** 0.5 <= dedup_km:
+                too_close = True
+                break
+        if not too_close:
+            kept_osm.append(o)
+    return list(gpx_portages) + kept_osm
+
+
 def load_killarney_features() -> dict:
     """Read cached features. Merges Jeff's cache when present.
 
@@ -199,6 +239,16 @@ def load_killarney_features() -> dict:
     if PATHS_CACHE_PATH.exists():
         paths_cache = json.loads(PATHS_CACHE_PATH.read_text(encoding="utf-8"))
         out["paths"] = paths_cache.get("paths", [])
+
+    # GPX campsites — canonical, replaces any existing.
+    if CAMPSITES_GPX_PATH.exists():
+        out["campsites"] = gpx_loader.load_campsites(CAMPSITES_GPX_PATH)
+
+    # GPX portages — merged with OSM via spatial dedup.
+    if PORTAGES_GPX_PATH.exists():
+        gpx_portages = gpx_loader.load_portages(PORTAGES_GPX_PATH)
+        out["portages"] = _merge_portages(out["portages"], gpx_portages,
+                                          spatial_dedup_m=200)
 
     return out
 

@@ -159,6 +159,10 @@ def test_load_features_merges_jeffs_when_present(tmp_path, monkeypatch):
 
     monkeypatch.setattr(_osm_data, "CACHE_PATH", osm_path)
     monkeypatch.setattr(_osm_data, "JEFFS_CACHE_PATH", jeffs_path)
+    monkeypatch.setattr(_osm_data, "CAMPSITES_GPX_PATH",
+                        tmp_path / "absent_campsites.gpx")  # absent
+    monkeypatch.setattr(_osm_data, "PORTAGES_GPX_PATH",
+                        tmp_path / "absent_portages.gpx")  # absent
 
     out = _osm_data.load_killarney_features()
     # Killarney Lake appears twice (Jeff's + OSM's), Other Lake once, Baie Fine once.
@@ -190,6 +194,10 @@ def test_load_features_works_without_jeffs(tmp_path, monkeypatch):
 
     monkeypatch.setattr(_osm_data, "CACHE_PATH", osm_path)
     monkeypatch.setattr(_osm_data, "JEFFS_CACHE_PATH", jeffs_path)
+    monkeypatch.setattr(_osm_data, "CAMPSITES_GPX_PATH",
+                        tmp_path / "absent_campsites.gpx")  # absent
+    monkeypatch.setattr(_osm_data, "PORTAGES_GPX_PATH",
+                        tmp_path / "absent_portages.gpx")  # absent
 
     out = _osm_data.load_killarney_features()
     assert len(out["lakes"]) == 1
@@ -214,6 +222,10 @@ def test_load_features_includes_yellow_paths_when_cache_present(tmp_path, monkey
     monkeypatch.setattr(_osm_data, "JEFFS_CACHE_PATH",
                         tmp_path / "jeffs_killarney_cache.json")  # absent
     monkeypatch.setattr(_osm_data, "PATHS_CACHE_PATH", paths_path)
+    monkeypatch.setattr(_osm_data, "CAMPSITES_GPX_PATH",
+                        tmp_path / "absent_campsites.gpx")  # absent
+    monkeypatch.setattr(_osm_data, "PORTAGES_GPX_PATH",
+                        tmp_path / "absent_portages.gpx")  # absent
 
     out = _osm_data.load_killarney_features()
     assert "paths" in out
@@ -231,6 +243,67 @@ def test_load_features_paths_default_empty_when_cache_absent(tmp_path, monkeypat
                         tmp_path / "jeffs_killarney_cache.json")  # absent
     monkeypatch.setattr(_osm_data, "PATHS_CACHE_PATH",
                         tmp_path / "jeffs_canoe_paths.json")  # absent
+    monkeypatch.setattr(_osm_data, "CAMPSITES_GPX_PATH",
+                        tmp_path / "absent_campsites.gpx")  # absent
+    monkeypatch.setattr(_osm_data, "PORTAGES_GPX_PATH",
+                        tmp_path / "absent_portages.gpx")  # absent
 
     out = _osm_data.load_killarney_features()
     assert out.get("paths") == []
+
+
+def test_load_features_uses_gpx_campsites_when_present(tmp_path, monkeypatch):
+    """If killarneyCampsites.gpx exists, out['campsites'] comes from it."""
+    osm_cache = {"lakes": [], "portages": []}
+    osm_path = tmp_path / "osm_killarney_cache.json"
+    osm_path.write_text(json.dumps(osm_cache))
+
+    campsites_gpx = tmp_path / "killarneyCampsites.gpx"
+    campsites_gpx.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">'
+        '<wpt lat="46.0" lon="-81.0"><name>1</name>'
+        '<desc>Killarney 1</desc></wpt>'
+        '</gpx>'
+    )
+
+    monkeypatch.setattr(_osm_data, "CACHE_PATH", osm_path)
+    monkeypatch.setattr(_osm_data, "JEFFS_CACHE_PATH",
+                        tmp_path / "absent_jeffs.json")
+    monkeypatch.setattr(_osm_data, "PATHS_CACHE_PATH",
+                        tmp_path / "absent_paths.json")
+    monkeypatch.setattr(_osm_data, "CAMPSITES_GPX_PATH", campsites_gpx)
+    monkeypatch.setattr(_osm_data, "PORTAGES_GPX_PATH",
+                        tmp_path / "absent_portages.gpx")
+
+    out = _osm_data.load_killarney_features()
+    assert len(out["campsites"]) == 1
+    assert out["campsites"][0]["name"] == "1"
+
+
+def test_merge_portages_dedups_near_osm_keeps_distant_osm():
+    """GPX is canonical; OSM portages with midpoint within 200m of a GPX
+    midpoint are dropped. Distant OSM portages are kept."""
+    osm_portages = [
+        # NEAR a GPX portage (will be deduped).
+        {"name": "OSM near", "endpoints": [[46.0353, -81.3815], [46.0354, -81.3805]],
+         "line": [[46.0353, -81.3815], [46.0354, -81.3805]], "length_km": 0.08,
+         "source": "osm"},
+        # FAR (in another park area).
+        {"name": "OSM far", "endpoints": [[46.5, -81.0], [46.51, -81.0]],
+         "line": [[46.5, -81.0], [46.51, -81.0]], "length_km": 1.1,
+         "source": "osm"},
+    ]
+    gpx_portages = [
+        {"name": "42056", "endpoints": [[46.03524, -81.38126], [46.03535, -81.38053]],
+         "line": [[46.03524, -81.38126], [46.03535, -81.38053]], "length_km": 0.058,
+         "source": "gpx"},
+    ]
+    merged = _osm_data._merge_portages(osm_portages, gpx_portages,
+                                       spatial_dedup_m=200)
+    names = {p["name"] for p in merged}
+    # The near-OSM portage is dropped; far-OSM and GPX are kept.
+    assert "OSM near" not in names
+    assert "OSM far" in names
+    assert "42056" in names
+    assert len(merged) == 2
