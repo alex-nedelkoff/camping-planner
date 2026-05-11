@@ -4,6 +4,9 @@ markdown==3.7
 pyyaml==6.0.2
 pytest>=8.0.0
 opencv-python>=4.8
+# OPTIONAL: enables OCR text-removal pre-pass in jeffs_paths_extractor.py
+# (cleaner yellow-path masks). Falls back gracefully if missing.
+# Requires the tesseract binary: `brew install tesseract` on macOS.
 pytesseract>=0.3.10
 pillow>=10.0
 fastapi>=0.110

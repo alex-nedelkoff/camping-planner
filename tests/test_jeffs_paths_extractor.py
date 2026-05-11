@@ -98,3 +98,40 @@ def test_extractor_main_produces_at_least_one_polyline(tmp_path):
         for lat, lon in pth["points"]:
             assert 45.99 <= lat <= 46.0
             assert -81.0 <= lon <= -80.99
+
+
+import cv2
+
+
+def test_remove_text_whitens_detected_bboxes():
+    """A synthetic image with rendered text → _remove_text whitens the
+    pixels inside the OCR-detected bbox."""
+    from jeffs_paths_extractor import _remove_text
+    # Build a small white canvas with one black-text word in the middle.
+    img = np.full((80, 240, 3), 255, dtype=np.uint8)
+    cv2.putText(img, "HELLO", (40, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2,
+                (0, 0, 0), 3, cv2.LINE_AA)
+    # Center pixel before: black-ish (text stroke present).
+    before = img[50, 100].copy()
+    assert before[0] < 200  # dark
+    out = _remove_text(img)
+    # After: that pixel should be white (text bbox whitened).
+    after = out[50, 100]
+    assert after[0] >= 250 and after[1] >= 250 and after[2] >= 250
+
+
+def test_remove_text_graceful_when_pytesseract_missing(monkeypatch):
+    """When pytesseract import raises, _remove_text returns bgr unchanged."""
+    import builtins
+    from jeffs_paths_extractor import _remove_text
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "pytesseract":
+            raise ImportError("simulated absence")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    img = np.full((20, 40, 3), 100, dtype=np.uint8)
+    out = _remove_text(img)
+    assert np.array_equal(out, img)

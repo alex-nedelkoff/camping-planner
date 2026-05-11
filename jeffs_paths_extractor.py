@@ -215,10 +215,55 @@ def _polyline_length_km(polyline_gps):
     return total
 
 
-def _extract_paths_from_mosaic(mosaic_bgr: np.ndarray, palette: dict) -> list:
+def _remove_text(bgr: np.ndarray, conf_min: int = 25,
+                 pad_px: int = 3) -> np.ndarray:
+    """White-fill OCR-detected text bboxes before color masking.
+
+    Lazy-imports pytesseract; returns bgr unchanged if either pytesseract or
+    the underlying tesseract binary is unavailable. Distance markers like
+    "0.6km" / "23m" that share Jeff's yellow path color would otherwise
+    become spurious polylines.
+    """
+    try:
+        import pytesseract
+    except ImportError:
+        return bgr
+    try:
+        gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+        data = pytesseract.image_to_data(
+            gray, config="--psm 11",
+            output_type=pytesseract.Output.DICT,
+        )
+    except Exception:
+        # tesseract binary missing or some other Tesseract error.
+        return bgr
+    out = bgr.copy()
+    n = len(data["text"])
+    for i in range(n):
+        try:
+            conf = int(float(data["conf"][i]))
+        except (ValueError, TypeError):
+            conf = -1
+        if conf < conf_min:
+            continue
+        text = (data["text"][i] or "").strip()
+        if not text:
+            continue
+        x = max(0, data["left"][i] - pad_px)
+        y = max(0, data["top"][i] - pad_px)
+        w = data["width"][i] + 2 * pad_px
+        h = data["height"][i] + 2 * pad_px
+        out[y:y + h, x:x + w] = (255, 255, 255)
+    return out
+
+
+def _extract_paths_from_mosaic(mosaic_bgr: np.ndarray, palette: dict,
+                               skip_text_removal: bool = False) -> list:
     """Run the full HSV → morphology → skeletonize → trace → simplify pipeline.
     Returns list of (col, row) pixel polylines.
     """
+    if not skip_text_removal:
+        mosaic_bgr = _remove_text(mosaic_bgr)
     hsv = cv2.cvtColor(mosaic_bgr, cv2.COLOR_BGR2HSV)
     low = np.array([palette["hue"][0], palette["saturation"][0], palette["value"][0]])
     high = np.array([palette["hue"][1], palette["saturation"][1], palette["value"][1]])
@@ -281,6 +326,9 @@ def main(argv=None) -> int:
     parser.add_argument("--out", required=True)
     parser.add_argument("--zoom", type=int, default=7)
     parser.add_argument("--review-html")
+    parser.add_argument("--skip-text-removal", action="store_true",
+                        help="Skip the OCR text-removal pre-pass (debug / "
+                             "use when tesseract is unavailable).")
     args = parser.parse_args(argv)
 
     bbox = tuple(float(x) for x in args.bbox.split(","))
@@ -303,7 +351,8 @@ def main(argv=None) -> int:
         print(f"  walking KMZ at zoom {args.zoom}: {len(tiles)} tiles",
               file=sys.stderr)
         mosaic, mosaic_bounds = build_mosaic(tiles)
-        polylines_px = _extract_paths_from_mosaic(mosaic, palette)
+        polylines_px = _extract_paths_from_mosaic(
+            mosaic, palette, skip_text_removal=args.skip_text_removal)
     finally:
         shutil.rmtree(extract_dir, ignore_errors=True)
 
