@@ -287,7 +287,7 @@ Slug convention is `<park>-<YYYY-MM>` derived from `park` + `start_date`.
 - **Leaflet.js interactive map** (online) — OSM tiles, coloured tracks, clickable waypoints
 - **Static SVG diagram** (offline) — route shape, waypoints, distances, scale bar, in a collapsible `<details>`
 
-If `trip.md` has `nights` + `access_point` but no `route.gpx`/`.kml`, `route_engine.py` auto-routes paddling + portage segments using the cached OSM data in `osm_killarney_cache.json` and produces per-day estimates.
+If `trip.md` has `nights` + `access_point` but no `route.gpx`/`.kml`, `route_engine.py` auto-routes paddling + portage segments using merged OSM + Jeff + GPX data and produces per-day estimates.
 
 ### HTML trip page features
 

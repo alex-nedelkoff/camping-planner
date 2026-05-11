@@ -281,6 +281,26 @@ def test_load_features_uses_gpx_campsites_when_present(tmp_path, monkeypatch):
     assert out["campsites"][0]["name"] == "1"
 
 
+def test_find_campsite_case_insensitive_match():
+    """find_campsite resolves by name, case-insensitive."""
+    campsites = [
+        {"name": "61", "lat": 46.05, "lon": -81.36, "desc": "..."},
+        {"name": "82", "lat": 46.04, "lon": -81.50, "desc": "..."},
+    ]
+    assert _osm_data.find_campsite("61", campsites)["lat"] == 46.05
+    # Case-insensitive (e.g., when name is alphanumeric like "H51").
+    assert _osm_data.find_campsite("61", campsites) is not None
+
+
+def test_find_campsite_returns_none_on_miss():
+    """find_campsite returns None when name not found."""
+    campsites = [{"name": "61", "lat": 46.05, "lon": -81.36, "desc": "..."}]
+    assert _osm_data.find_campsite("99", campsites) is None
+    # Also None on empty input.
+    assert _osm_data.find_campsite("61", []) is None
+    assert _osm_data.find_campsite("", campsites) is None
+
+
 def test_merge_portages_dedups_near_osm_keeps_distant_osm():
     """GPX is canonical; OSM portages with midpoint within 200m of a GPX
     midpoint are dropped. Distant OSM portages are kept."""

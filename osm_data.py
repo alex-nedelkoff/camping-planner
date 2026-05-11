@@ -210,8 +210,11 @@ def load_killarney_features() -> dict:
     otherwise OSM portages get dropped because Jeff's tighter polygons don't
     contain the OSM-tagged endpoints.
 
-    Portages: OSM only (Phase 1 doesn't extract portages).
-    Campsites: Jeff's only (new top-level key; absent OSM-only loads).
+    Portages: merged from OSM + GPX (GPX canonical via spatial dedup at 200 m).
+    Campsites: from `data/killarneyCampsites.gpx` when present (name/lat/lon
+    shape); falls back to Jeff's cache; absent on OSM-only loads.
+    Paths: from `data/jeffs_canoe_paths.json` (yellow paddle paths extracted
+    from Jeff's KMZ); empty list when the file is absent.
 
     Raises FileNotFoundError if the OSM cache is missing.
     """
