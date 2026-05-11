@@ -185,8 +185,16 @@ page.goto(url, timeout=45000, wait_until="domcontentloaded")
 - `park_activities.json` — curated hikes/swimming/paddling/tips per park
 - `api_attribute_filterable.json` — cached attribute definitions (55 attributes)
 - `map_names_cache.json` — cached campground map names
-- `osm_data.py`, `osm_killarney_cache.json` — OSM lakes/portages cache used by `route_engine.py`
-- `route_engine.py` — auto-routes paddling segments + estimates from OSM data
+- `osm_data.py` — loads + merges all Killarney datasets (OSM lakes/portages,
+  Jeff's lake polygons, yellow paths, GPX campsites + portages)
+- `gpx_loader.py` — GPX → list-of-dicts parsing for campsites and portages
+- `data/` — cached + source data files (gitted):
+  - `osm_killarney_cache.json` — OSM lakes (51 named) + portages (sparse)
+  - `jeffs_killarney_cache.json` — Jeff's lake polygons (33 named + 30 unnamed)
+  - `jeffs_canoe_paths.json` — yellow paddle paths extracted from Jeff's KMZ
+  - `killarneyCampsites.gpx` — 214 numbered campsite waypoints (PaddlePlanner)
+  - `killarneyPortages.gpx` — 110 portages × 2 endpoints (PaddlePlanner)
+- `route_engine.py` — auto-routes paddling segments + estimates from merged data
 - `templates/trip-template/` — markdown skeletons copied when creating a new trip
 - `trips/<slug>/` — per-trip markdown source of truth + generated `trip.html`
 - `legacy/` — pre-FastAPI sheet-driven flow (`trip_planner.py`, sample resource data, etc.). Kept for reference.
@@ -211,6 +219,19 @@ trips/<slug>/*.md  ──build_trip.py──►  trips/<slug>/trip.html
 ```
 
 Markdown files in `trips/<slug>/` are the source of truth. `build_trip.py` renders them into a self-contained `trip.html` per trip. The FastAPI app at `app/` provides a browser UI for creating trips, rebuilding HTML, editing the gear table, checking park availability, and syncing per-user packing checkboxes.
+
+## Data sources
+
+| Feature | Source | Notes |
+|---|---|---|
+| Lake polygons | OSM Overpass + Jeff's KMZ | OSM is named-canonical; Jeff's are tighter shapes |
+| Portages (110) | `data/killarneyPortages.gpx` | PaddlePlanner.com; merged with sparse OSM |
+| Campsites (214) | `data/killarneyCampsites.gpx` | PaddlePlanner.com; name = site number |
+| Yellow paddle paths | Jeff's KMZ raster extraction | `jeffs_paths_extractor.py` (OCR text-removed) |
+| Weather | Open-Meteo API | `weather.py` |
+| Route maps | KML/GPX in trip dir | `route_map.py` |
+
+`osm_data.load_killarney_features()` consolidates all of the above into one dict consumed by `route_engine` and the FastAPI layer.
 
 ### Two ways to work
 
