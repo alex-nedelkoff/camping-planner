@@ -17,9 +17,12 @@ from pathlib import Path
 
 import requests
 
-CACHE_PATH = Path(__file__).parent / "osm_killarney_cache.json"
-JEFFS_CACHE_PATH = Path(__file__).parent / "jeffs_killarney_cache.json"
-PATHS_CACHE_PATH = Path(__file__).parent / "jeffs_canoe_paths.json"
+DATA_DIR = Path(__file__).parent / "data"
+CACHE_PATH = DATA_DIR / "osm_killarney_cache.json"
+JEFFS_CACHE_PATH = DATA_DIR / "jeffs_killarney_cache.json"
+PATHS_CACHE_PATH = DATA_DIR / "jeffs_canoe_paths.json"
+CAMPSITES_GPX_PATH = DATA_DIR / "killarneyCampsites.gpx"
+PORTAGES_GPX_PATH = DATA_DIR / "killarneyPortages.gpx"
 
 # Killarney Provincial Park bounding box (south, west, north, east).
 KILLARNEY_BBOX = (45.92, -81.60, 46.12, -81.25)
