@@ -26,9 +26,14 @@
                      0 18px 36px -10px rgba(31, 42, 35, 0.14);
   }
 
-  html, body, #map { height: 100%; margin: 0; }
+  html, body, #map { height: 100%; margin: 0; padding: 0; }
   #map { background: #ede2c9; }
   body {
+    /* Override app/static/css/index.css which caps body at 900px wide and
+       adds 1.5rem padding — we want the map to fill the full viewport. */
+    max-width: none;
+    width: 100%;
+    background: transparent;
     font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
