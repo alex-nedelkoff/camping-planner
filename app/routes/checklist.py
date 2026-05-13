@@ -25,7 +25,7 @@ def _ensure_trip(slug: str) -> None:
 @router.get("/checklist", response_model=ChecklistGetResponse)
 def get_checklist(request: Request, trip: str = Query(..., min_length=1)):
     _ensure_trip(trip)
-    user = identity.current_user(request)
+    user = identity.current_email(request)
     return ChecklistGetResponse(state=db.checklist_load(trip, user=user))
 
 
@@ -36,6 +36,6 @@ def set_checklist(
     trip: str = Query(..., min_length=1),
 ):
     _ensure_trip(trip)
-    user = identity.current_user(request)
+    user = identity.current_email(request)
     db.checklist_set(trip, body.key, body.checked, user=user)
     return OkResponse()

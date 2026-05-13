@@ -1,0 +1,8 @@
+{% if sent %}
+  <p>Check your email — link sent to {{ email }}.</p>
+{% else %}
+  <form method="post" action="/login">
+    <label>Email <input name="email" type="email" required></label>
+    <button type="submit">send me a link</button>
+  </form>
+{% endif %}

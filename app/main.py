@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import STATIC_DIR, TRIPS_DIR
-from app.routes import checklist, identity, pages, parks, trips
+from app.routes import auth, checklist, identity, pages, parks, trips
 from app.services import db
 
 app = FastAPI(title="Camping Planner")
@@ -25,6 +25,7 @@ app.include_router(trips.router)
 app.include_router(parks.router)
 app.include_router(checklist.router)
 app.include_router(identity.router)
+app.include_router(auth.router)
 
 
 @app.exception_handler(Exception)

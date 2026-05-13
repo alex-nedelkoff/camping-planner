@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from app import config
 from app.main import app
 from app.routes import checklist as checklist_route
+from app.services import auth as auth_svc
 from app.services import availability as availability_svc
 from app.services import db
 from app.services import trips as trips_svc
@@ -36,8 +37,15 @@ def client(tmp_path, monkeypatch):
     db.init_schema(tmp_db)
     monkeypatch.setattr(config, "DATABASE_PATH", tmp_db)
     monkeypatch.setattr(db, "DATABASE_PATH", tmp_db)
+    monkeypatch.setattr("app.services.auth.db.DATABASE_PATH", tmp_db)
 
     yield TestClient(app)
+
+
+def _login_as(client: TestClient, email: str) -> None:
+    """Mint a session row for `email` and attach the cookie to `client`."""
+    sid = auth_svc.consume_magic_link(auth_svc.issue_magic_link(email))
+    client.cookies.set("cp_session", sid)
 
 
 # ---------------------------------------------------------------------------
@@ -263,7 +271,7 @@ def test_checklist_validates_missing_key(client):
 
 
 # ---------------------------------------------------------------------------
-# Identity: cookie-based whoami (Phase 3)
+# Identity: session-cookie whoami
 # ---------------------------------------------------------------------------
 
 
@@ -273,40 +281,32 @@ def test_whoami_starts_empty(client):
     assert r.json() == {"user": ""}
 
 
-def test_whoami_post_sets_cookie_and_persists(client):
-    r = client.post("/api/whoami", json={"user": "Alex"})
-    assert r.status_code == 200, r.text
-    assert r.json() == {"user": "Alex"}
-    # Cookie persists on the same TestClient instance
-    assert client.get("/api/whoami").json() == {"user": "Alex"}
-
-
-def test_whoami_rejects_bad_chars(client):
-    r = client.post("/api/whoami", json={"user": "<script>"})
-    assert r.status_code == 400
-
-
-def test_whoami_delete_clears(client):
-    client.post("/api/whoami", json={"user": "Alex"})
-    r = client.delete("/api/whoami")
+def test_whoami_returns_session_email(client):
+    _login_as(client, "alex@example.com")
+    r = client.get("/api/whoami")
     assert r.status_code == 200
-    assert client.get("/api/whoami").json() == {"user": ""}
+    assert r.json() == {"user": "alex@example.com"}
+
+
+def test_whoami_post_is_gone(client):
+    """POST /api/whoami removed when free-text identity gave way to magic-link auth."""
+    r = client.post("/api/whoami", json={"user": "Alex"})
+    assert r.status_code == 405
 
 
 # ---------------------------------------------------------------------------
-# Per-user checklist (cookie-driven)
+# Per-user checklist (session-cookie driven)
 # ---------------------------------------------------------------------------
 
 
-def test_checklist_isolated_by_cookie(client):
-    """Two TestClients = two cookie jars; their checklists must not collide."""
-    from fastapi.testclient import TestClient
+def test_checklist_isolated_by_session(client):
+    """Two TestClients = two sessions; their checklists must not collide."""
     alex = client                       # already-bound to fixture
     jordan = TestClient(app)            # fresh cookie jar, same app + DB
 
     slug = "killarney-2026-05"
-    alex.post("/api/whoami", json={"user": "Alex"})
-    jordan.post("/api/whoami", json={"user": "Jordan"})
+    _login_as(alex, "alex@example.com")
+    _login_as(jordan, "jordan@example.com")
 
     alex.post(
         "/api/checklist", params={"trip": slug},
@@ -325,13 +325,13 @@ def test_checklist_isolated_by_cookie(client):
     }
 
 
-def test_checklist_no_cookie_uses_shared_bucket(client):
-    """A request with no whoami cookie reads/writes the shared (user='') row."""
+def test_checklist_no_session_uses_shared_bucket(client):
+    """A request with no session cookie reads/writes the shared (user='') row."""
     slug = "killarney-2026-05"
     client.post(
         "/api/checklist", params={"trip": slug},
         json={"key": "packing--tarp", "checked": True},
     )
-    # After identifying as Alex, the shared write is no longer visible
-    client.post("/api/whoami", json={"user": "Alex"})
+    # After signing in as Alex, the shared write is no longer visible
+    _login_as(client, "alex@example.com")
     assert client.get("/api/checklist", params={"trip": slug}).json()["state"] == {}

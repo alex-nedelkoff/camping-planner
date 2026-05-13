@@ -51,7 +51,3 @@ class ChecklistSetRequest(BaseModel):
 
 class WhoamiResponse(BaseModel):
     user: str
-
-
-class WhoamiSetRequest(BaseModel):
-    user: str = Field(min_length=1, max_length=40)
