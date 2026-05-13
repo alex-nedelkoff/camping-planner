@@ -57,8 +57,21 @@ def test_lakes_endpoint_returns_geojson_for_killarney():
     r = client.get("/api/lakes/killarney")
     assert r.status_code == 200
     body = r.json()
-    assert set(body.keys()) == {"osm", "jeffs", "canvec"}
+    # Includes the lake sources plus the GPX-derived campsites + portages.
+    assert {"osm", "jeffs", "canvec"} <= set(body.keys())
     assert body["osm"]["type"] == "FeatureCollection"
+
+
+def test_lakes_endpoint_includes_campsites_and_portages():
+    client = TestClient(app)
+    r = client.get("/api/lakes/killarney")
+    body = r.json()
+    assert "campsites" in body and "portages" in body
+    cs = body["campsites"]["features"]
+    assert cs and cs[0]["properties"]["kind"] == "campsite"
+    pt = body["portages"]["features"]
+    assert pt and pt[0]["properties"]["kind"] == "portage"
+    assert pt[0]["geometry"]["type"] == "LineString"
 
 
 def test_lakes_endpoint_404_for_unknown_park():
