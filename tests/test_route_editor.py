@@ -98,7 +98,9 @@ def test_editor_page_renders_for_member(setup):
     r = client.get("/trips/t/route-edit")
     assert r.status_code == 200, r.text
     html = r.text
-    assert "Route editor" in html
+    # Side-panel title is the park, subtitle includes the slug.
+    assert "Killarney" in html
+    assert "route editor" in html
     # Seed JSON is server-rendered.
     assert "const INITIAL = []" in html
     # Centre comes from killarney via park-key lookup.

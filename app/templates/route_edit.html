@@ -4,144 +4,281 @@
 
 {% block head_extra %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  /* Reset the browser default body margin so the layout actually fills 100vh.
-     base.html doesn't set this; without it, 8px ends up below the fold. */
-  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-  body { display: flex; flex-direction: column; }
-
-  .top-bar {
-    flex: 0 0 auto;
-    padding: 0.45rem 0.9rem;
-    background: #ece8d8;
-    border-bottom: 1px solid #d8d3c4;
-    display: flex; justify-content: space-between; align-items: center;
+  /* ───── field cartographer's notebook (copied from jeffs_osm_overlay.html) ───── */
+  :root {
+    --ink:           #1f2a23;
+    --ink-soft:      #4a5d4f;
+    --ink-faint:     #8a8a78;
+    --rule:          #cbbf9f;
+    --rule-soft:     #e1d6b8;
+    --parchment:     #f5efe1;
+    --parchment-deep:#ece2c9;
+    --rust:          #a8451f;
+    --rust-bright:   #c66633;
+    --slate:         #3a5666;
+    --moss:          #4f6644;
+    --shadow:        0 1px 0 rgba(31, 42, 35, 0.06),
+                     0 4px 14px rgba(31, 42, 35, 0.08),
+                     0 18px 36px -10px rgba(31, 42, 35, 0.14);
   }
-  .top-bar h1 { font-size: 16px; margin: 0; font-weight: 600; }
-  .top-bar a { color: #2f5b46; text-decoration: none; }
-  .top-bar a:hover { text-decoration: underline; }
 
-  /* Fill all remaining vertical space below the top bar. */
-  .route-edit-layout {
-    flex: 1 1 auto;
-    min-height: 0;            /* let the grid actually shrink in a flex parent */
-    display: grid;
-    grid-template-columns: 1fr 340px;
+  html, body, #map { height: 100%; margin: 0; }
+  #map { background: #ede2c9; }
+  body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
-  #map { width: 100%; height: 100%; cursor: crosshair; }
 
-  .sidebar {
-    background: #f6f4ee;
-    border-left: 1px solid #d8d3c4;
-    padding: 0.75rem 0.9rem;
-    overflow-y: auto;
+  /* ───── Floating side panel (absolute over the map) ───── */
+  .side-panel {
+    position: absolute;
+    top: 1rem; left: 1rem; z-index: 1000;
+    width: 316px;
+    max-height: calc(100vh - 2rem);
     display: flex; flex-direction: column;
-    font-size: 14px;
+    background: var(--parchment);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    box-shadow: var(--shadow);
+    color: var(--ink);
+    overflow: hidden;
   }
-  .sidebar h2 { margin: 0 0 0.25rem; font-size: 16px; }
-  .sidebar .meta { color: #5b5749; font-size: 12px; margin-bottom: 0.5rem; }
-
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0.5rem 0; }
-  .stat-box { background: #ffffff; border: 1px solid #e0dccc; padding: 0.4rem 0.6rem; border-radius: 4px; }
-  .stat-box .label { font-size: 11px; color: #5b5749; text-transform: uppercase; letter-spacing: 0.04em; }
-  .stat-box .value { font-size: 18px; font-weight: 600; }
-
-  .controls { display: flex; gap: 0.4rem; margin: 0.5rem 0; flex-wrap: wrap; }
-  .controls button { font: inherit; padding: 0.35rem 0.7rem; border: 1px solid #b7b09c; background: #fff; border-radius: 4px; cursor: pointer; }
-  .controls button.primary { background: #3a6f55; color: #fff; border-color: #2f5b46; }
-  .controls button.primary:disabled { opacity: 0.55; cursor: default; }
-  .controls button.danger { color: #a03030; }
-
-  .raster-control {
-    background: #fff; border: 1px solid #e0dccc; border-radius: 4px;
-    padding: 0.45rem 0.6rem; margin: 0.4rem 0; font-size: 13px;
+  .side-panel header {
+    padding: 0.95rem 1.05rem 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    background:
+      linear-gradient(180deg,
+        rgba(31, 42, 35, 0) 0%,
+        rgba(31, 42, 35, 0.025) 100%),
+      var(--parchment);
   }
-  .raster-control .label { font-size: 11px; color: #5b5749; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.15rem; }
-  .raster-control input[type=range] { width: 100%; }
-  .raster-control .row { display: flex; align-items: center; gap: 0.45rem; }
-  .raster-control .row input[type=checkbox] { margin: 0; }
+  .panel-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 1.18rem;
+    letter-spacing: -0.005em;
+    margin: 0;
+    display: flex; align-items: baseline; gap: 0.5rem;
+  }
+  .panel-title::before {
+    content: "▲";
+    color: var(--rust);
+    font-size: 0.7em;
+  }
+  .panel-sub {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    margin-top: 0.2rem;
+  }
+  .panel-sub a { color: var(--ink-soft); text-decoration: none; border-bottom: 1px dashed var(--rule); }
+  .panel-sub a:hover { color: var(--rust); }
+  .panel-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+  .panel-body::-webkit-scrollbar { width: 6px; }
+  .panel-body::-webkit-scrollbar-track { background: transparent; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 2px; }
+  .panel-section {
+    padding: 0.75rem 1.05rem 0.9rem;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .panel-section:last-child { border-bottom: none; }
+  .section-heading {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 0.66rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 0.55rem;
+  }
+  .section-heading .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-style: normal;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    color: var(--ink-faint);
+  }
 
-  ol.wp-list { list-style: none; padding: 0; margin: 0; }
-  ol.wp-list li { display: grid; grid-template-columns: 1.6rem 1fr auto; gap: 0.3rem; padding: 0.35rem 0.4rem; border-bottom: 1px solid #ebe7d8; align-items: center; }
-  ol.wp-list li.active { background: #fff8d8; }
-  ol.wp-list .idx { font-weight: 600; color: #5b5749; text-align: right; }
-  ol.wp-list .name { width: 100%; border: none; background: transparent; font: inherit; padding: 2px 4px; border-radius: 2px; }
-  ol.wp-list .name:focus { background: #fff; outline: 1px solid #b7b09c; }
-  ol.wp-list .del { background: none; border: none; cursor: pointer; color: #a03030; font-size: 16px; line-height: 1; padding: 0 4px; }
-  ol.wp-list .del:hover { color: #d04040; }
+  /* Stats */
+  .stats-row { display: flex; justify-content: space-between; padding: 0.13rem 0;
+    font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+  .stats-row .key { color: var(--ink-soft); }
+  .stats-row .val { color: var(--ink); font-weight: 600;
+    font-family: 'JetBrains Mono', monospace; }
 
-  .empty { color: #5b5749; font-style: italic; padding: 0.4rem 0; }
-  .status { font-size: 12px; color: #5b5749; min-height: 1.2em; }
-  .status.error { color: #a03030; }
-  .status.ok { color: #2f5b46; }
+  /* Toggle rows */
+  .toggle-row {
+    display: flex; align-items: center; gap: 0.55rem;
+    padding: 0.22rem 0; cursor: pointer; font-size: 0.76rem;
+    color: var(--ink); transition: color 0.15s ease; user-select: none;
+  }
+  .toggle-row:hover { color: var(--rust); }
+  .toggle-row input { accent-color: var(--rust); margin: 0; flex-shrink: 0; }
+  .toggle-row .lbl { flex: 1; line-height: 1.4; }
+  .toggle-row:has(input:not(:checked)) .lbl { color: var(--ink-faint); }
+  .toggle-row:has(input:not(:checked)) .swatch { opacity: 0.45; }
+  .swatch {
+    display: inline-block; width: 13px; height: 13px;
+    border: 1.5px solid; flex-shrink: 0;
+  }
+  .swatch.raster   { background: #b4a780; border-color: #6b6147; }
+  .swatch.portage  { background: #ef6c00; border-color: #b53d00; }
+  .swatch.canvec   { background: rgba(0,96,100,0.28); border-color: #006064; }
+  .swatch.osm      { background: rgba(58,86,102,0.28); border-color: #3a5666; }
+  .swatch.topo     { background: rgba(160,140,90,0.30); border-color: #806430; }
+  .swatch.esri     { background: rgba(40,60,80,0.45);  border-color: #1f3650; }
 
+  .opacity-inline {
+    margin: 0.25rem 0 0 1.55rem; display: flex; align-items: center;
+    gap: 0.5rem; font-size: 0.68rem; color: var(--ink-soft);
+  }
+  .opacity-inline input[type=range] {
+    accent-color: var(--rust); flex: 1; height: 14px;
+  }
+
+  /* Action buttons */
+  .btn-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .btn {
+    font: inherit; font-size: 0.74rem;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--rule);
+    background: var(--parchment); color: var(--ink);
+    border-radius: 2px; cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .btn:hover { background: var(--parchment-deep); color: var(--rust); border-color: var(--rust); }
+  .btn.primary { background: var(--moss); color: #f5efe1; border-color: #36462f; }
+  .btn.primary:hover { background: #3f5536; color: #fff; }
+  .btn.primary:disabled { opacity: 0.55; cursor: default; background: var(--moss); color: #f5efe1; }
+  .btn.danger { color: var(--rust); }
+  .btn.danger:hover { background: var(--parchment-deep); color: #7d2f10; }
+
+  .status { font-size: 0.72rem; color: var(--ink-soft); min-height: 1.1em; padding: 0.3rem 0 0; }
+  .status.error { color: var(--rust); }
+  .status.ok { color: var(--moss); }
+
+  /* Waypoints list */
+  ol.wp-list { list-style: none; padding: 0; margin: 0.25rem 0 0; }
+  ol.wp-list li {
+    display: grid; grid-template-columns: 1.55rem 1fr auto; gap: 0.3rem;
+    padding: 0.32rem 0.1rem; border-bottom: 1px solid var(--rule-soft);
+    align-items: center; font-size: 0.76rem;
+  }
+  ol.wp-list li:last-child { border-bottom: none; }
+  ol.wp-list li.active { background: rgba(168, 69, 31, 0.07); }
+  ol.wp-list .idx {
+    font-family: 'JetBrains Mono', monospace; font-weight: 600;
+    color: var(--ink-soft); text-align: right;
+  }
+  ol.wp-list .name {
+    width: 100%; border: none; background: transparent;
+    font: inherit; padding: 2px 4px; border-radius: 2px; color: var(--ink);
+  }
+  ol.wp-list .name::placeholder { color: var(--ink-faint); font-style: italic; }
+  ol.wp-list .name:focus { background: var(--parchment-deep); outline: 1px solid var(--rule); }
+  ol.wp-list .del {
+    background: none; border: none; cursor: pointer; color: var(--ink-faint);
+    font-size: 0.95rem; line-height: 1; padding: 0 4px;
+    font-family: 'Fraunces', serif;
+  }
+  ol.wp-list .del:hover { color: var(--rust); }
+  .wp-empty {
+    color: var(--ink-faint); font-style: italic; font-size: 0.72rem;
+    padding: 0.3rem 0;
+  }
+
+  /* Waypoint marker — coloured pin with index */
   .leaflet-marker-icon.wp-marker {
-    background: #3a6f55; color: #fff; border-radius: 50%;
+    background: var(--moss); color: #f5efe1; border-radius: 50%;
     text-align: center; line-height: 26px; font-weight: 700; font-size: 12px;
-    border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    border: 2px solid #f5efe1; box-shadow: 0 1px 4px rgba(0,0,0,0.4);
   }
+
+  /* Hide Leaflet's built-in layer control — we have our own panel. */
+  .leaflet-control-layers { display: none; }
 </style>
 {% endblock %}
 
 {% block body %}
-<div class="top-bar">
-  <h1>Route editor — {{ slug }}</h1>
-  <div>
-    <a href="/trips/{{ slug }}/trip.html">← Back to trip</a>
-    &nbsp;·&nbsp;
-    <span class="meta">{{ user_email }}</span>
+<div id="map"></div>
+
+<aside class="side-panel" id="side-panel">
+  <header>
+    <h1 class="panel-title">{{ park | capitalize }}</h1>
+    <div class="panel-sub">
+      route editor ·
+      <a href="/trips/{{ slug }}/trip.html">{{ slug }}</a>
+    </div>
+  </header>
+
+  <div class="panel-body">
+
+    <section class="panel-section">
+      <h2 class="section-heading"><span>Route</span><span class="count" id="wp-count">0 pts</span></h2>
+      <div class="stats-row"><span class="key">Distance</span><span class="val"><span id="total-km">0.00</span> km</span></div>
+      <div class="stats-row"><span class="key">Paddle time · 4 km/h</span><span class="val" id="paddle-time">—</span></div>
+    </section>
+
+    <section class="panel-section">
+      <h2 class="section-heading"><span>Base map</span></h2>
+      <label class="toggle-row"><input type="radio" name="base" value="osm" checked><span class="swatch osm"></span><span class="lbl">OpenStreetMap</span></label>
+      <label class="toggle-row"><input type="radio" name="base" value="topo"><span class="swatch topo"></span><span class="lbl">OpenTopoMap</span></label>
+      <label class="toggle-row"><input type="radio" name="base" value="esri"><span class="swatch esri"></span><span class="lbl">Esri satellite</span></label>
+    </section>
+
+    <section class="panel-section">
+      <h2 class="section-heading"><span>Overlays</span></h2>
+      <label class="toggle-row"><input type="checkbox" id="ov-raster" checked><span class="swatch raster"></span><span class="lbl">Jeff's raster</span></label>
+      <div class="opacity-inline">
+        <span>opacity</span>
+        <input id="raster-opacity" type="range" min="0" max="1" step="0.05" value="0.7">
+        <span id="raster-opacity-val" style="font-family:'JetBrains Mono',monospace;font-size:0.66rem;width:2.2em;text-align:right;">70%</span>
+      </div>
+      <label class="toggle-row"><input type="checkbox" id="ov-portages" checked><span class="swatch portage"></span><span class="lbl">OSM portages</span></label>
+      <label class="toggle-row"><input type="checkbox" id="ov-canvec" checked><span class="swatch canvec"></span><span class="lbl">CanVec lakes</span></label>
+    </section>
+
+    <section class="panel-section">
+      <h2 class="section-heading"><span>Waypoints</span><span class="count">click map to add</span></h2>
+      <ol id="wp-list" class="wp-list"></ol>
+      <div id="wp-empty" class="wp-empty">No waypoints yet — click the map to drop one.</div>
+    </section>
+
+    <section class="panel-section">
+      <div class="btn-row">
+        <button id="btn-save" class="btn primary" disabled>Save</button>
+        <button id="btn-rebuild" class="btn" title="Rebuild trip.html so the new route shows on the trip page">Rebuild trip</button>
+        <button id="btn-clear" class="btn danger">Clear</button>
+      </div>
+      <div id="status" class="status"></div>
+    </section>
+
   </div>
-</div>
-<div class="route-edit-layout">
-  <div id="map"></div>
-  <aside class="sidebar">
-    <h2>Waypoints</h2>
-    <div class="meta">Click the map to add. Drag a marker to refine. Right-click a marker (or the row ✕) to remove.</div>
-
-    <div class="stats">
-      <div class="stat-box">
-        <div class="label">Distance</div>
-        <div class="value"><span id="total-km">0.0</span> km</div>
-      </div>
-      <div class="stat-box">
-        <div class="label">Paddle time @ <span id="speed-label">4</span> km/h</div>
-        <div class="value" id="paddle-time">—</div>
-      </div>
-    </div>
-
-    <div class="raster-control">
-      <div class="row">
-        <input id="raster-on" type="checkbox" checked>
-        <label for="raster-on" style="font-weight:600;">Jeff's raster overlay</label>
-      </div>
-      <div class="label" style="margin-top:0.35rem;">Opacity <span id="raster-opacity-val">70</span>%</div>
-      <input id="raster-opacity" type="range" min="0" max="1" step="0.05" value="0.7">
-    </div>
-
-    <div class="controls">
-      <button id="btn-save" class="primary" disabled>Save</button>
-      <button id="btn-clear" class="danger">Clear all</button>
-      <button id="btn-rebuild" title="Rebuild trip.html so the new route shows on the trip page">Rebuild trip</button>
-    </div>
-    <div id="status" class="status"></div>
-
-    <ol id="wp-list" class="wp-list"></ol>
-    <div id="wp-empty" class="empty">No waypoints yet — click the map to drop one.</div>
-  </aside>
-</div>
+</aside>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  // Server-rendered seed of any previously saved waypoints.
   const INITIAL = {{ waypoints_json | tojson }};
   const SLUG = {{ slug | tojson }};
   const PARK = {{ park | tojson }};
   const CENTRE = [{{ centre_lat }}, {{ centre_lon }}];
   const ZOOM = {{ zoom }};
   const PADDLE_KMH = 4.0;
-  // Jeff's raster mosaic for Killarney — bounds copied from the original overlay.
   const RASTER_URL = {{ raster_url | tojson }};
   const RASTER_BOUNDS = {{ raster_bounds | tojson }};
 </script>

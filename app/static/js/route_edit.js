@@ -1,61 +1,51 @@
-// Waypoint editor — interactive Leaflet map.
-// Click to add, drag to refine, right-click marker (or ✕ in the list) to delete.
-// The list is the source of truth; markers are rebuilt from it whenever it changes.
+// Waypoint editor — Leaflet map fills the viewport; the floating side panel
+// drives base-map radios, overlay checkboxes, raster opacity, and the
+// waypoint list. The list is the source of truth for waypoints; markers and
+// the polyline are rebuilt from it whenever it changes.
+
+// ── Map + base layers ─────────────────────────────────────────────────────
 
 const map = L.map('map', { zoomControl: true }).setView(CENTRE, ZOOM);
-const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-}).addTo(map);
-const baseEsri = L.tileLayer(
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  { maxZoom: 19, attribution: 'Tiles © Esri' },
-);
-const baseTopo = L.tileLayer(
-  'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-  {
+
+const baseLayers = {
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }),
+  topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
     maxZoom: 17,
-    attribution:
-      'Map data: © OpenStreetMap contributors, SRTM | Map style: © <a href="https://opentopomap.org">OpenTopoMap</a>',
-  },
-);
+    attribution: 'Map: © OpenStreetMap, SRTM | © <a href="https://opentopomap.org">OpenTopoMap</a>',
+  }),
+  esri: L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 19, attribution: 'Tiles © Esri' },
+  ),
+};
+let activeBase = baseLayers.osm.addTo(map);
 
-// Overlay layers. OSM portages stay as a thin reference overlay; CanVec is
-// the only lake layer (richer than OSM, less noisy than Jeff's polygons).
-const overlayLakesCanvec = L.layerGroup();
-const overlayPortagesOSM = L.layerGroup();
+document.querySelectorAll('input[name="base"]').forEach((radio) => {
+  radio.addEventListener('change', () => {
+    if (!radio.checked) return;
+    const next = baseLayers[radio.value];
+    if (!next || next === activeBase) return;
+    map.removeLayer(activeBase);
+    activeBase = next.addTo(map);
+  });
+});
 
-// Jeff's raster mosaic — added immediately so the layer control can list it
-// even before the lake GeoJSON arrives.
+// ── Overlays ──────────────────────────────────────────────────────────────
+
 const rasterLayer = RASTER_URL
   ? L.imageOverlay(RASTER_URL, RASTER_BOUNDS, { opacity: 0.7 })
   : null;
 if (rasterLayer) rasterLayer.addTo(map);
 
-const overlayDefs = {
-  "Jeff's raster": rasterLayer,
-  'OSM portages': overlayPortagesOSM,
-  'CanVec lakes': overlayLakesCanvec,
-};
-// Drop any null entries (e.g. raster unavailable) before handing to the control.
-const overlays = Object.fromEntries(
-  Object.entries(overlayDefs).filter(([, v]) => v !== null),
-);
-
-const layersControl = L.control.layers(
-  {
-    'OpenStreetMap': baseOSM,
-    'Esri satellite': baseEsri,
-    'OpenTopoMap': baseTopo,
-  },
-  overlays,
-  { collapsed: false, position: 'topright' },
-).addTo(map);
+const overlayPortages = L.layerGroup();
+const overlayCanvec = L.layerGroup();
 
 function styleLake() {
-  return { color: '#2e7d32', weight: 1, fillColor: '#2e7d32', fillOpacity: 0.10, interactive: false };
+  return { color: '#006064', weight: 1, fillColor: '#006064', fillOpacity: 0.10, interactive: false };
 }
-
 function stylePortage() {
   return { color: '#d27b00', weight: 3, opacity: 0.9, dashArray: '5,5' };
 }
@@ -63,10 +53,7 @@ function stylePortage() {
 async function loadOverlays() {
   try {
     const r = await fetch(`/api/lakes/${encodeURIComponent(PARK)}`, { credentials: 'same-origin' });
-    if (!r.ok) {
-      console.warn(`No overlays for park ${PARK} (${r.status})`);
-      return;
-    }
+    if (!r.ok) return;
     const data = await r.json();
     if (data.osm) {
       L.geoJSON(data.osm, {
@@ -77,52 +64,49 @@ async function loadOverlays() {
           const lbl = f.properties.name + (lk ? ` (${lk.toFixed(2)} km)` : '');
           layer.bindTooltip(lbl, { sticky: true });
         },
-      }).addTo(overlayPortagesOSM);
-      overlayPortagesOSM.addTo(map);  // on by default
+      }).addTo(overlayPortages);
+      overlayPortages.addTo(map);
     }
     if (data.canvec) {
-      L.geoJSON(data.canvec, { style: styleLake }).addTo(overlayLakesCanvec);
-      overlayLakesCanvec.addTo(map);  // on by default
+      L.geoJSON(data.canvec, { style: styleLake }).addTo(overlayCanvec);
+      overlayCanvec.addTo(map);
     }
   } catch (err) {
     console.warn('Overlay load failed:', err);
   }
 }
 
-// ── Raster opacity slider in the sidebar ───────────────────────────────────
-(function wireRasterControls() {
-  const onBox = document.getElementById('raster-on');
+// ── Custom panel controls (overlay checkboxes + opacity slider) ───────────
+
+function wireOverlayToggle(checkboxId, layer) {
+  const box = document.getElementById(checkboxId);
+  if (!layer) { box.disabled = true; box.checked = false; return; }
+  box.addEventListener('change', () => {
+    if (box.checked) layer.addTo(map);
+    else map.removeLayer(layer);
+  });
+}
+wireOverlayToggle('ov-raster', rasterLayer);
+wireOverlayToggle('ov-portages', overlayPortages);
+wireOverlayToggle('ov-canvec', overlayCanvec);
+
+(function wireRasterSlider() {
   const slider = document.getElementById('raster-opacity');
   const label = document.getElementById('raster-opacity-val');
-  if (!rasterLayer) {
-    onBox.disabled = true;
-    slider.disabled = true;
-    label.textContent = 'n/a';
-    return;
-  }
-  onBox.addEventListener('change', () => {
-    if (onBox.checked) {
-      rasterLayer.addTo(map);
-    } else {
-      map.removeLayer(rasterLayer);
-    }
-  });
+  const box = document.getElementById('ov-raster');
+  if (!rasterLayer) { slider.disabled = true; label.textContent = 'n/a'; return; }
   slider.addEventListener('input', (ev) => {
     const v = parseFloat(ev.target.value);
-    label.textContent = String(Math.round(v * 100));
+    label.textContent = `${Math.round(v * 100)}%`;
     rasterLayer.setOpacity(v);
-    if (v > 0 && !onBox.checked) {
-      onBox.checked = true;
+    if (v > 0 && !box.checked) {
+      box.checked = true;
       rasterLayer.addTo(map);
     }
   });
-  // Keep checkbox + Leaflet layer-control checkbox in sync when toggled
-  // via the layer control instead of the sidebar.
-  map.on('overlayadd', (ev) => { if (ev.layer === rasterLayer) onBox.checked = true; });
-  map.on('overlayremove', (ev) => { if (ev.layer === rasterLayer) onBox.checked = false; });
 })();
 
-loadOverlays();
+// ── Waypoint state + rendering ────────────────────────────────────────────
 
 const state = {
   waypoints: INITIAL.map((w) => ({ lat: w.lat, lon: w.lon, name: w.name || '' })),
@@ -135,18 +119,14 @@ const state = {
 const els = {
   list: document.getElementById('wp-list'),
   empty: document.getElementById('wp-empty'),
+  count: document.getElementById('wp-count'),
   totalKm: document.getElementById('total-km'),
   paddleTime: document.getElementById('paddle-time'),
-  speedLabel: document.getElementById('speed-label'),
   save: document.getElementById('btn-save'),
   clear: document.getElementById('btn-clear'),
   rebuild: document.getElementById('btn-rebuild'),
   status: document.getElementById('status'),
 };
-
-els.speedLabel.textContent = PADDLE_KMH.toFixed(0);
-
-// ── Geometry ───────────────────────────────────────────────────────────────
 
 function haversineKm(a, b) {
   const R = 6371.0088;
@@ -177,8 +157,6 @@ function formatTime(km) {
   return `${h}h ${m}m`;
 }
 
-// ── Rendering ──────────────────────────────────────────────────────────────
-
 function makeIcon(idx) {
   return L.divIcon({
     className: 'wp-marker',
@@ -191,11 +169,7 @@ function makeIcon(idx) {
 function rebuildMarkers() {
   state.markers.forEach((m) => map.removeLayer(m));
   state.markers = state.waypoints.map((w, idx) => {
-    const m = L.marker([w.lat, w.lon], {
-      icon: makeIcon(idx),
-      draggable: true,
-      autoPan: true,
-    });
+    const m = L.marker([w.lat, w.lon], { icon: makeIcon(idx), draggable: true, autoPan: true });
     m.on('dragend', (ev) => {
       const ll = ev.target.getLatLng();
       state.waypoints[idx].lat = ll.lat;
@@ -212,38 +186,31 @@ function rebuildMarkers() {
 }
 
 function renderPolyline() {
-  if (state.polyline) {
-    map.removeLayer(state.polyline);
-    state.polyline = null;
-  }
+  if (state.polyline) { map.removeLayer(state.polyline); state.polyline = null; }
   if (state.waypoints.length >= 2) {
     state.polyline = L.polyline(
       state.waypoints.map((w) => [w.lat, w.lon]),
-      { color: '#3a6f55', weight: 4, opacity: 0.85 },
+      { color: '#6b1fb1', weight: 4, opacity: 0.85 },
     ).addTo(map);
   }
 }
 
 function renderList() {
   els.list.innerHTML = '';
-  if (state.waypoints.length === 0) {
-    els.empty.style.display = '';
-    return;
-  }
+  els.count.textContent = `${state.waypoints.length} pt${state.waypoints.length === 1 ? '' : 's'}`;
+  if (state.waypoints.length === 0) { els.empty.style.display = ''; return; }
   els.empty.style.display = 'none';
   state.waypoints.forEach((w, idx) => {
     const li = document.createElement('li');
     li.dataset.idx = String(idx);
     li.innerHTML = `
       <div class="idx">${idx + 1}.</div>
-      <input class="name" type="text" placeholder="(unnamed)" value="${escapeHtml(w.name)}">
+      <input class="name" type="text" placeholder="(unnamed)">
       <button class="del" title="Remove">✕</button>
     `;
     const input = li.querySelector('.name');
-    input.addEventListener('input', (ev) => {
-      state.waypoints[idx].name = ev.target.value;
-      markDirty();
-    });
+    input.value = w.name;
+    input.addEventListener('input', (ev) => { state.waypoints[idx].name = ev.target.value; markDirty(); });
     li.querySelector('.del').addEventListener('click', () => removeAt(idx));
     li.addEventListener('click', (ev) => {
       if (ev.target === input || ev.target.classList.contains('del')) return;
@@ -267,7 +234,7 @@ function renderAll() {
 }
 
 function focusRow(idx, { panMap = false } = {}) {
-  for (const li of els.list.querySelectorAll('li')) li.classList.remove('active');
+  els.list.querySelectorAll('li').forEach((li) => li.classList.remove('active'));
   const li = els.list.querySelector(`li[data-idx="${idx}"]`);
   if (li) li.classList.add('active');
   if (panMap) {
@@ -275,14 +242,6 @@ function focusRow(idx, { panMap = false } = {}) {
     if (w) map.panTo([w.lat, w.lon]);
   }
 }
-
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-// ── Mutations ──────────────────────────────────────────────────────────────
 
 function addWaypoint(lat, lon) {
   state.waypoints.push({ lat, lon, name: '' });
@@ -315,8 +274,6 @@ function setStatus(msg, kind) {
   els.status.className = 'status' + (kind ? ' ' + kind : '');
 }
 
-// ── Save / Rebuild ────────────────────────────────────────────────────────
-
 async function save() {
   if (state.saving) return;
   state.saving = true;
@@ -329,10 +286,7 @@ async function save() {
       credentials: 'same-origin',
       body: JSON.stringify({ waypoints: state.waypoints }),
     });
-    if (!r.ok) {
-      const text = await r.text();
-      throw new Error(`${r.status}: ${text}`);
-    }
+    if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`);
     const data = await r.json();
     state.dirty = false;
     setStatus(`Saved ${data.saved} waypoint(s) · ${data.total_km} km`, 'ok');
@@ -351,30 +305,24 @@ async function rebuild() {
       method: 'POST', credentials: 'same-origin',
     });
     if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`);
-    setStatus('Trip rebuilt — refresh the trip page to see the new route.', 'ok');
+    setStatus('Trip rebuilt — refresh the trip page to see it.', 'ok');
   } catch (err) {
     setStatus(`Rebuild failed: ${err.message}`, 'error');
   }
 }
 
-// ── Wire up ────────────────────────────────────────────────────────────────
+// ── Wire up ───────────────────────────────────────────────────────────────
 
-map.on('click', (ev) => {
-  addWaypoint(ev.latlng.lat, ev.latlng.lng);
-});
-
+map.on('click', (ev) => addWaypoint(ev.latlng.lat, ev.latlng.lng));
 els.save.addEventListener('click', save);
 els.clear.addEventListener('click', clearAll);
 els.rebuild.addEventListener('click', rebuild);
 
 window.addEventListener('beforeunload', (ev) => {
-  if (state.dirty) {
-    ev.preventDefault();
-    ev.returnValue = '';
-  }
+  if (state.dirty) { ev.preventDefault(); ev.returnValue = ''; }
 });
 
-// Initial render. If we loaded saved waypoints, fit the map to them.
+loadOverlays();
 renderAll();
 if (state.waypoints.length >= 2) {
   const bounds = L.latLngBounds(state.waypoints.map((w) => [w.lat, w.lon]));
