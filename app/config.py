@@ -1,12 +1,17 @@
 """Centralised paths and settings for the FastAPI app."""
 
+import os
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TRIPS_DIR = REPO_ROOT / "trips"
+
+_DATA_DIR_ENV = os.environ.get("DATA_DIR")
+DATA_DIR = Path(_DATA_DIR_ENV) if _DATA_DIR_ENV else REPO_ROOT
+
+TRIPS_DIR = DATA_DIR / "trips"
 TEMPLATE_DIR = REPO_ROOT / "templates" / "trip-template"
 PARKS_JSON = REPO_ROOT / "parks.json"
-DATABASE_PATH = REPO_ROOT / "camping.sqlite3"
+DATABASE_PATH = DATA_DIR / "camping.sqlite3"
 
 APP_DIR = Path(__file__).resolve().parent
 JINJA_TEMPLATES_DIR = APP_DIR / "templates"
