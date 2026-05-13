@@ -42,27 +42,26 @@ def issue_magic_link(email: str, path: Path | None = None) -> str:
 
 def consume_magic_link(token: str, path: Path | None = None) -> str:
     """Return a new session id. Raises MagicLinkInvalid on any failure."""
+    now = _now()
+    now_iso = _iso(now)
     with db.connect(path) as conn:
-        row = conn.execute(
-            "SELECT email, expires_at, consumed_at FROM magic_links "
-            "WHERE token = ?",
-            (token,),
-        ).fetchone()
-        if row is None or row["consumed_at"] is not None:
-            raise MagicLinkInvalid("unknown or already consumed")
-        if _iso(_now()) > row["expires_at"]:
-            raise MagicLinkInvalid("expired")
-        conn.execute(
-            "UPDATE magic_links SET consumed_at = ? WHERE token = ?",
-            (_iso(_now()), token),
+        cur = conn.execute(
+            "UPDATE magic_links SET consumed_at = ? "
+            "WHERE token = ? AND consumed_at IS NULL AND expires_at > ?",
+            (now_iso, token, now_iso),
         )
+        if cur.rowcount != 1:
+            raise MagicLinkInvalid("unknown, expired, or already consumed")
+        row = conn.execute(
+            "SELECT email FROM magic_links WHERE token = ?", (token,),
+        ).fetchone()
         user_id = upsert_user(row["email"], conn=conn)
         session_id = secrets.token_urlsafe(32)
         conn.execute(
             "INSERT INTO sessions (id, user_id, created_at, expires_at) "
             "VALUES (?, ?, ?, ?)",
-            (session_id, user_id, _iso(_now()),
-             _iso(_now() + SESSION_TTL_SECONDS)),
+            (session_id, user_id, now_iso,
+             _iso(now + SESSION_TTL_SECONDS)),
         )
         return session_id
 
