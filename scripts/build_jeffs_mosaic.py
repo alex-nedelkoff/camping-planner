@@ -11,9 +11,12 @@ Output:
 
 Usage:
     python3 scripts/build_jeffs_mosaic.py \\
-      --kmz "Maps by Jeff - Full French River and Killarney Paddling Map v4.0 - Google Earth.kmz" \\
-      --bbox 45.92,-81.62,46.12,-81.24 \\
-      --zoom 6
+      --kmz "Maps by Jeff - Full French River and Killarney Paddling Map v4.0 - Google Earth.kmz"
+
+The default --bbox covers the KMZ's full extent (Killarney + French River),
+derived from the union of every tile's <LatLonBox> in doc.kml. At zoom 6 that
+produces a ~25kx6k JPG (~18 MB). Pass --zoom 5 to shrink it, or a tighter
+--bbox to restrict to Killarney proper (45.92,-81.75,46.12,-81.24).
 """
 
 from __future__ import annotations
@@ -31,8 +34,11 @@ sys.path.insert(0, str(REPO_ROOT))
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--kmz", required=True, help="KMZ file (absolute or relative to repo root)")
-    parser.add_argument("--bbox", default="45.92,-81.62,46.12,-81.24",
-                        help="south,west,north,east — defaults to full Killarney")
+    # Full KMZ extent (Killarney + French River) — union of every tile's
+    # LatLonBox in doc.kml. Pass --bbox 45.92,-81.75,46.12,-81.24 for
+    # Killarney-only.
+    parser.add_argument("--bbox", default="45.822,-81.7472,46.2824,-79.7503",
+                        help="south,west,north,east — defaults to full KMZ extent")
     parser.add_argument("--zoom", type=int, default=6,
                         help="KMZ zoom level (lower=fewer, larger tiles; default 6)")
     parser.add_argument("--out", default="data/jeffs_killarney_mosaic.jpg",
