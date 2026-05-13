@@ -17,6 +17,7 @@ from app.routes import (
     identity,
     pages,
     parks,
+    sse,
     trips,
 )
 from app.services import db
@@ -24,6 +25,10 @@ from app.services import db
 app = FastAPI(title="Camping Planner")
 
 db.init_schema()
+
+# SSE route must be registered before the /trips static mount so the
+# mount doesn't shadow GET /trips/{slug}/events.
+app.include_router(sse.router)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 TRIPS_DIR.mkdir(exist_ok=True)
