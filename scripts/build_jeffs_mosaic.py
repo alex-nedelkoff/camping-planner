@@ -13,10 +13,14 @@ Usage:
     python3 scripts/build_jeffs_mosaic.py \\
       --kmz "Maps by Jeff - Full French River and Killarney Paddling Map v4.0 - Google Earth.kmz"
 
-The default --bbox covers the KMZ's full extent (Killarney + French River),
-derived from the union of every tile's <LatLonBox> in doc.kml. At zoom 6 that
-produces a ~25kx6k JPG (~18 MB). Pass --zoom 5 to shrink it, or a tighter
---bbox to restrict to Killarney proper (45.92,-81.75,46.12,-81.24).
+The default --bbox covers Killarney (45.92,-81.7472 → 46.18,-81.05) at zoom 6,
+producing a ~9kx3.4k JPG (~5 MB). This is the trip-planner-relevant area.
+
+The KMZ also covers French River extending east to ~-79.75, so to grab the
+full KMZ pass --bbox 45.822,-81.7472,46.2824,-79.7503. At zoom 6 that's
+~25kx6k px / ~17 MB JPG — manageable on disk but the browser has to keep
+~600 MB of decoded RGBA in memory, which scales the imageOverlay down
+aggressively and can wash out fine detail. Drop to --zoom 5 to balance.
 """
 
 from __future__ import annotations
@@ -34,11 +38,12 @@ sys.path.insert(0, str(REPO_ROOT))
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--kmz", required=True, help="KMZ file (absolute or relative to repo root)")
-    # Full KMZ extent (Killarney + French River) — union of every tile's
-    # LatLonBox in doc.kml. Pass --bbox 45.92,-81.75,46.12,-81.24 for
-    # Killarney-only.
-    parser.add_argument("--bbox", default="45.822,-81.7472,46.2824,-79.7503",
-                        help="south,west,north,east — defaults to full KMZ extent")
+    # Killarney area at the western/eastern extent of the dense map data —
+    # the western edge (-81.7472) is the true KMZ west, captured by walking
+    # every tile's LatLonBox. Pass a wider bbox to include French River, or
+    # a tighter one for just the park's interior.
+    parser.add_argument("--bbox", default="45.92,-81.7472,46.18,-81.05",
+                        help="south,west,north,east — defaults to Killarney area")
     parser.add_argument("--zoom", type=int, default=6,
                         help="KMZ zoom level (lower=fewer, larger tiles; default 6)")
     parser.add_argument("--out", default="data/jeffs_killarney_mosaic.jpg",
