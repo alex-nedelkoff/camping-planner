@@ -1,6 +1,5 @@
 """SSE stream + presence broadcast."""
 
-import json
 import secrets
 import time
 from datetime import datetime, timezone
@@ -9,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.services import auth, db
+from app.services import auth, broadcast, db
 
 
 @pytest.fixture
@@ -44,34 +43,43 @@ def test_sse_unauthenticated_returns_401(tmp_path, monkeypatch):
     assert r.status_code in (401, 403)
 
 
-@pytest.mark.skip(reason="enabled by Task 11 broadcast wiring")
-def test_sse_receives_a_published_event(authed_client):
-    # Publish before connecting won't reach the stream — publish from a
-    # background task after the stream is open.
-    with authed_client.stream("GET", "/trips/t/events") as r:
-        assert r.status_code == 200
-        # Trigger an event by posting a food row in another request
-        authed_client.post(
-            "/api/trips/t/food",
-            json={
-                "day_index": 1,
-                "meal": "dinner",
-                "item": "Pasta",
-                "assigned_to": "",
-                "notes": "",
-                "sort_order": 1.0,
-            },
-        )
-        # Read one event line group from the stream (data: {...}\n\n)
-        chunks = []
-        for line in r.iter_lines():
-            chunks.append(line)
-            if len(chunks) > 10:
-                break
-            # Stop once we see a data: line
-            if line.startswith("data:"):
-                break
-        data_line = next(c for c in chunks if c.startswith("data:"))
-        payload = json.loads(data_line[len("data:") :].strip())
-        assert payload["type"] == "food.upsert"
-        assert payload["row"]["item"] == "Pasta"
+def test_sse_receives_a_published_event(authed_client, monkeypatch):
+    # We can't drive end-to-end SSE through TestClient: httpx.ASGITransport
+    # buffers every http.response.body chunk and only returns once the response
+    # is complete (see httpx/_transports/asgi.py). EventSourceResponse never
+    # completes, so client.stream(...) hangs at __enter__. Subscribing to the
+    # bus from the test loop doesn't help either — asyncio.Queue waiters are
+    # bound to the loop that called get(), and the publish runs on TestClient's
+    # portal loop.
+    #
+    # So we capture publish() calls directly and verify the food route wires
+    # the broadcast correctly. End-to-end SSE delivery is exercised by hand
+    # against a running uvicorn process.
+    captured: list[tuple[str, dict]] = []
+    real_publish = broadcast.default_bus.publish
+
+    async def capture(channel, event):
+        captured.append((channel, event))
+        await real_publish(channel, event)
+
+    monkeypatch.setattr(broadcast.default_bus, "publish", capture)
+
+    r = authed_client.post(
+        "/api/trips/t/food",
+        json={
+            "day_index": 1,
+            "meal": "dinner",
+            "item": "Pasta",
+            "assigned_to": "",
+            "notes": "",
+            "sort_order": 1.0,
+        },
+    )
+    assert r.status_code == 200
+    food_events = [
+        (ch, ev) for ch, ev in captured if ev.get("type") == "food.upsert"
+    ]
+    assert food_events, f"no food.upsert event published; saw {captured!r}"
+    channel, event = food_events[0]
+    assert channel == "t"
+    assert event["row"]["item"] == "Pasta"

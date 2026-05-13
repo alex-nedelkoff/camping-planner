@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.services import food_repo
+from app.services import broadcast, food_repo
 from app.services.identity import require_trip_member
 
 router = APIRouter(prefix="/api/trips/{slug}/food", tags=["food"])
@@ -46,7 +46,7 @@ async def create_food(slug: str, body: FoodIn, request: Request):
         assigned_to=body.assigned_to, notes=body.notes,
         sort_order=body.sort_order, user_id=user["id"],
     )
-    # broadcast hooked in Task 11
+    await broadcast.default_bus.publish(slug, {"type": "food.upsert", "row": row})
     return {"row": row}
 
 
@@ -66,6 +66,7 @@ async def update_food(slug: str, row_id: int,
         # Flatter shape than HTTPException(detail=...) — clients read
         # response.current directly, not response.detail.current.
         return JSONResponse(status_code=409, content={"current": e.current})
+    await broadcast.default_bus.publish(slug, {"type": "food.upsert", "row": row})
     return {"row": row}
 
 
@@ -73,4 +74,5 @@ async def update_food(slug: str, row_id: int,
 async def delete_food(slug: str, row_id: int, request: Request):
     require_trip_member(request, slug)
     food_repo.delete(row_id)
+    await broadcast.default_bus.publish(slug, {"type": "food.delete", "id": row_id})
     return {"ok": True}
