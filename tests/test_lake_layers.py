@@ -13,9 +13,18 @@ def test_layers_for_unknown_park_returns_empty_dict():
     assert lake_layers.layers_for("does-not-exist") == {}
 
 
-def test_killarney_returns_osm_and_jeffs_keys():
+def test_killarney_returns_all_layer_keys():
     layers = lake_layers.layers_for("killarney")
-    assert set(layers.keys()) == {"osm", "jeffs"}
+    assert set(layers.keys()) == {"osm", "jeffs", "canvec"}
+
+
+def test_canvec_geojson_has_lake_features():
+    fc = lake_layers.canvec_geojson()
+    assert fc["type"] == "FeatureCollection"
+    assert all(f["properties"]["kind"] == "lake" for f in fc["features"])
+    assert all(f["properties"]["source"] == "canvec" for f in fc["features"])
+    # CanVec cache has ~586 lakes in the Killarney bbox.
+    assert len(fc["features"]) > 400
 
 
 def test_osm_geojson_has_lake_and_portage_features():
@@ -48,7 +57,7 @@ def test_lakes_endpoint_returns_geojson_for_killarney():
     r = client.get("/api/lakes/killarney")
     assert r.status_code == 200
     body = r.json()
-    assert set(body.keys()) == {"osm", "jeffs"}
+    assert set(body.keys()) == {"osm", "jeffs", "canvec"}
     assert body["osm"]["type"] == "FeatureCollection"
 
 

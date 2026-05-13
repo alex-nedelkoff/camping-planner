@@ -23,6 +23,7 @@ const baseTopo = L.tileLayer(
 // Overlay layers — populated async from /api/lakes/{park}.
 const overlayLakesOSM = L.layerGroup();
 const overlayLakesJeffs = L.layerGroup();
+const overlayLakesCanvec = L.layerGroup();
 const overlayPortagesOSM = L.layerGroup();
 
 const layersControl = L.control.layers(
@@ -34,6 +35,7 @@ const layersControl = L.control.layers(
   {
     'OSM lakes (named)': overlayLakesOSM,
     'OSM portages': overlayPortagesOSM,
+    'CanVec lakes (NRCan)': overlayLakesCanvec,
     "Jeff's lakes (detailed)": overlayLakesJeffs,
   },
   { collapsed: false, position: 'topright' },
@@ -42,6 +44,9 @@ const layersControl = L.control.layers(
 function styleLake(source) {
   if (source === 'jeffs') {
     return { color: '#a03030', weight: 1, fillColor: '#a03030', fillOpacity: 0.10, interactive: false };
+  }
+  if (source === 'canvec') {
+    return { color: '#2e7d32', weight: 1, fillColor: '#2e7d32', fillOpacity: 0.10, interactive: false };
   }
   return { color: '#1565c0', weight: 1, fillColor: '#1565c0', fillOpacity: 0.12, interactive: false };
 }
@@ -75,6 +80,12 @@ async function loadOverlays() {
       }).addTo(overlayPortagesOSM);
       overlayLakesOSM.addTo(map);     // on by default
       overlayPortagesOSM.addTo(map);  // on by default
+    }
+    if (data.canvec) {
+      L.geoJSON(data.canvec, {
+        style: () => styleLake('canvec'),
+      }).addTo(overlayLakesCanvec);
+      // off by default — CanVec is dense; toggle on for richer hydrography
     }
     if (data.jeffs) {
       L.geoJSON(data.jeffs, {

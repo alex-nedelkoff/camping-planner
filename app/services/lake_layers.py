@@ -12,23 +12,40 @@ FeatureCollections lazily. Coordinates are flipped from cache-native
 from __future__ import annotations
 
 import json
+import os
 from functools import lru_cache
 from pathlib import Path
 
 from app.config import REPO_ROOT
 
-_OSM_PATHS = (
-    REPO_ROOT / "osm_killarney_cache.json",
-    REPO_ROOT / "data" / "osm_killarney_cache.json",
-)
-_JEFFS_PATHS = (
-    REPO_ROOT / "jeffs_killarney_cache.json",
-    REPO_ROOT / "data" / "jeffs_killarney_cache.json",
-)
+
+def _candidate_dirs() -> tuple[Path, ...]:
+    """Where to look for cached lake/portage data, in priority order.
+
+    LAKE_DATA_DIR overrides everything else, useful when a worktree (under
+    .claude/worktrees/...) needs to share cached data with the parent
+    checkout. Otherwise fall back to REPO_ROOT/data and finally REPO_ROOT
+    itself (legacy paths kept the JSONs at the project root).
+    """
+    out: list[Path] = []
+    env = os.environ.get("LAKE_DATA_DIR")
+    if env:
+        out.append(Path(env))
+    out.append(REPO_ROOT / "data")
+    out.append(REPO_ROOT)
+    # If we're a worktree under .claude/worktrees/<name>, the parent repo
+    # often has the local-only cache files (CanVec, hiking trails, etc.).
+    parts = REPO_ROOT.parts
+    if len(parts) >= 4 and parts[-3:-1] == (".claude", "worktrees"):
+        parent_repo = REPO_ROOT.parents[2]
+        out.append(parent_repo / "data")
+        out.append(parent_repo)
+    return tuple(out)
 
 
-def _first_existing(paths: tuple[Path, ...]) -> Path | None:
-    for p in paths:
+def _find(name: str) -> Path | None:
+    for d in _candidate_dirs():
+        p = d / name
         if p.is_file():
             return p
     return None
@@ -56,7 +73,7 @@ def _linestring_feature(line: list[list[float]], props: dict) -> dict:
 @lru_cache(maxsize=4)
 def osm_geojson() -> dict:
     """Return a FeatureCollection with named OSM lakes and portages."""
-    path = _first_existing(_OSM_PATHS)
+    path = _find("osm_killarney_cache.json")
     if path is None:
         return {"type": "FeatureCollection", "features": []}
     data = json.loads(path.read_text())
@@ -86,7 +103,7 @@ def osm_geojson() -> dict:
 @lru_cache(maxsize=4)
 def jeffs_geojson() -> dict:
     """Return a FeatureCollection with Jeff's lake polygons (mostly unnamed)."""
-    path = _first_existing(_JEFFS_PATHS)
+    path = _find("jeffs_killarney_cache.json")
     if path is None:
         return {"type": "FeatureCollection", "features": []}
     data = json.loads(path.read_text())
@@ -103,8 +120,32 @@ def jeffs_geojson() -> dict:
     return {"type": "FeatureCollection", "features": features}
 
 
+@lru_cache(maxsize=4)
+def canvec_geojson() -> dict:
+    """Return a FeatureCollection of CanVec (NRCan) waterbody polygons."""
+    path = _find("canvec_killarney_lakes.json")
+    if path is None:
+        return {"type": "FeatureCollection", "features": []}
+    data = json.loads(path.read_text())
+    features: list[dict] = []
+    for lake in data.get("lakes", []):
+        poly = lake.get("polygon")
+        if not poly:
+            continue
+        features.append(_polygon_feature(poly, {
+            "kind": "lake",
+            "source": "canvec",
+            "name": lake.get("name") or "",
+        }))
+    return {"type": "FeatureCollection", "features": features}
+
+
 _PARK_LAYERS = {
-    "killarney": {"osm": osm_geojson, "jeffs": jeffs_geojson},
+    "killarney": {
+        "osm": osm_geojson,
+        "jeffs": jeffs_geojson,
+        "canvec": canvec_geojson,
+    },
 }
 
 
