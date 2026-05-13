@@ -1,0 +1,141 @@
+"""Waypoint editor: HTML page + JSON read/write endpoints.
+
+The HTML page (GET /trips/{slug}/route-edit) is registered on its own router
+because it lives under /trips, which is shadowed by the StaticFiles mount —
+this router must be included BEFORE the mount in app/main.py.
+
+The JSON endpoints live under /api so they aren't affected by the static mount.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field
+
+from app.config import JINJA_TEMPLATES_DIR, PARKS_JSON, TRIPS_DIR
+from app.services import route_gpx
+from app.services.identity import require_trip_member
+
+# Default centres for parks the editor knows about. Falls back to a Killarney
+# view if a trip's park isn't listed (most trips here are Killarney). Mirrors
+# weather.PARK_COORDS but lives here to avoid pulling in network code.
+PARK_CENTRES: dict[str, tuple[float, float]] = {
+    "killarney": (46.01, -81.40),
+    "algonquin-canisbay": (45.5762, -78.5333),
+    "algonquin-pog": (45.5660, -78.3733),
+    "algonquin-rock-lake": (45.5283, -78.3650),
+    "algonquin-mew-lake": (45.5803, -78.5067),
+    "algonquin-two-rivers": (45.5825, -78.4825),
+    "algonquin-backcountry": (45.6500, -78.3500),
+    "killbear": (45.3500, -80.2167),
+    "frontenac": (44.5167, -76.5500),
+    "bon-echo": (44.8930, -77.2070),
+    "french-river": (46.0500, -80.5000),
+    "grundy-lake": (45.9333, -80.5333),
+    "massasauga": (45.2167, -80.0000),
+}
+_DEFAULT_CENTRE = (46.01, -81.40)
+_DEFAULT_ZOOM = 12
+
+page_router = APIRouter()           # /trips/... HTML — registered pre-static
+api_router = APIRouter(prefix="/api")  # /api/... JSON — normal mount order
+
+_templates = Jinja2Templates(directory=str(JINJA_TEMPLATES_DIR))
+
+
+# ── Schemas ────────────────────────────────────────────────────────────────
+
+class Waypoint(BaseModel):
+    lat: float
+    lon: float
+    name: str = ""
+
+
+class SaveRouteRequest(BaseModel):
+    waypoints: list[Waypoint] = Field(default_factory=list)
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────
+
+def _ensure_trip(slug: str) -> Path:
+    trip_dir = TRIPS_DIR / slug
+    if not slug or not trip_dir.is_dir():
+        raise HTTPException(status_code=404, detail={"ok": False, "error": "trip not found"})
+    return trip_dir
+
+
+def _read_park_key(trip_dir: Path) -> str | None:
+    """Pull `park: <key>` out of trip.md frontmatter without dragging YAML in."""
+    md = trip_dir / "trip.md"
+    if not md.is_file():
+        return None
+    text = md.read_text()
+    if not text.startswith("---"):
+        return None
+    end = text.find("\n---", 3)
+    if end == -1:
+        return None
+    for line in text[3:end].splitlines():
+        line = line.strip()
+        if line.startswith("park:"):
+            return line.split(":", 1)[1].strip()
+    return None
+
+
+def _centre_for(trip_dir: Path) -> tuple[float, float]:
+    key = _read_park_key(trip_dir)
+    if key and key in PARK_CENTRES:
+        return PARK_CENTRES[key]
+    return _DEFAULT_CENTRE
+
+
+# ── HTML page ──────────────────────────────────────────────────────────────
+
+@page_router.get("/trips/{slug}/route-edit", response_class=HTMLResponse)
+def route_editor_page(slug: str, request: Request):
+    user = require_trip_member(request, slug)
+    trip_dir = _ensure_trip(slug)
+    centre = _centre_for(trip_dir)
+    waypoints = route_gpx.load_waypoints(trip_dir)
+    return _templates.TemplateResponse(
+        request,
+        "route_edit.html",
+        {
+            "slug": slug,
+            "user_email": user["email"],
+            "centre_lat": centre[0],
+            "centre_lon": centre[1],
+            "zoom": _DEFAULT_ZOOM,
+            "waypoints_json": waypoints,
+        },
+    )
+
+
+# ── JSON API ───────────────────────────────────────────────────────────────
+
+@api_router.get("/trips/{slug}/route")
+def get_route(slug: str, request: Request):
+    require_trip_member(request, slug)
+    trip_dir = _ensure_trip(slug)
+    wpts = route_gpx.load_waypoints(trip_dir)
+    return {
+        "waypoints": wpts,
+        "total_km": round(route_gpx.total_distance_km(wpts), 2),
+    }
+
+
+@api_router.post("/trips/{slug}/route")
+def save_route(slug: str, body: SaveRouteRequest, request: Request):
+    require_trip_member(request, slug)
+    trip_dir = _ensure_trip(slug)
+    wpts = [w.model_dump() for w in body.waypoints]
+    route_gpx.save_waypoints(trip_dir, wpts)
+    return {
+        "ok": True,
+        "saved": len(wpts),
+        "total_km": round(route_gpx.total_distance_km(wpts), 2),
+    }
