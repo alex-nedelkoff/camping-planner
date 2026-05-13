@@ -46,48 +46,77 @@ def _inv_mercator_y(y: float) -> float:
     return math.degrees(2 * math.atan(math.exp(y)) - math.pi / 2)
 
 
-def reproject_plate_carree_to_mercator(mosaic, n: float, s: float):
-    """Resample a plate-carrée image vertically into Web Mercator pixel space.
+def build_mercator_mosaic(tiles: list):
+    """Stitch tiles directly in Web Mercator pixel space.
 
-    Leaflet's L.imageOverlay assumes the source image is uniform in Mercator
-    coords, but jeffs_extractor stitches tiles uniformly in plate carrée
-    (1° lat = 1° lon in pixels). At Killarney's latitude that introduces a
-    ~44% horizontal-vs-vertical stretch when Leaflet projects the lat/lon
-    corners onto a Mercator map. This rewrites the image so each pixel row
-    corresponds to a Mercator-y interval, eliminating the distortion.
+    The KMZ tiles are themselves Web Mercator tiles at a fixed zoom level —
+    their LatLonBox is the lat/lon footprint of a Mercator pixel rectangle.
+    Stitching uniformly in plate carrée (what jeffs_extractor.build_mosaic
+    does) accumulates a few percent of horizontal-vs-vertical error at
+    Killarney's latitude, so lakes don't line up with the OSM polygons.
 
-    Width is preserved (longitude IS linear in Mercator). Height is chosen
-    so 1 Mercator-y unit = 1 longitude-radian unit (square pixels in
-    Mercator), giving Leaflet a 1:1 placement.
+    Here we project every tile's corners through Mercator and stitch in
+    Mercator pixel coordinates. Pixel scale is set so 1 unit = 1 longitude-
+    radian (square pixels in Mercator), matching what L.imageOverlay
+    expects when handed lat/lon bounds.
+
+    Returns (mosaic_array, (north, south, east, west)).
     """
     import cv2
     import numpy as np
+    from PIL import Image as _PIL_Image
 
-    h_in, w_in = mosaic.shape[:2]
-    y_north = _mercator_y(n)
-    y_south = _mercator_y(s)
-    merc_y_span = y_north - y_south
-    # Aspect ratio target: the input represents (e - w) degrees of lon
-    # (linear) and (n - s) degrees of lat. We don't know e/w here, but the
-    # input pixel ratio already encodes them via plate-carrée — so the
-    # vertical stretch factor we need is merc_y_span / lat_span_in_radians.
-    lat_span_rad = math.radians(n - s)
-    stretch = merc_y_span / lat_span_rad   # ~1.44 at Killarney
-    h_out = int(round(h_in * stretch))
+    if not tiles:
+        raise ValueError("build_mercator_mosaic: no tiles provided")
 
-    # For each output row, compute its Mercator y, invert to lat, then to
-    # source-row index. Build a 1D map and use cv2.remap for speed.
-    rows = np.arange(h_out, dtype=np.float32)
-    y_at_row = y_north - (rows / max(h_out - 1, 1)) * merc_y_span
-    # Vectorised inverse Mercator: lat = degrees(2*atan(exp(y)) - π/2)
-    lat_at_row = np.degrees(2 * np.arctan(np.exp(y_at_row)) - np.pi / 2)
-    src_y_at_row = (n - lat_at_row) / (n - s) * (h_in - 1)
-    map_x = np.broadcast_to(
-        np.arange(w_in, dtype=np.float32), (h_out, w_in),
-    )
-    map_y = np.broadcast_to(src_y_at_row[:, None], (h_out, w_in)).astype(np.float32)
-    return cv2.remap(mosaic, map_x, map_y, interpolation=cv2.INTER_LINEAR,
-                     borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
+    # Outer lat/lon bounds (same as jeffs_extractor.build_mosaic).
+    n = max(t.north for t in tiles)
+    s = min(t.south for t in tiles)
+    e = max(t.east for t in tiles)
+    w = min(t.west for t in tiles)
+
+    # Pick a horizontal pixel-per-radian scale from the first tile's image
+    # width — keeps the output at native KMZ resolution. Width is linear in
+    # Mercator x (= longitude in radians).
+    sample = tiles[0]
+    sample_img = np.array(_PIL_Image.open(sample.image_path).convert("RGB"))
+    sample_h, sample_w = sample_img.shape[:2]
+    px_per_rad = sample_w / math.radians(sample.east - sample.west)
+
+    y_n = _mercator_y(n)
+    y_s = _mercator_y(s)
+    mosaic_w = max(1, round(math.radians(e - w) * px_per_rad))
+    mosaic_h = max(1, round((y_n - y_s) * px_per_rad))
+    mosaic = np.full((mosaic_h, mosaic_w, 3), 255, dtype=np.uint8)
+
+    for tile in tiles:
+        # Position of this tile's corners in the output mosaic, in Mercator
+        # pixel coords.
+        x0 = round(math.radians(tile.west - w) * px_per_rad)
+        x1 = round(math.radians(tile.east - w) * px_per_rad)
+        # y axis grows DOWN; Mercator y grows UP — so flip.
+        y0 = round((y_n - _mercator_y(tile.north)) * px_per_rad)
+        y1 = round((y_n - _mercator_y(tile.south)) * px_per_rad)
+        tw, th = x1 - x0, y1 - y0
+        if tw <= 0 or th <= 0:
+            continue
+        img = np.array(_PIL_Image.open(tile.image_path).convert("RGB"))
+        # PIL is RGB; numpy/cv2 mosaic is BGR — convert before placement.
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        # Resize the tile image to its target Mercator footprint.
+        if img.shape[1] != tw or img.shape[0] != th:
+            img = cv2.resize(img, (tw, th), interpolation=cv2.INTER_AREA)
+        # Clip to mosaic bounds.
+        sx0, sy0 = max(0, -x0), max(0, -y0)
+        dx0, dy0 = max(0, x0), max(0, y0)
+        dx1 = min(mosaic_w, x0 + tw)
+        dy1 = min(mosaic_h, y0 + th)
+        if dx1 <= dx0 or dy1 <= dy0:
+            continue
+        crop = img[sy0:sy0 + (dy1 - dy0), sx0:sx0 + (dx1 - dx0)]
+        mosaic[dy0:dy1, dx0:dx1] = crop
+
+    return mosaic, (n, s, e, w)
 
 
 def main() -> int:
@@ -105,9 +134,9 @@ def main() -> int:
                         help="Output JPG path (relative to repo root)")
     parser.add_argument("--jpeg-quality", type=int, default=78)
     parser.add_argument("--no-mercator", action="store_true",
-                        help="Skip the plate-carrée → Web Mercator reprojection. "
-                             "Leaflet's imageOverlay will then visibly stretch "
-                             "the image vertically at non-equator latitudes.")
+                        help="Use jeffs_extractor.build_mosaic (plate carrée, "
+                             "legacy). The result will be visibly stretched on "
+                             "Leaflet's Mercator map.")
     args = parser.parse_args()
 
     import cv2
@@ -140,17 +169,14 @@ def main() -> int:
             print("no tiles — bbox may not intersect the KMZ contents", file=sys.stderr)
             return 1
 
-        print("building mosaic…", flush=True)
-        mosaic, (n, s, e, w) = build_mosaic(tiles)
+        if args.no_mercator:
+            print("building mosaic (plate carrée — legacy)…", flush=True)
+            mosaic, (n, s, e, w) = build_mosaic(tiles)
+        else:
+            print("building mosaic (Web Mercator)…", flush=True)
+            mosaic, (n, s, e, w) = build_mercator_mosaic(tiles)
     h, wpx = mosaic.shape[:2]
-    print(f"  mosaic (plate carrée): {wpx}x{h} px, bounds N={n:.4f} S={s:.4f} E={e:.4f} W={w:.4f}", flush=True)
-
-    if not args.no_mercator:
-        print("reprojecting plate carrée → Web Mercator…", flush=True)
-        mosaic = reproject_plate_carree_to_mercator(mosaic, n=n, s=s)
-        h, wpx = mosaic.shape[:2]
-        print(f"  mosaic (mercator):    {wpx}x{h} px (same lat/lon corners, taller in pixels)",
-              flush=True)
+    print(f"  mosaic: {wpx}x{h} px, bounds N={n:.4f} S={s:.4f} E={e:.4f} W={w:.4f}", flush=True)
 
     out_jpg = REPO_ROOT / args.out
     out_jpg.parent.mkdir(parents=True, exist_ok=True)
