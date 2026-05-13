@@ -27,12 +27,67 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
+
+
+def _mercator_y(lat_deg: float) -> float:
+    """Spherical Web Mercator y, in radians (lon-equivalent units)."""
+    return math.log(math.tan(math.pi / 4 + math.radians(lat_deg) / 2))
+
+
+def _inv_mercator_y(y: float) -> float:
+    """Inverse of _mercator_y — returns latitude in degrees."""
+    return math.degrees(2 * math.atan(math.exp(y)) - math.pi / 2)
+
+
+def reproject_plate_carree_to_mercator(mosaic, n: float, s: float):
+    """Resample a plate-carrée image vertically into Web Mercator pixel space.
+
+    Leaflet's L.imageOverlay assumes the source image is uniform in Mercator
+    coords, but jeffs_extractor stitches tiles uniformly in plate carrée
+    (1° lat = 1° lon in pixels). At Killarney's latitude that introduces a
+    ~44% horizontal-vs-vertical stretch when Leaflet projects the lat/lon
+    corners onto a Mercator map. This rewrites the image so each pixel row
+    corresponds to a Mercator-y interval, eliminating the distortion.
+
+    Width is preserved (longitude IS linear in Mercator). Height is chosen
+    so 1 Mercator-y unit = 1 longitude-radian unit (square pixels in
+    Mercator), giving Leaflet a 1:1 placement.
+    """
+    import cv2
+    import numpy as np
+
+    h_in, w_in = mosaic.shape[:2]
+    y_north = _mercator_y(n)
+    y_south = _mercator_y(s)
+    merc_y_span = y_north - y_south
+    # Aspect ratio target: the input represents (e - w) degrees of lon
+    # (linear) and (n - s) degrees of lat. We don't know e/w here, but the
+    # input pixel ratio already encodes them via plate-carrée — so the
+    # vertical stretch factor we need is merc_y_span / lat_span_in_radians.
+    lat_span_rad = math.radians(n - s)
+    stretch = merc_y_span / lat_span_rad   # ~1.44 at Killarney
+    h_out = int(round(h_in * stretch))
+
+    # For each output row, compute its Mercator y, invert to lat, then to
+    # source-row index. Build a 1D map and use cv2.remap for speed.
+    rows = np.arange(h_out, dtype=np.float32)
+    y_at_row = y_north - (rows / max(h_out - 1, 1)) * merc_y_span
+    # Vectorised inverse Mercator: lat = degrees(2*atan(exp(y)) - π/2)
+    lat_at_row = np.degrees(2 * np.arctan(np.exp(y_at_row)) - np.pi / 2)
+    src_y_at_row = (n - lat_at_row) / (n - s) * (h_in - 1)
+    map_x = np.broadcast_to(
+        np.arange(w_in, dtype=np.float32), (h_out, w_in),
+    )
+    map_y = np.broadcast_to(src_y_at_row[:, None], (h_out, w_in)).astype(np.float32)
+    return cv2.remap(mosaic, map_x, map_y, interpolation=cv2.INTER_LINEAR,
+                     borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
 
 
 def main() -> int:
@@ -49,6 +104,10 @@ def main() -> int:
     parser.add_argument("--out", default="data/jeffs_killarney_mosaic.jpg",
                         help="Output JPG path (relative to repo root)")
     parser.add_argument("--jpeg-quality", type=int, default=78)
+    parser.add_argument("--no-mercator", action="store_true",
+                        help="Skip the plate-carrée → Web Mercator reprojection. "
+                             "Leaflet's imageOverlay will then visibly stretch "
+                             "the image vertically at non-equator latitudes.")
     args = parser.parse_args()
 
     import cv2
@@ -84,7 +143,14 @@ def main() -> int:
         print("building mosaic…", flush=True)
         mosaic, (n, s, e, w) = build_mosaic(tiles)
     h, wpx = mosaic.shape[:2]
-    print(f"  mosaic: {wpx}x{h} px, bounds N={n:.4f} S={s:.4f} E={e:.4f} W={w:.4f}", flush=True)
+    print(f"  mosaic (plate carrée): {wpx}x{h} px, bounds N={n:.4f} S={s:.4f} E={e:.4f} W={w:.4f}", flush=True)
+
+    if not args.no_mercator:
+        print("reprojecting plate carrée → Web Mercator…", flush=True)
+        mosaic = reproject_plate_carree_to_mercator(mosaic, n=n, s=s)
+        h, wpx = mosaic.shape[:2]
+        print(f"  mosaic (mercator):    {wpx}x{h} px (same lat/lon corners, taller in pixels)",
+              flush=True)
 
     out_jpg = REPO_ROOT / args.out
     out_jpg.parent.mkdir(parents=True, exist_ok=True)
