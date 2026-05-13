@@ -55,6 +55,75 @@ INSERT INTO checklist_state (trip_slug, item_key, user, checked, updated_at)
 DROP TABLE checklist_state_v0;
 """
 
+_COLLAB_SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+    id            INTEGER PRIMARY KEY,
+    email         TEXT UNIQUE NOT NULL,
+    display_name  TEXT,
+    created_at    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS magic_links (
+    token        TEXT PRIMARY KEY,
+    email        TEXT NOT NULL,
+    expires_at   TEXT NOT NULL,
+    consumed_at  TEXT
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id          TEXT PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    created_at  TEXT NOT NULL,
+    expires_at  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS trip_members (
+    trip_slug  TEXT NOT NULL,
+    user_id    INTEGER NOT NULL REFERENCES users(id),
+    role       TEXT NOT NULL CHECK (role IN ('owner','editor','viewer')),
+    added_at   TEXT NOT NULL,
+    PRIMARY KEY (trip_slug, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS food_items (
+    id           INTEGER PRIMARY KEY,
+    trip_slug    TEXT NOT NULL,
+    day_index    INTEGER NOT NULL,
+    meal         TEXT NOT NULL,
+    item         TEXT NOT NULL,
+    assigned_to  TEXT,
+    notes        TEXT,
+    sort_order   REAL NOT NULL,
+    updated_at   TEXT NOT NULL,
+    updated_by   INTEGER REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_food_trip
+    ON food_items(trip_slug, day_index, meal, sort_order);
+
+CREATE TABLE IF NOT EXISTS gear_items (
+    id           INTEGER PRIMARY KEY,
+    trip_slug    TEXT NOT NULL,
+    category     TEXT NOT NULL,
+    item         TEXT NOT NULL,
+    quantity     TEXT,
+    assigned_to  TEXT,
+    notes        TEXT,
+    sort_order   REAL NOT NULL,
+    updated_at   TEXT NOT NULL,
+    updated_by   INTEGER REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_gear_trip
+    ON gear_items(trip_slug, category, sort_order);
+
+CREATE TABLE IF NOT EXISTS section_state (
+    trip_slug             TEXT NOT NULL,
+    section               TEXT NOT NULL,
+    seeded_from_md_at     TEXT,
+    last_snapshotted_at   TEXT,
+    PRIMARY KEY (trip_slug, section)
+);
+"""
+
 
 def connect(path: Path | None = None) -> sqlite3.Connection:
     """Open a SQLite connection. One per request is fine at this scale."""
@@ -71,6 +140,7 @@ def init_schema(path: Path | None = None) -> None:
     """Create / migrate tables. Idempotent — safe to call on every boot."""
     with connect(path) as conn:
         conn.executescript(_BASE_SCHEMA)
+        conn.executescript(_COLLAB_SCHEMA)
         _ensure_checklist_state(conn)
 
 

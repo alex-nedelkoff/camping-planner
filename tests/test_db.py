@@ -140,3 +140,28 @@ def test_migration_idempotent(tmp_path):
     db.init_schema(p)
     db.init_schema(p)
     assert db.checklist_load("t", path=p) == {"k": True}
+
+
+def test_init_schema_creates_collab_tables(tmp_path):
+    p = tmp_path / "c.sqlite3"
+    db.init_schema(p)
+    with db.connect(p) as conn:
+        names = {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        )}
+    expected = {
+        "users", "magic_links", "sessions", "trip_members",
+        "food_items", "gear_items", "section_state",
+    }
+    assert expected <= names
+
+
+def test_init_schema_collab_indexes(tmp_path):
+    p = tmp_path / "c.sqlite3"
+    db.init_schema(p)
+    with db.connect(p) as conn:
+        names = {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index'"
+        )}
+    assert "idx_food_trip" in names
+    assert "idx_gear_trip" in names
