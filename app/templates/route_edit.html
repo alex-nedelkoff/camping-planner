@@ -134,12 +134,22 @@
     display: inline-block; width: 13px; height: 13px;
     border: 1.5px solid; flex-shrink: 0;
   }
-  .swatch.raster   { background: #b4a780; border-color: #6b6147; }
-  .swatch.portage  { background: #ef6c00; border-color: #b53d00; }
-  .swatch.canvec   { background: rgba(0,96,100,0.28); border-color: #006064; }
-  .swatch.osm      { background: rgba(58,86,102,0.28); border-color: #3a5666; }
-  .swatch.topo     { background: rgba(160,140,90,0.30); border-color: #806430; }
-  .swatch.esri     { background: rgba(40,60,80,0.45);  border-color: #1f3650; }
+  .swatch.raster    { background: #b4a780; border-color: #6b6147; }
+  .swatch.portage   { background: #ef6c00; border-color: #b53d00; }
+  .swatch.canvec    { background: rgba(0,96,100,0.28); border-color: #006064; }
+  .swatch.osm       { background: rgba(58,86,102,0.28); border-color: #3a5666; }
+  .swatch.topo      { background: rgba(160,140,90,0.30); border-color: #806430; }
+  .swatch.esri      { background: rgba(40,60,80,0.45);  border-color: #1f3650; }
+  .swatch.campsite  { background: #c62828; border-color: #8a0000; border-radius: 50%; }
+  .swatch.portage-gpx { background: #7b1fa2; border-color: #4a148c; }
+
+  /* Campsite marker: small circle with the site number. */
+  .leaflet-marker-icon.campsite-marker {
+    background: #c62828; color: #fff; border-radius: 50%;
+    text-align: center; line-height: 20px; font-weight: 600; font-size: 11px;
+    border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.45);
+    font-family: 'JetBrains Mono', monospace;
+  }
 
   .opacity-inline {
     margin: 0.25rem 0 0 1.55rem; display: flex; align-items: center;
@@ -247,8 +257,10 @@
         <input id="raster-opacity" type="range" min="0" max="1" step="0.05" value="0.7">
         <span id="raster-opacity-val" style="font-family:'JetBrains Mono',monospace;font-size:0.66rem;width:2.2em;text-align:right;">70%</span>
       </div>
-      <label class="toggle-row"><input type="checkbox" id="ov-portages" checked><span class="swatch portage"></span><span class="lbl">OSM portages</span></label>
       <label class="toggle-row"><input type="checkbox" id="ov-canvec" checked><span class="swatch canvec"></span><span class="lbl">CanVec lakes</span></label>
+      <label class="toggle-row"><input type="checkbox" id="ov-portages-gpx" checked><span class="swatch portage-gpx"></span><span class="lbl">Portages (110)</span></label>
+      <label class="toggle-row"><input type="checkbox" id="ov-campsites" checked><span class="swatch campsite"></span><span class="lbl">Campsites</span></label>
+      <label class="toggle-row"><input type="checkbox" id="ov-portages-osm"><span class="swatch portage"></span><span class="lbl">OSM portages (named only)</span></label>
     </section>
 
     <section class="panel-section">

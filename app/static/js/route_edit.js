@@ -40,14 +40,28 @@ const rasterLayer = RASTER_URL
   : null;
 if (rasterLayer) rasterLayer.addTo(map);
 
-const overlayPortages = L.layerGroup();
+const overlayPortagesOSM = L.layerGroup();
+const overlayPortagesGPX = L.layerGroup();
 const overlayCanvec = L.layerGroup();
+const overlayCampsites = L.layerGroup();
 
 function styleLake() {
   return { color: '#006064', weight: 1, fillColor: '#006064', fillOpacity: 0.10, interactive: false };
 }
-function stylePortage() {
+function stylePortageOSM() {
   return { color: '#d27b00', weight: 3, opacity: 0.9, dashArray: '5,5' };
+}
+function stylePortageGPX() {
+  return { color: '#7b1fa2', weight: 3, opacity: 0.85 };
+}
+
+function campsiteIcon(name) {
+  return L.divIcon({
+    className: 'campsite-marker',
+    html: String(name || '•'),
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
 }
 
 async function loadOverlays() {
@@ -58,18 +72,48 @@ async function loadOverlays() {
     if (data.osm) {
       L.geoJSON(data.osm, {
         filter: (f) => f.properties.kind === 'portage',
-        style: stylePortage,
+        style: stylePortageOSM,
         onEachFeature: (f, layer) => {
           const lk = f.properties.length_km;
           const lbl = f.properties.name + (lk ? ` (${lk.toFixed(2)} km)` : '');
           layer.bindTooltip(lbl, { sticky: true });
         },
-      }).addTo(overlayPortages);
-      overlayPortages.addTo(map);
+      }).addTo(overlayPortagesOSM);
+      // off by default — superseded by the GPX portages set
     }
     if (data.canvec) {
       L.geoJSON(data.canvec, { style: styleLake }).addTo(overlayCanvec);
       overlayCanvec.addTo(map);
+    }
+    if (data.portages) {
+      L.geoJSON(data.portages, {
+        style: stylePortageGPX,
+        onEachFeature: (f, layer) => {
+          const km = f.properties.length_km;
+          const lbl = `Portage ${f.properties.name}` + (km ? ` · ${km.toFixed(2)} km` : '');
+          layer.bindTooltip(lbl, { sticky: true });
+        },
+      }).addTo(overlayPortagesGPX);
+      overlayPortagesGPX.addTo(map);
+    }
+    if (data.campsites) {
+      L.geoJSON(data.campsites, {
+        pointToLayer: (f, latlng) => L.marker(latlng, {
+          icon: campsiteIcon(f.properties.name),
+          // Don't grab clicks meant for waypoint placement — only the marker
+          // itself reacts, not the surrounding square.
+          interactive: true,
+          keyboard: false,
+        }),
+        onEachFeature: (f, layer) => {
+          const p = f.properties;
+          const lines = [`Site ${p.name}`];
+          if (p.type) lines.push(p.type);
+          if (p.desc) lines.push(p.desc);
+          layer.bindTooltip(lines.join(' · '), { direction: 'top', sticky: true });
+        },
+      }).addTo(overlayCampsites);
+      overlayCampsites.addTo(map);
     }
   } catch (err) {
     console.warn('Overlay load failed:', err);
@@ -87,8 +131,10 @@ function wireOverlayToggle(checkboxId, layer) {
   });
 }
 wireOverlayToggle('ov-raster', rasterLayer);
-wireOverlayToggle('ov-portages', overlayPortages);
 wireOverlayToggle('ov-canvec', overlayCanvec);
+wireOverlayToggle('ov-portages-gpx', overlayPortagesGPX);
+wireOverlayToggle('ov-campsites', overlayCampsites);
+wireOverlayToggle('ov-portages-osm', overlayPortagesOSM);
 
 (function wireRasterSlider() {
   const slider = document.getElementById('raster-opacity');
