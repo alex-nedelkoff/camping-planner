@@ -140,6 +140,12 @@ def route_editor_page(slug: str, request: Request):
     centre = _centre_for(trip_dir)
     waypoints = route_gpx.load_waypoints(trip_dir)
     info = _raster_info(park)
+    raster_url = None
+    if info:
+        # Cache-bust on mtime so a fresh rebuild of the mosaic actually
+        # bypasses the browser's max-age=3600 cache.
+        mtime = int(info["path"].stat().st_mtime)
+        raster_url = f"/api/raster/{park}.jpg?v={mtime}"
     return _templates.TemplateResponse(
         request,
         "route_edit.html",
@@ -151,7 +157,7 @@ def route_editor_page(slug: str, request: Request):
             "centre_lon": centre[1],
             "zoom": _DEFAULT_ZOOM,
             "waypoints_json": waypoints,
-            "raster_url": f"/api/raster/{park}.jpg" if info else None,
+            "raster_url": raster_url,
             "raster_bounds": info["bounds"] if info else None,
         },
     )
