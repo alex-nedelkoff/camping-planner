@@ -5,16 +5,31 @@
 {% block head_extra %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-  .route-edit-layout {
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    gap: 0;
-    height: calc(100vh - 56px);
+  /* Reset the browser default body margin so the layout actually fills 100vh.
+     base.html doesn't set this; without it, 8px ends up below the fold. */
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+  body { display: flex; flex-direction: column; }
+
+  .top-bar {
+    flex: 0 0 auto;
+    padding: 0.45rem 0.9rem;
+    background: #ece8d8;
+    border-bottom: 1px solid #d8d3c4;
+    display: flex; justify-content: space-between; align-items: center;
   }
-  @media (max-width: 800px) {
-    .route-edit-layout { grid-template-columns: 1fr; grid-template-rows: 60vh 40vh; height: calc(100vh - 56px); }
+  .top-bar h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  .top-bar a { color: #2f5b46; text-decoration: none; }
+  .top-bar a:hover { text-decoration: underline; }
+
+  /* Fill all remaining vertical space below the top bar. */
+  .route-edit-layout {
+    flex: 1 1 auto;
+    min-height: 0;            /* let the grid actually shrink in a flex parent */
+    display: grid;
+    grid-template-columns: 1fr 340px;
   }
   #map { width: 100%; height: 100%; cursor: crosshair; }
+
   .sidebar {
     background: #f6f4ee;
     border-left: 1px solid #d8d3c4;
@@ -25,15 +40,27 @@
   }
   .sidebar h2 { margin: 0 0 0.25rem; font-size: 16px; }
   .sidebar .meta { color: #5b5749; font-size: 12px; margin-bottom: 0.5rem; }
+
   .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0.5rem 0; }
   .stat-box { background: #ffffff; border: 1px solid #e0dccc; padding: 0.4rem 0.6rem; border-radius: 4px; }
   .stat-box .label { font-size: 11px; color: #5b5749; text-transform: uppercase; letter-spacing: 0.04em; }
   .stat-box .value { font-size: 18px; font-weight: 600; }
+
   .controls { display: flex; gap: 0.4rem; margin: 0.5rem 0; flex-wrap: wrap; }
   .controls button { font: inherit; padding: 0.35rem 0.7rem; border: 1px solid #b7b09c; background: #fff; border-radius: 4px; cursor: pointer; }
   .controls button.primary { background: #3a6f55; color: #fff; border-color: #2f5b46; }
   .controls button.primary:disabled { opacity: 0.55; cursor: default; }
   .controls button.danger { color: #a03030; }
+
+  .raster-control {
+    background: #fff; border: 1px solid #e0dccc; border-radius: 4px;
+    padding: 0.45rem 0.6rem; margin: 0.4rem 0; font-size: 13px;
+  }
+  .raster-control .label { font-size: 11px; color: #5b5749; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.15rem; }
+  .raster-control input[type=range] { width: 100%; }
+  .raster-control .row { display: flex; align-items: center; gap: 0.45rem; }
+  .raster-control .row input[type=checkbox] { margin: 0; }
+
   ol.wp-list { list-style: none; padding: 0; margin: 0; }
   ol.wp-list li { display: grid; grid-template-columns: 1.6rem 1fr auto; gap: 0.3rem; padding: 0.35rem 0.4rem; border-bottom: 1px solid #ebe7d8; align-items: center; }
   ol.wp-list li.active { background: #fff8d8; }
@@ -42,24 +69,16 @@
   ol.wp-list .name:focus { background: #fff; outline: 1px solid #b7b09c; }
   ol.wp-list .del { background: none; border: none; cursor: pointer; color: #a03030; font-size: 16px; line-height: 1; padding: 0 4px; }
   ol.wp-list .del:hover { color: #d04040; }
+
   .empty { color: #5b5749; font-style: italic; padding: 0.4rem 0; }
   .status { font-size: 12px; color: #5b5749; min-height: 1.2em; }
   .status.error { color: #a03030; }
   .status.ok { color: #2f5b46; }
-  .top-bar { padding: 0.45rem 0.9rem; background: #ece8d8; border-bottom: 1px solid #d8d3c4; display: flex; justify-content: space-between; align-items: center; }
-  .top-bar a { color: #2f5b46; text-decoration: none; }
-  .top-bar a:hover { text-decoration: underline; }
-  .top-bar h1 { font-size: 16px; margin: 0; font-weight: 600; }
+
   .leaflet-marker-icon.wp-marker {
-    background: #3a6f55;
-    color: #fff;
-    border-radius: 50%;
-    text-align: center;
-    line-height: 26px;
-    font-weight: 700;
-    font-size: 12px;
-    border: 2px solid #fff;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    background: #3a6f55; color: #fff; border-radius: 50%;
+    text-align: center; line-height: 26px; font-weight: 700; font-size: 12px;
+    border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4);
   }
 </style>
 {% endblock %}
@@ -90,6 +109,15 @@
       </div>
     </div>
 
+    <div class="raster-control">
+      <div class="row">
+        <input id="raster-on" type="checkbox" checked>
+        <label for="raster-on" style="font-weight:600;">Jeff's raster overlay</label>
+      </div>
+      <div class="label" style="margin-top:0.35rem;">Opacity <span id="raster-opacity-val">70</span>%</div>
+      <input id="raster-opacity" type="range" min="0" max="1" step="0.05" value="0.7">
+    </div>
+
     <div class="controls">
       <button id="btn-save" class="primary" disabled>Save</button>
       <button id="btn-clear" class="danger">Clear all</button>
@@ -113,6 +141,9 @@
   const CENTRE = [{{ centre_lat }}, {{ centre_lon }}];
   const ZOOM = {{ zoom }};
   const PADDLE_KMH = 4.0;
+  // Jeff's raster mosaic for Killarney — bounds copied from the original overlay.
+  const RASTER_URL = {{ raster_url | tojson }};
+  const RASTER_BOUNDS = {{ raster_bounds | tojson }};
 </script>
 <script src="/static/js/route_edit.js"></script>
 {% endblock %}

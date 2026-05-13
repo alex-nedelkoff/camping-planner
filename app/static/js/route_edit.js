@@ -20,11 +20,27 @@ const baseTopo = L.tileLayer(
   },
 );
 
-// Overlay layers — populated async from /api/lakes/{park}.
-const overlayLakesOSM = L.layerGroup();
-const overlayLakesJeffs = L.layerGroup();
+// Overlay layers. OSM portages stay as a thin reference overlay; CanVec is
+// the only lake layer (richer than OSM, less noisy than Jeff's polygons).
 const overlayLakesCanvec = L.layerGroup();
 const overlayPortagesOSM = L.layerGroup();
+
+// Jeff's raster mosaic — added immediately so the layer control can list it
+// even before the lake GeoJSON arrives.
+const rasterLayer = RASTER_URL
+  ? L.imageOverlay(RASTER_URL, RASTER_BOUNDS, { opacity: 0.7 })
+  : null;
+if (rasterLayer) rasterLayer.addTo(map);
+
+const overlayDefs = {
+  "Jeff's raster": rasterLayer,
+  'OSM portages': overlayPortagesOSM,
+  'CanVec lakes': overlayLakesCanvec,
+};
+// Drop any null entries (e.g. raster unavailable) before handing to the control.
+const overlays = Object.fromEntries(
+  Object.entries(overlayDefs).filter(([, v]) => v !== null),
+);
 
 const layersControl = L.control.layers(
   {
@@ -32,23 +48,12 @@ const layersControl = L.control.layers(
     'Esri satellite': baseEsri,
     'OpenTopoMap': baseTopo,
   },
-  {
-    'OSM lakes (named)': overlayLakesOSM,
-    'OSM portages': overlayPortagesOSM,
-    'CanVec lakes (NRCan)': overlayLakesCanvec,
-    "Jeff's lakes (detailed)": overlayLakesJeffs,
-  },
+  overlays,
   { collapsed: false, position: 'topright' },
 ).addTo(map);
 
-function styleLake(source) {
-  if (source === 'jeffs') {
-    return { color: '#a03030', weight: 1, fillColor: '#a03030', fillOpacity: 0.10, interactive: false };
-  }
-  if (source === 'canvec') {
-    return { color: '#2e7d32', weight: 1, fillColor: '#2e7d32', fillOpacity: 0.10, interactive: false };
-  }
-  return { color: '#1565c0', weight: 1, fillColor: '#1565c0', fillOpacity: 0.12, interactive: false };
+function styleLake() {
+  return { color: '#2e7d32', weight: 1, fillColor: '#2e7d32', fillOpacity: 0.10, interactive: false };
 }
 
 function stylePortage() {
@@ -64,12 +69,7 @@ async function loadOverlays() {
     }
     const data = await r.json();
     if (data.osm) {
-      const fc = data.osm;
-      L.geoJSON(fc, {
-        filter: (f) => f.properties.kind === 'lake',
-        style: () => styleLake('osm'),
-      }).addTo(overlayLakesOSM);
-      L.geoJSON(fc, {
+      L.geoJSON(data.osm, {
         filter: (f) => f.properties.kind === 'portage',
         style: stylePortage,
         onEachFeature: (f, layer) => {
@@ -78,25 +78,49 @@ async function loadOverlays() {
           layer.bindTooltip(lbl, { sticky: true });
         },
       }).addTo(overlayPortagesOSM);
-      overlayLakesOSM.addTo(map);     // on by default
       overlayPortagesOSM.addTo(map);  // on by default
     }
     if (data.canvec) {
-      L.geoJSON(data.canvec, {
-        style: () => styleLake('canvec'),
-      }).addTo(overlayLakesCanvec);
-      // off by default — CanVec is dense; toggle on for richer hydrography
-    }
-    if (data.jeffs) {
-      L.geoJSON(data.jeffs, {
-        style: () => styleLake('jeffs'),
-      }).addTo(overlayLakesJeffs);
-      // off by default — Jeff's is denser and noisier; toggle in if you want it
+      L.geoJSON(data.canvec, { style: styleLake }).addTo(overlayLakesCanvec);
+      overlayLakesCanvec.addTo(map);  // on by default
     }
   } catch (err) {
     console.warn('Overlay load failed:', err);
   }
 }
+
+// ── Raster opacity slider in the sidebar ───────────────────────────────────
+(function wireRasterControls() {
+  const onBox = document.getElementById('raster-on');
+  const slider = document.getElementById('raster-opacity');
+  const label = document.getElementById('raster-opacity-val');
+  if (!rasterLayer) {
+    onBox.disabled = true;
+    slider.disabled = true;
+    label.textContent = 'n/a';
+    return;
+  }
+  onBox.addEventListener('change', () => {
+    if (onBox.checked) {
+      rasterLayer.addTo(map);
+    } else {
+      map.removeLayer(rasterLayer);
+    }
+  });
+  slider.addEventListener('input', (ev) => {
+    const v = parseFloat(ev.target.value);
+    label.textContent = String(Math.round(v * 100));
+    rasterLayer.setOpacity(v);
+    if (v > 0 && !onBox.checked) {
+      onBox.checked = true;
+      rasterLayer.addTo(map);
+    }
+  });
+  // Keep checkbox + Leaflet layer-control checkbox in sync when toggled
+  // via the layer control instead of the sidebar.
+  map.on('overlayadd', (ev) => { if (ev.layer === rasterLayer) onBox.checked = true; });
+  map.on('overlayremove', (ev) => { if (ev.layer === rasterLayer) onBox.checked = false; });
+})();
 
 loadOverlays();
 
