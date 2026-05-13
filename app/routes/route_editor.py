@@ -17,7 +17,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from app.config import JINJA_TEMPLATES_DIR, PARKS_JSON, TRIPS_DIR
-from app.services import route_gpx
+from app.services import lake_layers, route_gpx
 from app.services.identity import require_trip_member
 
 # Default centres for parks the editor knows about. Falls back to a Killarney
@@ -99,6 +99,7 @@ def _centre_for(trip_dir: Path) -> tuple[float, float]:
 def route_editor_page(slug: str, request: Request):
     user = require_trip_member(request, slug)
     trip_dir = _ensure_trip(slug)
+    park = _read_park_key(trip_dir) or "killarney"
     centre = _centre_for(trip_dir)
     waypoints = route_gpx.load_waypoints(trip_dir)
     return _templates.TemplateResponse(
@@ -106,6 +107,7 @@ def route_editor_page(slug: str, request: Request):
         "route_edit.html",
         {
             "slug": slug,
+            "park": park,
             "user_email": user["email"],
             "centre_lat": centre[0],
             "centre_lon": centre[1],
@@ -139,3 +141,15 @@ def save_route(slug: str, body: SaveRouteRequest, request: Request):
         "saved": len(wpts),
         "total_km": round(route_gpx.total_distance_km(wpts), 2),
     }
+
+
+@api_router.get("/lakes/{park}")
+def get_lakes(park: str):
+    """Map overlay layers (lakes + portages) for a park, keyed by source.
+
+    Public — no auth. The data is already in the public OSM / Jeff's caches.
+    """
+    layers = lake_layers.layers_for(park)
+    if not layers:
+        raise HTTPException(status_code=404, detail={"error": f"no layers for park {park!r}"})
+    return layers

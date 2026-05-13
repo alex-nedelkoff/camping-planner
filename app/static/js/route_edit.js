@@ -3,10 +3,91 @@
 // The list is the source of truth; markers are rebuilt from it whenever it changes.
 
 const map = L.map('map', { zoomControl: true }).setView(CENTRE, ZOOM);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
+const baseEsri = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  { maxZoom: 19, attribution: 'Tiles © Esri' },
+);
+const baseTopo = L.tileLayer(
+  'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+  {
+    maxZoom: 17,
+    attribution:
+      'Map data: © OpenStreetMap contributors, SRTM | Map style: © <a href="https://opentopomap.org">OpenTopoMap</a>',
+  },
+);
+
+// Overlay layers — populated async from /api/lakes/{park}.
+const overlayLakesOSM = L.layerGroup();
+const overlayLakesJeffs = L.layerGroup();
+const overlayPortagesOSM = L.layerGroup();
+
+const layersControl = L.control.layers(
+  {
+    'OpenStreetMap': baseOSM,
+    'Esri satellite': baseEsri,
+    'OpenTopoMap': baseTopo,
+  },
+  {
+    'OSM lakes (named)': overlayLakesOSM,
+    'OSM portages': overlayPortagesOSM,
+    "Jeff's lakes (detailed)": overlayLakesJeffs,
+  },
+  { collapsed: false, position: 'topright' },
+).addTo(map);
+
+function styleLake(source) {
+  if (source === 'jeffs') {
+    return { color: '#a03030', weight: 1, fillColor: '#a03030', fillOpacity: 0.10, interactive: false };
+  }
+  return { color: '#1565c0', weight: 1, fillColor: '#1565c0', fillOpacity: 0.12, interactive: false };
+}
+
+function stylePortage() {
+  return { color: '#d27b00', weight: 3, opacity: 0.9, dashArray: '5,5' };
+}
+
+async function loadOverlays() {
+  try {
+    const r = await fetch(`/api/lakes/${encodeURIComponent(PARK)}`, { credentials: 'same-origin' });
+    if (!r.ok) {
+      console.warn(`No overlays for park ${PARK} (${r.status})`);
+      return;
+    }
+    const data = await r.json();
+    if (data.osm) {
+      const fc = data.osm;
+      L.geoJSON(fc, {
+        filter: (f) => f.properties.kind === 'lake',
+        style: () => styleLake('osm'),
+      }).addTo(overlayLakesOSM);
+      L.geoJSON(fc, {
+        filter: (f) => f.properties.kind === 'portage',
+        style: stylePortage,
+        onEachFeature: (f, layer) => {
+          const lk = f.properties.length_km;
+          const lbl = f.properties.name + (lk ? ` (${lk.toFixed(2)} km)` : '');
+          layer.bindTooltip(lbl, { sticky: true });
+        },
+      }).addTo(overlayPortagesOSM);
+      overlayLakesOSM.addTo(map);     // on by default
+      overlayPortagesOSM.addTo(map);  // on by default
+    }
+    if (data.jeffs) {
+      L.geoJSON(data.jeffs, {
+        style: () => styleLake('jeffs'),
+      }).addTo(overlayLakesJeffs);
+      // off by default — Jeff's is denser and noisier; toggle in if you want it
+    }
+  } catch (err) {
+    console.warn('Overlay load failed:', err);
+  }
+}
+
+loadOverlays();
 
 const state = {
   waypoints: INITIAL.map((w) => ({ lat: w.lat, lon: w.lon, name: w.name || '' })),
