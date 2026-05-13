@@ -6,9 +6,12 @@ characters in user-entered text are escaped (`\\|`).
 
 from __future__ import annotations
 
+import subprocess
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
-from app.services import food_repo, gear_repo
+from app.services import db, food_repo, gear_repo
 
 MEAL_LABEL = {
     "breakfast": "Breakfast", "lunch": "Lunch",
@@ -69,3 +72,46 @@ def render_gear_markdown(slug: str, path: Path | None = None) -> str:
             )
         out.append("")
     return "\n".join(out)
+
+
+def _record_snapshotted(
+    slug: str, section: str, path: Path | None = None,
+) -> None:
+    iso = datetime.now(timezone.utc).isoformat()
+    with db.connect(path) as conn:
+        conn.execute(
+            "INSERT INTO section_state "
+            "(trip_slug, section, last_snapshotted_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(trip_slug, section) DO UPDATE SET "
+            "last_snapshotted_at = excluded.last_snapshotted_at",
+            (slug, section, iso),
+        )
+
+
+def write_snapshot(
+    slug: str,
+    trip_dir: Path,
+    *,
+    run_build_trip: bool = True,
+    path: Path | None = None,
+) -> dict:
+    """Render food.md + gear.md from DB rows, write to disk, stamp state.
+
+    When `run_build_trip` is True, also shells out to `build_trip.py` to
+    regenerate the static `trip.html`. The DB row state is the source of
+    truth; markdown + HTML are derived artifacts.
+    """
+    trip_dir.mkdir(parents=True, exist_ok=True)
+    food_path = trip_dir / "food.md"
+    gear_path = trip_dir / "gear.md"
+    food_path.write_text(render_food_markdown(slug, path=path))
+    gear_path.write_text(render_gear_markdown(slug, path=path))
+    _record_snapshotted(slug, "food", path=path)
+    _record_snapshotted(slug, "gear", path=path)
+    if run_build_trip:
+        from app.config import REPO_ROOT
+        subprocess.run(
+            [sys.executable, str(REPO_ROOT / "build_trip.py"), str(trip_dir)],
+            check=True,
+        )
+    return {"food": str(food_path), "gear": str(gear_path)}

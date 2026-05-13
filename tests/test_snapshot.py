@@ -58,3 +58,65 @@ def test_render_gear_md_grouped_by_category(dbpath):
     md = snapshot.render_gear_markdown("t", path=dbpath)
     assert "## kitchen" in md
     assert "## shelter" in md
+
+
+def test_write_snapshot_creates_files_and_updates_state(tmp_path, monkeypatch):
+    from app.services import auth, db, food_repo, snapshot
+    dbp = tmp_path / "x.sqlite3"
+    monkeypatch.setattr("app.services.db.DATABASE_PATH", dbp)
+    db.init_schema(dbp)
+    auth.upsert_user("alex@example.com", path=dbp)
+    trip_dir = tmp_path / "trips" / "t"
+    trip_dir.mkdir(parents=True)
+    food_repo.insert(trip_slug="t", day_index=1, meal="lunch",
+                     item="Wraps", assigned_to="", notes="",
+                     sort_order=1.0, user_id=1, path=dbp)
+    paths = snapshot.write_snapshot("t", trip_dir, run_build_trip=False,
+                                    path=dbp)
+    assert (trip_dir / "food.md").read_text().startswith("# Food Plan")
+    assert (trip_dir / "gear.md").exists()
+    assert paths["food"].endswith("food.md")
+    # last_snapshotted_at recorded
+    with db.connect(dbp) as conn:
+        row = conn.execute(
+            "SELECT last_snapshotted_at FROM section_state "
+            "WHERE trip_slug = ? AND section = 'food'", ("t",),
+        ).fetchone()
+    assert row and row["last_snapshotted_at"]
+
+
+def test_snapshot_endpoint_writes_files(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.services import auth, db, food_repo
+
+    dbp = tmp_path / "x.sqlite3"
+    trips = tmp_path / "trips"
+    monkeypatch.setattr("app.services.db.DATABASE_PATH", dbp)
+    monkeypatch.setattr("app.config.TRIPS_DIR", trips)
+    monkeypatch.setattr("app.routes.trips.TRIPS_DIR", trips)
+    db.init_schema(dbp)
+    auth.upsert_user("alex@example.com", path=dbp)
+    auth.add_trip_member("t", "alex@example.com", role="owner", path=dbp)
+    (trips / "t").mkdir(parents=True)
+    food_repo.insert(trip_slug="t", day_index=1, meal="lunch",
+                     item="Wraps", assigned_to="", notes="",
+                     sort_order=1.0, user_id=1, path=dbp)
+    # mint session
+    import secrets
+    import time
+    from datetime import datetime, timezone
+    sid = secrets.token_urlsafe(32)
+    with db.connect(dbp) as conn:
+        conn.execute(
+            "INSERT INTO sessions (id, user_id, created_at, expires_at) "
+            "VALUES (?, 1, ?, ?)",
+            (sid, datetime.now(timezone.utc).isoformat(),
+             datetime.fromtimestamp(time.time() + 3600,
+                                    tz=timezone.utc).isoformat()),
+        )
+    client = TestClient(app, cookies={"cp_session": sid})
+    r = client.post("/api/trips/t/snapshot",
+                    json={"run_build_trip": False})
+    assert r.status_code == 200
+    assert (trips / "t" / "food.md").exists()

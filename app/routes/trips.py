@@ -1,17 +1,27 @@
-"""Trip mutation endpoints (new, rebuild, save-gear)."""
+"""Trip mutation endpoints (new, rebuild, save-gear, snapshot)."""
 
-from fastapi import APIRouter, HTTPException, Query
+from datetime import datetime, timezone
 
+from fastapi import APIRouter, HTTPException, Query, Request
+from pydantic import BaseModel
+
+from app.config import TRIPS_DIR
 from app.models import (
     NewTripRequest,
     NewTripResponse,
     OkResponse,
     SaveGearRequest,
 )
-from app.services import trips as trips_svc
+from app.services import broadcast, trips as trips_svc
+from app.services import snapshot as snapshot_svc
+from app.services.identity import require_trip_member
 from app.services.trips import TripError
 
 router = APIRouter(prefix="/api")
+
+
+class SnapshotReq(BaseModel):
+    run_build_trip: bool = True
 
 
 def _raise(exc: TripError) -> None:
@@ -54,3 +64,18 @@ def save_gear(body: SaveGearRequest, trip: str = Query(..., min_length=1)):
     except Exception as exc:
         raise HTTPException(status_code=500, detail={"ok": False, "error": str(exc)})
     return OkResponse()
+
+
+@router.post("/trips/{slug}/snapshot")
+async def snapshot_to_disk(slug: str, body: SnapshotReq, request: Request):
+    user = require_trip_member(request, slug)
+    trip_dir = TRIPS_DIR / slug
+    paths = snapshot_svc.write_snapshot(
+        slug, trip_dir, run_build_trip=body.run_build_trip,
+    )
+    await broadcast.default_bus.publish(slug, {
+        "type": "snapshot.saved",
+        "by": user["email"],
+        "at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"ok": True, "paths": paths}
