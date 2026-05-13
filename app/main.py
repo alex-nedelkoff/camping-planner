@@ -14,6 +14,7 @@ from app.routes import (
     checklist,
     food,
     gear,
+    health,
     identity,
     pages,
     parks,
@@ -42,6 +43,7 @@ app.include_router(identity.router)
 app.include_router(auth.router)
 app.include_router(food.router)
 app.include_router(gear.router)
+app.include_router(health.router)
 
 
 @app.exception_handler(Exception)
