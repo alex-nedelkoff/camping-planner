@@ -122,11 +122,11 @@ def build_mercator_mosaic(tiles: list):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--kmz", required=True, help="KMZ file (absolute or relative to repo root)")
-    # Killarney area at the western/eastern extent of the dense map data —
-    # the western edge (-81.7472) is the true KMZ west, captured by walking
-    # every tile's LatLonBox. Pass a wider bbox to include French River, or
-    # a tighter one for just the park's interior.
-    parser.add_argument("--bbox", default="45.92,-81.7472,46.18,-81.05",
+    # Killarney area covering the full N-S extent of the KMZ in this region
+    # (north reaches 46.2824 per the union of every tile's LatLonBox). Pass
+    # a wider --bbox to include French River east of Killarney, or a
+    # tighter one for just the park's interior.
+    parser.add_argument("--bbox", default="45.92,-81.7472,46.30,-81.05",
                         help="south,west,north,east — defaults to Killarney area")
     parser.add_argument("--zoom", type=int, default=6,
                         help="KMZ zoom level (lower=fewer, larger tiles; default 6)")
