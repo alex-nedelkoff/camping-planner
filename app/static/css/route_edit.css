@@ -1,0 +1,181 @@
+/* Waypoint editor — cartographer's-notebook palette, mounted into the SPA
+   main-pane. The pane fills the main viewport (subtract the SPA sidebar). */
+
+.route-edit {
+  --ink:           #1f2a23;
+  --ink-soft:      #4a5d4f;
+  --ink-faint:     #8a8a78;
+  --rule:          #cbbf9f;
+  --rule-soft:     #e1d6b8;
+  --parchment:     #f5efe1;
+  --parchment-deep:#ece2c9;
+  --rust:          #a8451f;
+  --moss:          #4f6644;
+  --shadow:        0 1px 0 rgba(31, 42, 35, 0.06),
+                   0 4px 14px rgba(31, 42, 35, 0.08),
+                   0 18px 36px -10px rgba(31, 42, 35, 0.14);
+
+  position: relative;
+  width: 100%; height: 100vh;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.route-edit #route-map {
+  position: absolute; inset: 0;
+  background: #ede2c9;
+  cursor: crosshair;
+}
+
+.route-edit .route-side-panel {
+  position: absolute; top: 1rem; left: 1rem; z-index: 1000;
+  width: 316px;
+  max-height: calc(100vh - 2rem);
+  display: flex; flex-direction: column;
+  background: var(--parchment);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+.route-edit header {
+  padding: 0.95rem 1.05rem 0.85rem;
+  border-bottom: 1px solid var(--rule);
+  background:
+    linear-gradient(180deg, rgba(31,42,35,0) 0%, rgba(31,42,35,0.025) 100%),
+    var(--parchment);
+}
+.route-edit .panel-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500; font-size: 1.18rem; letter-spacing: -0.005em;
+  margin: 0; display: flex; align-items: baseline; gap: 0.5rem;
+}
+.route-edit .panel-title::before {
+  content: "▲"; color: var(--rust); font-size: 0.7em;
+}
+.route-edit .panel-sub {
+  font-family: 'Fraunces', Georgia, serif;
+  font-style: italic; font-size: 0.72rem; letter-spacing: 0.04em;
+  color: var(--ink-faint); margin-top: 0.2rem;
+}
+.route-edit .panel-sub a { color: var(--ink-soft); text-decoration: none; border-bottom: 1px dashed var(--rule); }
+.route-edit .panel-sub a:hover { color: var(--rust); }
+
+.route-edit .panel-body { flex: 1 1 auto; overflow-y: auto; }
+.route-edit .panel-body::-webkit-scrollbar { width: 6px; }
+.route-edit .panel-body::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 2px; }
+
+.route-edit .panel-section {
+  padding: 0.75rem 1.05rem 0.9rem;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.route-edit .panel-section:last-child { border-bottom: none; }
+.route-edit .section-heading {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: 'Fraunces', Georgia, serif; font-style: italic; font-weight: 500;
+  font-size: 0.66rem; letter-spacing: 0.24em; text-transform: uppercase;
+  color: var(--ink-soft); margin: 0 0 0.55rem;
+}
+.route-edit .section-heading .count {
+  font-family: 'JetBrains Mono', monospace; font-style: normal;
+  font-size: 0.65rem; color: var(--ink-faint);
+}
+
+.route-edit .stats-row {
+  display: flex; justify-content: space-between; padding: 0.13rem 0;
+  font-size: 0.76rem; font-variant-numeric: tabular-nums;
+}
+.route-edit .stats-row .key { color: var(--ink-soft); }
+.route-edit .stats-row .val { color: var(--ink); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+
+.route-edit .toggle-row {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.22rem 0; cursor: pointer; font-size: 0.76rem;
+  color: var(--ink); transition: color 0.15s ease; user-select: none;
+}
+.route-edit .toggle-row:hover { color: var(--rust); }
+.route-edit .toggle-row input { accent-color: var(--rust); margin: 0; flex-shrink: 0; }
+.route-edit .toggle-row .lbl { flex: 1; line-height: 1.4; }
+.route-edit .toggle-row:has(input:not(:checked)) .lbl { color: var(--ink-faint); }
+.route-edit .toggle-row:has(input:not(:checked)) .swatch { opacity: 0.45; }
+
+.route-edit .swatch {
+  display: inline-block; width: 13px; height: 13px;
+  border: 1.5px solid; flex-shrink: 0;
+}
+.route-edit .swatch.raster      { background: #b4a780; border-color: #6b6147; }
+.route-edit .swatch.portage     { background: #ef6c00; border-color: #b53d00; }
+.route-edit .swatch.portage-gpx { background: #7b1fa2; border-color: #4a148c; }
+.route-edit .swatch.canvec      { background: rgba(0,96,100,0.28); border-color: #006064; }
+.route-edit .swatch.osm         { background: rgba(58,86,102,0.28); border-color: #3a5666; }
+.route-edit .swatch.topo        { background: rgba(160,140,90,0.30); border-color: #806430; }
+.route-edit .swatch.esri        { background: rgba(40,60,80,0.45);  border-color: #1f3650; }
+.route-edit .swatch.campsite    { background: #c62828; border-color: #8a0000; border-radius: 50%; }
+
+.route-edit .opacity-inline {
+  margin: 0.25rem 0 0 1.55rem;
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.68rem; color: var(--ink-soft);
+}
+.route-edit .opacity-inline input[type=range] {
+  accent-color: var(--rust); flex: 1; height: 14px;
+}
+.route-edit .opacity-inline > span:last-child {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.66rem;
+  width: 2.5em; text-align: right;
+}
+
+.route-edit .btn-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.route-edit .btn-row .btn {
+  font: inherit; font-size: 0.74rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--parchment); color: var(--ink);
+  border-radius: 2px; cursor: pointer;
+}
+.route-edit .btn-row .btn:hover { background: var(--parchment-deep); color: var(--rust); border-color: var(--rust); }
+.route-edit .btn-row .btn.primary { background: var(--moss); color: #f5efe1; border-color: #36462f; }
+.route-edit .btn-row .btn.primary:hover { background: #3f5536; color: #fff; }
+.route-edit .btn-row .btn.primary:disabled { opacity: 0.55; cursor: default; }
+.route-edit .btn-row .btn.danger { color: var(--rust); }
+
+.route-edit .status { font-size: 0.72rem; color: var(--ink-soft); min-height: 1.1em; padding: 0.3rem 0 0; }
+.route-edit .status.error { color: var(--rust); }
+.route-edit .status.ok { color: var(--moss); }
+
+.route-edit ol.wp-list { list-style: none; padding: 0; margin: 0.25rem 0 0; }
+.route-edit ol.wp-list li {
+  display: grid; grid-template-columns: 1.55rem 1fr auto; gap: 0.3rem;
+  padding: 0.32rem 0.1rem; border-bottom: 1px solid var(--rule-soft);
+  align-items: center; font-size: 0.76rem;
+}
+.route-edit ol.wp-list li:last-child { border-bottom: none; }
+.route-edit ol.wp-list .idx { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--ink-soft); text-align: right; }
+.route-edit ol.wp-list .name {
+  width: 100%; border: none; background: transparent; font: inherit;
+  padding: 2px 4px; border-radius: 2px; color: var(--ink);
+}
+.route-edit ol.wp-list .name::placeholder { color: var(--ink-faint); font-style: italic; }
+.route-edit ol.wp-list .name:focus { background: var(--parchment-deep); outline: 1px solid var(--rule); }
+.route-edit ol.wp-list .del {
+  background: none; border: none; cursor: pointer; color: var(--ink-faint);
+  font-size: 0.95rem; line-height: 1; padding: 0 4px;
+  font-family: 'Fraunces', serif;
+}
+.route-edit ol.wp-list .del:hover { color: var(--rust); }
+.route-edit .wp-empty { color: var(--ink-faint); font-style: italic; font-size: 0.72rem; padding: 0.3rem 0; }
+
+.route-edit .leaflet-marker-icon.wp-marker {
+  background: var(--moss); color: #f5efe1; border-radius: 50%;
+  text-align: center; line-height: 26px; font-weight: 700; font-size: 12px;
+  border: 2px solid #f5efe1; box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+.route-edit .leaflet-marker-icon.campsite-marker {
+  background: #c62828; color: #fff; border-radius: 50%;
+  text-align: center; line-height: 20px; font-weight: 600; font-size: 11px;
+  border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.45);
+  font-family: 'JetBrains Mono', monospace;
+}
