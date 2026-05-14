@@ -185,6 +185,17 @@
       wireAvailForm();
       return;
     }
+    const routeEditMatch = path.match(/^\/trips\/([^/]+)\/route-edit\/?$/);
+    if (routeEditMatch) {
+      state.activeSlug = routeEditMatch[1];
+      paintActiveSidebar();
+      if (window.RouteEditor) {
+        await window.RouteEditor.mount(mainPane, routeEditMatch[1]);
+      } else {
+        mainPane.innerHTML = '<div class="main-loading">Route editor not loaded.</div>';
+      }
+      return;
+    }
     const tripMatch = path.match(/^\/trips\/([^/]+)\/?$/);
     if (tripMatch) {
       state.activeSlug = tripMatch[1];
@@ -239,12 +250,18 @@
   }
 
   function wrapSection(s) {
-    const actions = s.editable
-      ? '<div class="section-actions">'
+    let actions = '';
+    if (s.editable) {
+      actions = '<div class="section-actions">'
         + '<button class="section-btn" data-edit="' + esc(s.id) + '">Edit</button>'
         + '<span class="section-status" data-status="' + esc(s.id) + '"></span>'
-        + '</div>'
-      : '';
+        + '</div>';
+    } else if (s.id === 'route' && state.activeSlug) {
+      actions = '<div class="section-actions">'
+        + '<a class="section-btn" href="/trips/' + esc(state.activeSlug) + '/route-edit"'
+        + ' data-spa-link>Edit route</a>'
+        + '</div>';
+    }
     return '<section id="' + esc(s.id) + '">'
       + '<div class="section-header">'
       + '<h2>' + esc(s.title) + '</h2>'
@@ -353,14 +370,21 @@
 
   document.addEventListener('click', function (ev) {
     const btn = ev.target.closest('.nav-btn[data-route]');
-    if (!btn) return;
-    ev.preventDefault();
-    navigate(btn.getAttribute('data-route'));
+    if (btn) {
+      ev.preventDefault();
+      navigate(btn.getAttribute('data-route'));
+      return;
+    }
+    const spaLink = ev.target.closest('a[data-spa-link]');
+    if (spaLink) {
+      ev.preventDefault();
+      navigate(spaLink.getAttribute('href'));
+    }
   });
 
   window.addEventListener('popstate', function () { render(location.pathname); });
 
-  window.App = { switchUser: switchUser };
+  window.App = { switchUser: switchUser, navigate: navigate };
 
   // Boot
   Promise.all([loadUser(), loadTrips()]).then(function () {

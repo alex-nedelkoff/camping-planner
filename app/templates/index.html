@@ -1,10 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Camping Trips{% endblock %}
 {% block head_extra %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/trip.css">
+<link rel="stylesheet" href="/static/css/route_edit.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="/static/js/trip.js" defer></script>
+<script src="/static/js/route_edit.js" defer></script>
 {% endblock %}
 {% block body %}
 <div class="app-shell">
@@ -81,6 +86,59 @@
     </form>
     <div data-results></div>
   </section>
+</template>
+
+<template id="tpl-route-edit">
+  <div class="route-edit">
+    <div id="route-map"></div>
+    <aside class="route-side-panel">
+      <header>
+        <h1 class="panel-title" data-park-title>—</h1>
+        <div class="panel-sub">
+          route editor ·
+          <a href="#" data-back-link>back to trip</a>
+        </div>
+      </header>
+      <div class="panel-body">
+        <section class="panel-section">
+          <h2 class="section-heading"><span>Route</span><span class="count" data-wp-count>0 pts</span></h2>
+          <div class="stats-row"><span class="key">Distance</span><span class="val"><span data-total-km>0.00</span> km</span></div>
+          <div class="stats-row"><span class="key">Paddle time · 4 km/h</span><span class="val" data-paddle-time>—</span></div>
+        </section>
+        <section class="panel-section">
+          <h2 class="section-heading"><span>Base map</span></h2>
+          <label class="toggle-row"><input type="radio" name="re-base" value="osm" checked><span class="swatch osm"></span><span class="lbl">OpenStreetMap</span></label>
+          <label class="toggle-row"><input type="radio" name="re-base" value="topo"><span class="swatch topo"></span><span class="lbl">OpenTopoMap</span></label>
+          <label class="toggle-row"><input type="radio" name="re-base" value="esri"><span class="swatch esri"></span><span class="lbl">Esri satellite</span></label>
+        </section>
+        <section class="panel-section">
+          <h2 class="section-heading"><span>Overlays</span></h2>
+          <label class="toggle-row"><input type="checkbox" data-ov="raster" checked><span class="swatch raster"></span><span class="lbl">Jeff's raster</span></label>
+          <div class="opacity-inline">
+            <span>opacity</span>
+            <input type="range" min="0" max="1" step="0.05" value="0.7" data-raster-opacity>
+            <span data-raster-opacity-val>70%</span>
+          </div>
+          <label class="toggle-row"><input type="checkbox" data-ov="canvec" checked><span class="swatch canvec"></span><span class="lbl">CanVec lakes</span></label>
+          <label class="toggle-row"><input type="checkbox" data-ov="portages" checked><span class="swatch portage-gpx"></span><span class="lbl">Portages (110)</span></label>
+          <label class="toggle-row"><input type="checkbox" data-ov="campsites" checked><span class="swatch campsite"></span><span class="lbl">Campsites</span></label>
+          <label class="toggle-row"><input type="checkbox" data-ov="osm-portages"><span class="swatch portage"></span><span class="lbl">OSM portages (named only)</span></label>
+        </section>
+        <section class="panel-section">
+          <h2 class="section-heading"><span>Waypoints</span><span class="count">click map to add</span></h2>
+          <ol class="wp-list" data-wp-list></ol>
+          <div class="wp-empty" data-wp-empty>No waypoints yet — click the map to drop one.</div>
+        </section>
+        <section class="panel-section">
+          <div class="btn-row">
+            <button data-action="save" class="btn primary" disabled>Save</button>
+            <button data-action="clear" class="btn danger">Clear</button>
+          </div>
+          <div class="status" data-status></div>
+        </section>
+      </div>
+    </aside>
+  </div>
 </template>
 {% endblock %}
 

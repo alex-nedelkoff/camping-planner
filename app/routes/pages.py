@@ -29,6 +29,11 @@ def trip(request: Request, slug: str):  # noqa: ARG001 — slug parsed by SPA
     return _render_shell(request)
 
 
+@router.get("/trips/{slug}/route-edit", response_class=HTMLResponse)
+def route_edit(request: Request, slug: str):  # noqa: ARG001 — slug parsed by SPA
+    return _render_shell(request)
+
+
 @router.get("/new", response_class=HTMLResponse)
 def new(request: Request):
     return _render_shell(request)
