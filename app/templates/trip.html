@@ -4,6 +4,7 @@
 <link rel="stylesheet" href="/static/css/trip.css">
 {% endblock %}
 {% block body %}
+  <script>document.body.dataset.tripSlug = "{{ slug }}";</script>
   {% include "partials/nav_band.html" %}
   <div class="trip-page">
     {% include "partials/trip_header.html" %}
@@ -15,4 +16,6 @@
     {% include "partials/section_packing.html" %}
     {% include "partials/section_costs.html" %}
   </div>
+  <script src="/static/js/section_gear.js"></script>
+  <script src="/static/js/section_costs.js"></script>
 {% endblock %}
