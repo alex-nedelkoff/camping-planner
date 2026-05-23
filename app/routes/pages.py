@@ -1,5 +1,7 @@
 """Server-rendered HTML pages."""
 
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -41,27 +43,23 @@ def overlay_redirect():
     return RedirectResponse(url="/overlay/", status_code=307)
 
 
-@router.get("/overlay/")
-def overlay_html():
-    path = REPO_ROOT / "jeffs_osm_overlay.html"
-    if not path.exists():
-        # Suggest an actual trip directory (most-recently-modified) so the
-        # hint is a runnable command, not a `<slug>` shell-redirect bomb.
-        trips_dir = REPO_ROOT / "trips"
-        suggestion = ""
-        if trips_dir.is_dir():
-            candidates = [p for p in trips_dir.iterdir() if p.is_dir()]
-            if candidates:
-                latest = max(candidates, key=lambda p: p.stat().st_mtime)
-                suggestion = (
-                    f" Try: python3 scripts/overlay_osm_jeffs.py "
-                    f"--trip trips/{latest.name}/"
-                )
-        raise HTTPException(
-            status_code=404,
-            detail="Overlay not generated yet." + suggestion,
-        )
-    return FileResponse(path, media_type="text/html")
+@router.get("/overlay/", response_class=HTMLResponse)
+def overlay_html(request: Request, trip: Optional[str] = None):
+    nav_ctx = {"home_href": "/", "show_user_pill": True}
+    trip_label = None
+    if trip:
+        try:
+            from app.services import trip_store
+            t = trip_store.load(trips_svc.TRIPS_DIR / trip)
+            trip_label = t.name
+            nav_ctx["back_href"] = f"/trip/{trip}"
+            nav_ctx["back_label"] = f"Back to {t.name}"
+        except Exception:
+            pass
+    return templates.TemplateResponse(request, "overlay.html", {
+        "nav": nav_ctx,
+        "trip_label": trip_label,
+    })
 
 
 @router.get("/overlay/{filename}")

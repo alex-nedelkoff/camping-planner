@@ -54,3 +54,18 @@ def test_nav_band_on_index(client):
     r = client.get("/")
     assert r.status_code == 200
     assert 'class="nav-band"' in r.text
+
+
+def test_nav_band_on_overlay_with_trip(client):
+    r = client.get("/overlay/?trip=a-2026-04")
+    assert r.status_code == 200
+    html = r.text
+    assert 'class="nav-band"' in html
+    assert "Back to" in html
+    assert "a-2026-04" in html
+
+
+def test_nav_band_on_overlay_without_trip(client):
+    r = client.get("/overlay/")
+    assert r.status_code == 200
+    assert 'class="nav-band"' in r.text
