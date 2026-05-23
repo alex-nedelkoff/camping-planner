@@ -60,21 +60,27 @@ code, pre, .mono, .nights-table td:first-child, .wx-date,
   padding: 3.25rem 2.25rem 2rem;
   margin-bottom: 1.5rem;
   color: #ffffff;
+  /* Layer order (top-to-bottom): diagonal text-zone darkening, bottom vignette, photo. */
   background:
-    /* deepens the text zone (top-left) without flattening the whole image */
     linear-gradient(135deg,
       rgba(15,22,18,0.78) 0%,
       rgba(15,22,18,0.45) 35%,
       rgba(15,22,18,0.30) 65%,
       rgba(15,22,18,0.55) 100%),
+    radial-gradient(120% 60% at 50% 100%,
+      rgba(15,22,18,0) 50%, rgba(15,22,18,0.40) 100%),
     url("/static/img/killarney-hero.jpg") center 35% / cover no-repeat;
   box-shadow: var(--shadow);
   overflow: hidden;
+  isolation: isolate;
 }
+.trip-hero > * { position: relative; z-index: 1; }
 .trip-hero::before {
   /* monospace supertitle above the headline — adds a journal-stamp feel */
   content: "FIELD JOURNAL  \B7  EXPEDITION LOG";
   display: block;
+  position: relative;
+  z-index: 1;
   font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.28em;
@@ -82,19 +88,13 @@ code, pre, .mono, .nights-table td:first-child, .wx-date,
   margin-bottom: 0.65rem;
   text-shadow: 0 1px 4px rgba(0,0,0,0.6);
 }
-.trip-hero::after {
-  /* subtle vignette */
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(120% 60% at 50% 100%,
-              rgba(15,22,18,0.0) 50%, rgba(15,22,18,0.45) 100%);
-}
 .trip-hero h1 {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 500;
   font-size: 3.4rem;
   line-height: 1.05;
-  color: #fbf6e6;
+  color: #ffffff;
   margin: 0 0 0.85rem;
   letter-spacing: -0.015em;
   text-shadow:
