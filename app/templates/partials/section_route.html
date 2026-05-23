@@ -1,9 +1,24 @@
 <section id="route" class="trip-section" data-section="route">
   <header class="section-header">
     <h2>Route</h2>
-    <a class="btn btn-ghost" href="/overlay/?trip={{ slug }}">Open in overlay &rarr;</a>
+    <div class="header-actions">
+      <a class="btn btn-ghost" href="/overlay/?trip={{ slug }}">Open in overlay →</a>
+      <button class="btn btn-ghost edit-btn" data-section="route">Edit waypoints</button>
+      <form method="post" action="/api/trips/{{ slug }}/refresh-route" style="display:inline">
+        <button class="btn btn-ghost" type="submit">↻ Refresh</button>
+      </form>
+    </div>
   </header>
   <div class="section-body">
-    <p class="placeholder">Route map renders here in Phase 6.</p>
+    {% if route_error %}
+      <p class="error">Route render failed: {{ route_error }} — <a href="?">retry</a></p>
+    {% elif route_render.empty %}
+      <p class="empty">No routes drawn yet. <a href="/overlay/?trip={{ slug }}">Open the overlay</a> to draw one.</p>
+    {% else %}
+      {% if route_render.distance_km %}
+      <p class="route-summary">Total distance: {{ route_render.distance_km }} km</p>
+      {% endif %}
+      {{ route_render.html | safe }}
+    {% endif %}
   </div>
 </section>

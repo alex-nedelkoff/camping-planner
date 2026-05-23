@@ -38,6 +38,15 @@ def client(tmp_path, monkeypatch):
     db.init_schema(tmp_db)
     monkeypatch.setattr(config, "DATABASE_PATH", tmp_db)
     monkeypatch.setattr(db, "DATABASE_PATH", tmp_db)
+    from app.services import weather_cache, route_cache
+    monkeypatch.setattr(weather_cache, "get_weather",
+                         lambda **kw: {"days": [
+                             {"date": "2026-05-15", "high": 18,
+                              "low": 5, "summary": "sun"}]})
+    monkeypatch.setattr(route_cache, "get_route_render",
+                         lambda *a, **kw: {"html": "<div>fake</div>",
+                                            "distance_km": 12.3,
+                                            "empty": False})
     yield TestClient(app)
 
 
@@ -53,6 +62,8 @@ def test_trip_page_renders(client):
     assert "Friday dinner" in html
     assert "Permit" in html
     assert "Tent" in html
+    assert "12.3 km" in html
+    assert "sun" in html
 
 
 def test_trip_page_404(client):
