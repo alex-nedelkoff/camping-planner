@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ trip.name }}{% endblock %}
 {% block head_extra %}
-<link rel="stylesheet" href="/static/css/trip.css">
+<link rel="stylesheet" href="/static/css/trip.css?v={{ static_version }}">
 {% endblock %}
 {% block body %}
   <script>document.body.dataset.tripSlug = "{{ slug }}";</script>
@@ -15,10 +15,10 @@
     {% include "partials/section_food.html" %}
     {% include "partials/section_costs.html" %}
   </div>
-  <script src="/static/js/section_gear.js"></script>
-  <script src="/static/js/section_costs.js"></script>
-  <script src="/static/js/section_itinerary.js"></script>
-  <script src="/static/js/section_food.js"></script>
-  <script src="/static/js/section_meta.js"></script>
-  <script src="/static/js/section_route.js"></script>
+  <script src="/static/js/section_gear.js?v={{ static_version }}"></script>
+  <script src="/static/js/section_costs.js?v={{ static_version }}"></script>
+  <script src="/static/js/section_itinerary.js?v={{ static_version }}"></script>
+  <script src="/static/js/section_food.js?v={{ static_version }}"></script>
+  <script src="/static/js/section_meta.js?v={{ static_version }}"></script>
+  <script src="/static/js/section_route.js?v={{ static_version }}"></script>
 {% endblock %}

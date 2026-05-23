@@ -2,21 +2,11 @@
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-import markdown as _md
 
-from app.config import JINJA_TEMPLATES_DIR
 from app.services import trip_store, trips as trips_svc
 
 router = APIRouter()
-templates = Jinja2Templates(directory=str(JINJA_TEMPLATES_DIR))
-
-
-def _md_filter(text: str) -> str:
-    return _md.markdown(text or "", extensions=["extra", "sane_lists"])
-
-
-templates.env.filters["md"] = _md_filter
+from app.templating import templates
 
 
 @router.get("/trip/{slug}", response_class=HTMLResponse)

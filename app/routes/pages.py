@@ -5,13 +5,12 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.templating import Jinja2Templates
 
 from app.config import JINJA_TEMPLATES_DIR, REPO_ROOT
 from app.services import trips as trips_svc
 
 router = APIRouter()
-templates = Jinja2Templates(directory=str(JINJA_TEMPLATES_DIR))
+from app.templating import templates
 
 
 def _shape_for_card(entry: dict) -> dict:
