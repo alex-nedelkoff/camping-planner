@@ -3,20 +3,6 @@ function toggleNewTrip() {
   s.hidden = !s.hidden;
 }
 
-async function rebuild(btn, name) {
-  var orig = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Rebuilding…';
-  try {
-    var r = await fetch('/api/rebuild?trip=' + encodeURIComponent(name), {method: 'POST'});
-    var j = await r.json();
-    btn.textContent = j.ok ? 'Rebuilt ✓' : 'Failed';
-  } catch (e) {
-    btn.textContent = 'Error';
-  }
-  setTimeout(function() { btn.textContent = orig; btn.disabled = false; }, 2000);
-}
-
 async function createTrip(ev) {
   ev.preventDefault();
   var f = ev.target;
@@ -30,15 +16,15 @@ async function createTrip(ev) {
     participants: f.participants.value.split(',').map(function(s){return s.trim();}).filter(Boolean),
   };
   try {
-    var r = await fetch('/api/new-trip', {
+    var r = await fetch('/api/trips', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
     });
     var j = await r.json();
     if (r.ok && j.ok) {
-      status.textContent = 'Created ' + j.trip_dir + ' — reloading…';
-      setTimeout(function(){ location.reload(); }, 800);
+      status.textContent = 'Created ' + j.slug + ' — navigating…';
+      setTimeout(function(){ window.location.href = '/trip/' + encodeURIComponent(j.slug); }, 800);
     } else {
       status.className = 'status error';
       var err = (j && j.detail && j.detail.error) || (j && j.error) || 'unknown';

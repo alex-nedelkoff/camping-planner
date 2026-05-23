@@ -11,8 +11,7 @@
     {% if trip.days_label %} · {{ trip.days_label }}{% endif %}
   </div>
   <div class="actions">
-    <a class="btn" href="/trips/{{ trip.name }}/trip.html" target="_blank">Open Trip</a>
-    <button class="btn secondary" onclick="rebuild(this, '{{ trip.name }}')">Rebuild</button>
+    <a class="btn" href="/trip/{{ trip.name }}">Open Trip</a>
   </div>
 </div>
 {% endif %}

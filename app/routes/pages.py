@@ -1,5 +1,6 @@
 """Server-rendered HTML pages."""
 
+from datetime import date as _date
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
@@ -13,17 +14,31 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(JINJA_TEMPLATES_DIR))
 
 
+def _shape_for_card(entry: dict) -> dict:
+    """Transform list_trips_v2 entry into card template shape."""
+    return {
+        "name": entry["slug"],
+        "park_name": entry["park_name"] or entry["park"],
+        "start_date": str(entry["start"]),
+        "end_date": str(entry["end"]),
+        "participant_count": entry["participant_count"],
+        "days_label": "",
+    }
+
+
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    all_trips = trips_svc.scan_trips()
-    upcoming, past, broken = trips_svc.split_trips(all_trips)
+    today = _date.today()
+    entries = trips_svc.list_trips_v2()
+    upcoming = [_shape_for_card(e) for e in entries if e["start"] >= today]
+    past = [_shape_for_card(e) for e in entries if e["start"] < today]
     return templates.TemplateResponse(
         request,
         "index.html",
         {
-            "upcoming": [trips_svc.trip_card_meta(t) for t in upcoming],
-            "past": [trips_svc.trip_card_meta(t) for t in past],
-            "broken": broken,
+            "upcoming": upcoming,
+            "past": past,
+            "broken": [],
             "park_options": trips_svc.load_park_options(),
             "nav": {"home_href": "/", "show_user_pill": True},
         },

@@ -1,14 +1,11 @@
-"""Trip mutation endpoints (new, rebuild, save-gear)."""
+"""Trip API endpoints (read + write via new /api/trips/* routes)."""
 
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel
 from datetime import date as _date_t
 
 from app.models import (
-    NewTripRequest,
-    NewTripResponse,
     OkResponse,
-    SaveGearRequest,
     TripsListResponse,
     TripListEntry,
 )
@@ -16,7 +13,6 @@ from app.models_trip import (
     GearSection, FoodSlot, CostRow, PackingCategory, ItineraryDay, Trip,
 )
 from app.services import trip_store, trips as trips_svc
-from app.services.trips import TripError
 
 router = APIRouter(prefix="/api")
 
@@ -28,48 +24,6 @@ SECTION_FIELD_MAP = {
     "packing":   (PackingCategory, "packing", True),
     "itinerary": (ItineraryDay, "itinerary", True),
 }
-
-
-def _raise(exc: TripError) -> None:
-    raise HTTPException(status_code=exc.status, detail={"ok": False, "error": str(exc)})
-
-
-@router.post("/new-trip", response_model=NewTripResponse)
-def new_trip(body: NewTripRequest):
-    try:
-        slug = trips_svc.create_trip(
-            park=body.park,
-            start=body.start,
-            end=body.end,
-            participants=body.participants,
-        )
-    except TripError as exc:
-        _raise(exc)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail={"ok": False, "error": str(exc)})
-    return NewTripResponse(trip_dir=slug)
-
-
-@router.post("/rebuild", response_model=OkResponse)
-def rebuild(trip: str = Query(..., min_length=1)):
-    try:
-        slug = trips_svc.rebuild_trip(trip)
-    except TripError as exc:
-        _raise(exc)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail={"ok": False, "error": str(exc)})
-    return OkResponse(message=f"rebuilt {slug}")
-
-
-@router.post("/save-gear", response_model=OkResponse)
-def save_gear(body: SaveGearRequest, trip: str = Query(..., min_length=1)):
-    try:
-        trips_svc.save_gear_table(slug=trip, rows=body.rows)
-    except TripError as exc:
-        _raise(exc)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail={"ok": False, "error": str(exc)})
-    return OkResponse()
 
 
 @router.get("/trips", response_model=TripsListResponse)
