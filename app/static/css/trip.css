@@ -57,40 +57,67 @@ code, pre, .mono, .nights-table td:first-child, .wx-date,
 .trip-hero {
   position: relative;
   border-radius: 4px;
-  padding: 3rem 2rem 1.75rem;
+  padding: 3.25rem 2.25rem 2rem;
   margin-bottom: 1.5rem;
-  color: var(--parchment);
+  color: #ffffff;
   background:
-    linear-gradient(180deg,
-      rgba(31,42,35,0.20) 0%,
-      rgba(31,42,35,0.55) 65%,
-      rgba(31,42,35,0.85) 100%),
+    /* deepens the text zone (top-left) without flattening the whole image */
+    linear-gradient(135deg,
+      rgba(15,22,18,0.78) 0%,
+      rgba(15,22,18,0.45) 35%,
+      rgba(15,22,18,0.30) 65%,
+      rgba(15,22,18,0.55) 100%),
     url("/static/img/killarney-hero.jpg") center 35% / cover no-repeat;
   box-shadow: var(--shadow);
   overflow: hidden;
 }
+.trip-hero::before {
+  /* monospace supertitle above the headline — adds a journal-stamp feel */
+  content: "FIELD JOURNAL  \B7  EXPEDITION LOG";
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.28em;
+  color: var(--rust-bright);
+  margin-bottom: 0.65rem;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
 .trip-hero::after {
-  /* subtle parchment-tinted vignette in the corners */
+  /* subtle vignette */
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(120% 60% at 50% 100%,
-              rgba(31,42,35,0.0) 50%, rgba(31,42,35,0.35) 100%);
+              rgba(15,22,18,0.0) 50%, rgba(15,22,18,0.45) 100%);
 }
 .trip-hero h1 {
   font-family: var(--font-serif);
   font-style: italic;
-  font-weight: 400;
-  font-size: 2.4rem;
-  color: var(--parchment);
-  margin: 0 0 0.5rem;
-  letter-spacing: -0.01em;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  font-weight: 500;
+  font-size: 3.4rem;
+  line-height: 1.05;
+  color: #fbf6e6;
+  margin: 0 0 0.85rem;
+  letter-spacing: -0.015em;
+  text-shadow:
+    0 2px 8px rgba(0,0,0,0.55),
+    0 0 28px rgba(0,0,0,0.25),
+    0 1px 0 rgba(255,255,255,0.04);
 }
 .trip-meta {
-  display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem;
-  font-size: 0.92rem; opacity: 0.95;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+  display: flex; flex-wrap: wrap; gap: 0.4rem 1.75rem;
+  font-size: 0.98rem;
+  font-family: var(--font-sans);
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.65), 0 0 8px rgba(0,0,0,0.35);
 }
-.trip-meta strong { color: var(--rust-bright); font-weight: 600; font-family: var(--font-sans); }
+.trip-meta > span {
+  display: inline-flex; align-items: baseline; gap: 0.4rem;
+}
+.trip-meta strong {
+  color: var(--rust-bright); font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+}
 .nights-table {
   margin-top: 1rem; background: rgba(31,42,35,0.35);
   border: 1px solid rgba(245,239,225,0.18); border-radius: 4px;
