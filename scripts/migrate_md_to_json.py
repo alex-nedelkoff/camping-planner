@@ -18,6 +18,9 @@ from app.models_trip import (  # noqa: E402
 )
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?(.*)", re.DOTALL)
+TABLE_ROW_RE = re.compile(r"^\|(.+)\|\s*$", re.MULTILINE)
+CHECKBOX_RE = re.compile(r"^\s*[-*+]\s+\[(?P<mark>[ xX])\]\s+(?P<label>.+)$",
+                          re.MULTILINE)
 
 
 def _slugify(text: str) -> str:
@@ -69,17 +72,68 @@ def _food_from_md(text: str) -> list[dict]:
     return slots
 
 
+def _parse_md_table(text: str) -> list[list[str]]:
+    """Return data rows (header + separator stripped) as list-of-lists."""
+    lines = [ln for ln in text.splitlines() if ln.strip().startswith("|")]
+    if len(lines) < 3:
+        return []
+    rows = []
+    for ln in lines[2:]:  # skip header + separator
+        cells = [c.strip() for c in ln.strip().strip("|").split("|")]
+        rows.append(cells)
+    return rows
+
+
 def _gear_from_md(text: str) -> dict:
-    # Placeholder — full implementation in Task 4.
-    return {"shared": [], "personal": []}
+    shared = []
+    personal = []
+    sections = _split_sections(text)
+    for heading, body in sections:
+        if heading.lower().startswith("shared"):
+            for row in _parse_md_table(body):
+                row = (row + ["", "", ""])[:3]
+                shared.append({"item": row[0], "who": row[1], "notes": row[2]})
+        elif heading.lower().startswith("personal"):
+            # Body has ### per-person subsections
+            person_parts = re.split(r"^### (.+)$", body, flags=re.MULTILINE)
+            for i in range(1, len(person_parts), 2):
+                person = person_parts[i].strip()
+                items_block = person_parts[i + 1] if i + 1 < len(person_parts) else ""
+                items = []
+                for ln in items_block.splitlines():
+                    m = re.match(r"^\s*[-*+]\s+(.+)$", ln)
+                    if m:
+                        items.append({"item": m.group(1).strip(), "notes": ""})
+                personal.append({"person": person, "items": items})
+    return {"shared": shared, "personal": personal}
 
 
 def _costs_from_md(text: str) -> list[dict]:
-    return []  # Placeholder — Task 4.
+    rows = _parse_md_table(text)
+    out = []
+    for row in rows:
+        row = (row + ["", "", ""])[:3]
+        item, who, amount_str = row
+        try:
+            amount = float(amount_str) if amount_str.strip() else None
+        except ValueError:
+            amount = None
+        out.append({"item": item, "who_paid": who,
+                    "amount": amount, "currency": "CAD"})
+    return out
 
 
 def _packing_from_md(text: str) -> list[dict]:
-    return []  # Placeholder — Task 4.
+    out = []
+    for heading, body in _split_sections(text):
+        items = []
+        for m in CHECKBOX_RE.finditer(body):
+            items.append({
+                "label": m.group("label").strip(),
+                "checked": m.group("mark").lower() == "x",
+            })
+        out.append({"category": heading, "items": items})
+    return out
 
 
 def migrate_trip(trip_dir: Path, slug: str, force: bool = False,
