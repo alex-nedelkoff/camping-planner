@@ -33,6 +33,12 @@ CREATE TABLE IF NOT EXISTS weather_cache (
     payload    TEXT NOT NULL,
     PRIMARY KEY (park, start_date, end_date)
 );
+
+CREATE TABLE IF NOT EXISTS route_cache (
+    key        TEXT NOT NULL PRIMARY KEY,
+    fetched_at REAL NOT NULL,
+    payload    TEXT NOT NULL
+);
 """
 
 _CHECKLIST_V1_DDL = """
@@ -124,6 +130,58 @@ def cache_set(
             "ON CONFLICT(park, start_date, end_date) DO UPDATE SET "
             "fetched_at = excluded.fetched_at, payload = excluded.payload",
             (park, start, end, time.time(), json.dumps(payload)),
+        )
+
+
+def cache_get_json(
+    table: str,
+    key: tuple,
+    ttl_seconds: float,
+    path: Path | None = None,
+) -> dict | None:
+    """Return cached payload if fresh, else None. Key is any tuple."""
+    key_json = json.dumps(list(key))
+    with connect(path) as conn:
+        row = conn.execute(
+            f"SELECT fetched_at, payload FROM {table} WHERE key = ?",
+            (key_json,),
+        ).fetchone()
+    if row is None:
+        return None
+    if (time.time() - row["fetched_at"]) > ttl_seconds:
+        return None
+    return json.loads(row["payload"])
+
+
+def cache_set_json(
+    table: str,
+    key: tuple,
+    payload: dict,
+    path: Path | None = None,
+) -> None:
+    """Upsert a payload into a generic cache table. Key is any tuple."""
+    key_json = json.dumps(list(key))
+    with connect(path) as conn:
+        conn.execute(
+            f"INSERT INTO {table} (key, fetched_at, payload) "
+            "VALUES (?, ?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET "
+            "fetched_at = excluded.fetched_at, payload = excluded.payload",
+            (key_json, time.time(), json.dumps(payload)),
+        )
+
+
+def cache_drop_prefix(
+    table: str,
+    key_prefix: tuple,
+    path: Path | None = None,
+) -> None:
+    """Delete rows whose JSON key starts with the given prefix tuple."""
+    prefix_json = json.dumps(list(key_prefix))[:-1]  # strip trailing ']'
+    with connect(path) as conn:
+        conn.execute(
+            f"DELETE FROM {table} WHERE key LIKE ?",
+            (prefix_json + "%",),
         )
 
 
