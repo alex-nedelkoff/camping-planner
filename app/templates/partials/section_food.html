@@ -4,16 +4,32 @@
     <button class="btn btn-ghost edit-btn" data-section="food">Edit</button>
   </header>
   <div class="section-body">
-    {% for slot in trip.food %}
-    <article class="food-slot">
-      <h3>{{ slot.label }}</h3>
-      {% if slot.items %}
-      <ul>{% for it in slot.items %}<li>{{ it.name }}{% if it.who %} &mdash; {{ it.who }}{% endif %}</li>{% endfor %}</ul>
-      {% endif %}
-      <div class="slot-notes">{{ slot.notes | md | safe }}</div>
-    </article>
+    {% if trip.food %}
+    <table class="food-table">
+      <thead>
+        <tr>
+          <th>Meal</th>
+          {% for p in trip.participants %}<th>{{ p }}</th>{% endfor %}
+          <th class="notes-col">Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for slot in trip.food %}
+        <tr>
+          <td class="meal-label">{{ slot.label }}</td>
+          {% for p in trip.participants %}
+          <td class="meal-cell">
+            {% set my_items = slot.items | selectattr("who", "equalto", p) | list %}
+            {% for it in my_items %}<div class="food-item">{{ it.name }}</div>{% endfor %}
+          </td>
+          {% endfor %}
+          <td class="meal-notes">{{ slot.notes | md | safe }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% else %}
     <p class="empty">No meals planned yet.</p>
-    {% endfor %}
+    {% endif %}
   </div>
 </section>

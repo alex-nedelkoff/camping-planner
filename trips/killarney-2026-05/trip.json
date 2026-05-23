@@ -130,32 +130,45 @@
     {
       "slot": "friday-dinner",
       "label": "Friday dinner",
-      "items": [],
-      "notes": "- _meal idea_ \u2014 _who_"
+      "items": [
+        {
+          "name": "Filet mignon",
+          "who": "Alex"
+        },
+        {
+          "name": "Mashed potatoes",
+          "who": "Alex"
+        },
+        {
+          "name": "Mushrooms",
+          "who": "Alex"
+        }
+      ],
+      "notes": "Fillet Mignon, instant mashed, gravy, mushrooms"
     },
     {
       "slot": "saturday-breakfast",
       "label": "Saturday breakfast",
       "items": [],
-      "notes": ""
+      "notes": "Oatmeal, freeze dried meal"
     },
     {
       "slot": "saturday-lunch",
       "label": "Saturday lunch",
       "items": [],
-      "notes": "(On the water \u2014 wraps / bars / cheese.)"
+      "notes": "Snacks, bars"
     },
     {
       "slot": "saturday-dinner",
       "label": "Saturday dinner",
       "items": [],
-      "notes": ""
+      "notes": "Toasted naan, lentil thing, rice"
     },
     {
       "slot": "sunday-breakfast",
       "label": "Sunday breakfast",
       "items": [],
-      "notes": ""
+      "notes": "Oatmeal, freeze dried meal"
     },
     {
       "slot": "sunday-lunch",
@@ -167,13 +180,13 @@
       "slot": "sunday-dinner",
       "label": "Sunday dinner",
       "items": [],
-      "notes": ""
+      "notes": "Mac and cheese w bacon"
     },
     {
       "slot": "monday-breakfast",
       "label": "Monday breakfast",
       "items": [],
-      "notes": "(Quick \u2014 break camp and paddle out.)"
+      "notes": "NOTHIN"
     }
   ],
   "costs": [
@@ -185,8 +198,8 @@
     },
     {
       "item": "Gas",
-      "who_paid": "",
-      "amount": null,
+      "who_paid": "Thomas",
+      "amount": 200.0,
       "currency": "CAD"
     },
     {
