@@ -88,3 +88,32 @@ def test_refresh_route_invalidates_cache(client):
 def test_refresh_404_for_missing_trip(client):
     r = client.post("/api/trips/nope/refresh-weather")
     assert r.status_code == 404
+
+
+def test_patch_meta_updates_fields(client):
+    r = client.patch("/api/trips/a-2026-04/meta",
+                      json={"access_point": "George Lake"})
+    assert r.status_code == 200
+    r2 = client.get("/api/trips/a-2026-04")
+    assert r2.json()["access_point"] == "George Lake"
+
+
+def test_put_section_replaces_gear(client):
+    r = client.put("/api/trips/a-2026-04/section/gear",
+                    json={"shared": [{"item": "Canoe", "who": "Alex", "notes": ""}],
+                          "personal": []})
+    assert r.status_code == 200
+    body = client.get("/api/trips/a-2026-04").json()
+    assert body["gear"]["shared"][0]["item"] == "Canoe"
+
+
+def test_put_section_rejects_unknown_section(client):
+    r = client.put("/api/trips/a-2026-04/section/badname",
+                    json={})
+    assert r.status_code == 400
+
+
+def test_put_section_validates(client):
+    r = client.put("/api/trips/a-2026-04/section/gear",
+                    json={"shared": [{"item": 123}], "personal": []})
+    assert r.status_code == 422
