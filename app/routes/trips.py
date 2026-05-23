@@ -159,3 +159,30 @@ def put_section(slug: str, name: str, body=Body(...)):
     new_trip = Trip.model_validate(data)
     trip_store.save(trip_dir, new_trip)
     return new_trip.model_dump(mode="json")
+
+
+import json as _json
+
+
+@router.put("/trips/{slug}/routes")
+def put_routes(slug: str, body=Body(...)):
+    trip_dir = trips_svc.TRIPS_DIR / slug
+    if not trip_store.exists(trip_dir):
+        raise HTTPException(404)
+    if not isinstance(body, list):
+        raise HTTPException(400, detail={"error": "expected list of routes"})
+    (trip_dir / "manual_routes.json").write_text(
+        _json.dumps(body, indent=2) + "\n", encoding="utf-8"
+    )
+    from app.services import route_cache
+    route_cache.invalidate(slug)
+    return {"ok": True}
+
+
+@router.get("/trips/{slug}/routes")
+def get_routes(slug: str):
+    trip_dir = trips_svc.TRIPS_DIR / slug
+    p = trip_dir / "manual_routes.json"
+    if not p.exists():
+        return []
+    return _json.loads(p.read_text())

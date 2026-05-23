@@ -117,3 +117,11 @@ def test_put_section_validates(client):
     r = client.put("/api/trips/a-2026-04/section/gear",
                     json={"shared": [{"item": 123}], "personal": []})
     assert r.status_code == 422
+
+
+def test_put_routes_writes_file(client, tmp_path):
+    r = client.put("/api/trips/a-2026-04/routes",
+                    json=[{"name": "Day 1 paddle", "waypoints": []}])
+    assert r.status_code == 200
+    r2 = client.get("/api/trips/a-2026-04/routes")
+    assert r2.json()[0]["name"] == "Day 1 paddle"
