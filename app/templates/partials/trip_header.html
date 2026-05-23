@@ -1,0 +1,19 @@
+<header class="trip-hero">
+  <h1>{{ trip.name }}</h1>
+  <div class="trip-meta">
+    <span><strong>Park:</strong> {{ trip.park }}</span>
+    <span><strong>Dates:</strong> {{ trip.dates.start }} &rarr; {{ trip.dates.end }}</span>
+    <span><strong>Access:</strong> {{ trip.access_point }}</span>
+    <span><strong>Who:</strong> {{ trip.participants | join(", ") }}</span>
+  </div>
+  {% if trip.nights %}
+  <table class="nights-table">
+    <thead><tr><th>Date</th><th>Site</th><th>Location</th></tr></thead>
+    <tbody>
+      {% for n in trip.nights %}
+      <tr><td>{{ n.date }}</td><td>{{ n.site }}</td><td>{{ n.location }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</header>

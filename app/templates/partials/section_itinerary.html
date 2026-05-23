@@ -1,0 +1,16 @@
+<section id="itinerary" class="trip-section" data-section="itinerary">
+  <header class="section-header">
+    <h2>Itinerary</h2>
+    <button class="btn btn-ghost edit-btn" data-section="itinerary">Edit</button>
+  </header>
+  <div class="section-body">
+    {% for day in trip.itinerary %}
+    <article class="itinerary-day">
+      <h3>{{ day.label or day.date }}</h3>
+      <div class="day-notes">{{ day.notes | md | safe }}</div>
+    </article>
+    {% else %}
+    <p class="empty">No itinerary yet.</p>
+    {% endfor %}
+  </div>
+</section>

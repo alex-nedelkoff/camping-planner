@@ -1,0 +1,19 @@
+<section id="food" class="trip-section" data-section="food">
+  <header class="section-header">
+    <h2>Food</h2>
+    <button class="btn btn-ghost edit-btn" data-section="food">Edit</button>
+  </header>
+  <div class="section-body">
+    {% for slot in trip.food %}
+    <article class="food-slot">
+      <h3>{{ slot.label }}</h3>
+      {% if slot.items %}
+      <ul>{% for it in slot.items %}<li>{{ it.name }}{% if it.who %} &mdash; {{ it.who }}{% endif %}</li>{% endfor %}</ul>
+      {% endif %}
+      <div class="slot-notes">{{ slot.notes | md | safe }}</div>
+    </article>
+    {% else %}
+    <p class="empty">No meals planned yet.</p>
+    {% endfor %}
+  </div>
+</section>

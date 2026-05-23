@@ -1,0 +1,18 @@
+.trip-page { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+.trip-hero { background: #2d5016; color: white; padding: 1.5rem;
+             border-radius: 10px; margin-bottom: 1rem; }
+.trip-hero h1 { margin: 0 0 0.5rem; color: white; }
+.trip-meta { display: flex; flex-wrap: wrap; gap: 1rem; opacity: 0.95; }
+.trip-section { background: white; padding: 1.25rem 1.5rem; margin: 1rem 0;
+                border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.section-header { display: flex; justify-content: space-between;
+                  align-items: baseline; }
+.section-header h2 { margin: 0; }
+.edit-btn { font-size: 0.85rem; }
+.empty { color: #888; font-style: italic; }
+.nights-table { background: rgba(0,0,0,0.18); border-radius: 6px; margin-top: 0.75rem; }
+.nights-table th, .nights-table td { color: white;
+    border-bottom: 1px solid rgba(255,255,255,0.18); padding: 0.4rem 0.7rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; }
+.total-row td { border-top: 2px solid #2d5016; padding-top: 0.6rem; }

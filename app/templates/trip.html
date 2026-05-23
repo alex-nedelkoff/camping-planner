@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ trip.name }}{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/trip.css">
+{% endblock %}
+{% block body %}
+  {# nav band — fully wired in Phase 5 #}
+  <div class="trip-page">
+    {% include "partials/trip_header.html" %}
+    {% include "partials/section_route.html" %}
+    {% include "partials/section_weather.html" %}
+    {% include "partials/section_itinerary.html" %}
+    {% include "partials/section_gear.html" %}
+    {% include "partials/section_food.html" %}
+    {% include "partials/section_packing.html" %}
+    {% include "partials/section_costs.html" %}
+  </div>
+{% endblock %}

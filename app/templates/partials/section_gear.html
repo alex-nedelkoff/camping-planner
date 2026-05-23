@@ -1,0 +1,28 @@
+<section id="gear" class="trip-section" data-section="gear">
+  <header class="section-header">
+    <h2>Gear</h2>
+    <button class="btn btn-ghost edit-btn" data-section="gear">Edit</button>
+  </header>
+  <div class="section-body">
+    <h3>Shared</h3>
+    <table>
+      <thead><tr><th>Item</th><th>Who</th><th>Notes</th></tr></thead>
+      <tbody>
+        {% for row in trip.gear.shared %}
+        <tr><td>{{ row.item }}</td><td>{{ row.who }}</td><td>{{ row.notes }}</td></tr>
+        {% else %}
+        <tr><td colspan="3" class="empty">Empty</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <h3>Personal</h3>
+    {% for person in trip.gear.personal %}
+    <div class="person-gear">
+      <h4>{{ person.person }}</h4>
+      <ul>{% for it in person.items %}<li>{{ it.item }}{% if it.notes %} &mdash; {{ it.notes }}{% endif %}</li>{% endfor %}</ul>
+    </div>
+    {% else %}
+    <p class="empty">No personal lists yet.</p>
+    {% endfor %}
+  </div>
+</section>

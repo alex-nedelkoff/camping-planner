@@ -1,0 +1,28 @@
+<section id="costs" class="trip-section" data-section="costs">
+  <header class="section-header">
+    <h2>Costs</h2>
+    <button class="btn btn-ghost edit-btn" data-section="costs">Edit</button>
+  </header>
+  <div class="section-body">
+    <table>
+      <thead><tr><th>Item</th><th>Who paid</th><th>Amount</th></tr></thead>
+      <tbody>
+        {% set ns = namespace(total=0) %}
+        {% for row in trip.costs %}
+        {% if row.amount is not none %}{% set ns.total = ns.total + row.amount %}{% endif %}
+        <tr>
+          <td>{{ row.item }}</td>
+          <td>{{ row.who_paid }}</td>
+          <td>{% if row.amount is not none %}{{ "%.2f"|format(row.amount) }} {{ row.currency }}{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="empty">No costs recorded</td></tr>
+        {% endfor %}
+        {% if trip.costs %}
+        <tr class="total-row"><td><strong>Total</strong></td><td></td>
+            <td><strong>{{ "%.2f"|format(ns.total) }} CAD</strong></td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
