@@ -65,3 +65,26 @@ def test_get_trip_returns_json(client):
 def test_get_trip_404(client):
     r = client.get("/api/trips/does-not-exist")
     assert r.status_code == 404
+
+
+def test_refresh_weather_invalidates_cache(client, monkeypatch):
+    from app.services import weather_cache
+    calls = []
+    def fake(park_key, start_date, end_date):
+        calls.append((park_key, start_date, end_date))
+        return {"days": []}
+    monkeypatch.setattr(weather_cache, "get_weather", fake)
+    r = client.post("/api/trips/a-2026-04/refresh-weather")
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+
+
+def test_refresh_route_invalidates_cache(client):
+    r = client.post("/api/trips/a-2026-04/refresh-route")
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+
+
+def test_refresh_404_for_missing_trip(client):
+    r = client.post("/api/trips/nope/refresh-weather")
+    assert r.status_code == 404

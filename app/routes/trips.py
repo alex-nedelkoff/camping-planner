@@ -74,3 +74,29 @@ def get_trip(slug: str):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail={"error": "not_found"})
     return t.model_dump(mode="json")
+
+
+@router.post("/trips/{slug}/refresh-weather", response_model=OkResponse)
+def refresh_weather(slug: str):
+    trip_dir = trips_svc.TRIPS_DIR / slug
+    if not trip_store.exists(trip_dir):
+        raise HTTPException(status_code=404, detail="trip not found")
+    t = trip_store.load(trip_dir)
+    # weather_cache uses column-based key (park, start_date, end_date) — delete directly
+    from app.services.db import connect
+    with connect() as conn:
+        conn.execute(
+            "DELETE FROM weather_cache WHERE park = ? AND start_date = ?",
+            (t.park or "", str(t.dates.start)),
+        )
+    return OkResponse(ok=True, message="weather cache cleared")
+
+
+@router.post("/trips/{slug}/refresh-route", response_model=OkResponse)
+def refresh_route(slug: str):
+    from app.services import route_cache
+    trip_dir = trips_svc.TRIPS_DIR / slug
+    if not trip_store.exists(trip_dir):
+        raise HTTPException(status_code=404, detail="trip not found")
+    route_cache.invalidate(slug)
+    return OkResponse(ok=True, message="route cache cleared")
