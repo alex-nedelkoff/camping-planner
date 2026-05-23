@@ -11,7 +11,7 @@
   <script src="/static/js/section.js?v={{ static_version }}"></script>
   {% block head_extra %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
 {% block body %}{% endblock %}
 {% block scripts %}{% endblock %}
 </body>

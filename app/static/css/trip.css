@@ -49,6 +49,21 @@ code, pre, .mono, .nights-table td:first-child, .wx-date,
 /* ──────────────────────────────────────────────────────────────────────────
    Layout
    ────────────────────────────────────────────────────────────────────────── */
+
+/* Fixed Killarney photo as page background (trip page only) */
+body.has-fixed-hero { background: transparent; }
+body.has-fixed-hero::before {
+  content: "";
+  position: fixed; inset: 0; z-index: -1;
+  background:
+    linear-gradient(180deg,
+      rgba(245,239,225,0.40) 0%,
+      rgba(236,226,201,0.58) 45%,
+      rgba(236,226,201,0.72) 100%),
+    url("/static/img/killarney-hero.jpg") center / cover no-repeat;
+  pointer-events: none;
+}
+
 .trip-page { max-width: 980px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -60,16 +75,14 @@ code, pre, .mono, .nights-table td:first-child, .wx-date,
   padding: 3.25rem 2.25rem 2rem;
   margin-bottom: 1.5rem;
   color: #ffffff;
-  /* Layer order (top-to-bottom): diagonal text-zone darkening, bottom vignette, photo. */
+  /* The page bg already shows the photo (fixed). The hero just dims its
+     local area so the title and meta read clearly against the photo. */
   background:
     linear-gradient(135deg,
-      rgba(15,22,18,0.78) 0%,
-      rgba(15,22,18,0.45) 35%,
-      rgba(15,22,18,0.30) 65%,
-      rgba(15,22,18,0.55) 100%),
-    radial-gradient(120% 60% at 50% 100%,
-      rgba(15,22,18,0) 50%, rgba(15,22,18,0.40) 100%),
-    url("/static/img/killarney-hero.jpg") center 35% / cover no-repeat;
+      rgba(15,22,18,0.72) 0%,
+      rgba(15,22,18,0.42) 50%,
+      rgba(15,22,18,0.55) 100%);
+  backdrop-filter: blur(2px);
   box-shadow: var(--shadow);
   overflow: hidden;
   isolation: isolate;

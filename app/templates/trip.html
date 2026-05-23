@@ -3,6 +3,7 @@
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/trip.css?v={{ static_version }}">
 {% endblock %}
+{% block body_class %}has-fixed-hero{% endblock %}
 {% block body %}
   <script>document.body.dataset.tripSlug = "{{ slug }}";</script>
   {% include "partials/nav_band.html" %}
