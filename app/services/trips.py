@@ -1,6 +1,5 @@
-"""Trip discovery, creation, gear-edit and rebuild logic.
+"""Trip discovery and creation logic.
 
-Pure functions over the filesystem and the existing build_trip module.
 Routes call into these; tests import them directly.
 """
 
@@ -14,52 +13,23 @@ from pathlib import Path
 
 import yaml
 
-import build_trip
-
 from app.config import PARKS_JSON, TEMPLATE_DIR, TRIPS_DIR
-from app.services import weather_cache as _weather_cache
-
-# Inject the SQLite-cached weather lookup into build_trip whenever the FastAPI
-# layer is loaded. CLI users (`python build_trip.py ...`) keep the direct call.
-build_trip.weather_provider = _weather_cache.get_weather
+from app.services import parks as parks_svc
 
 
-_MD_TABLE_RE = re.compile(
-    r"(^\|.+\|[ \t]*\n\|[\s|:\-]+\|[ \t]*\n)((?:^\|.*\|[ \t]*\n)*)",
-    re.MULTILINE,
-)
+# YAML frontmatter pattern for parsing trip.md
+_FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?(.*)", re.DOTALL)
 
 
-# ---------------------------------------------------------------------------
-# Markdown table editing (used by the gear save endpoint)
-# ---------------------------------------------------------------------------
-
-
-def _md_escape_cell(value: str) -> str:
-    return (
-        str(value)
-        .replace("\\", "\\\\")
-        .replace("|", "\\|")
-        .replace("\n", " ")
-        .strip()
-    )
-
-
-def replace_first_table(md_text: str, new_rows: list) -> str:
-    """Replace the data rows of the first markdown table; preserve the header."""
-    match = _MD_TABLE_RE.search(md_text)
-    if not match:
-        raise ValueError("no markdown table found")
-    header_block = match.group(1)
-    header_line = header_block.splitlines()[0]
-    ncols = len(header_line.strip().strip("|").split("|"))
-    rendered = []
-    for row in new_rows:
-        cells = [_md_escape_cell(c) for c in (row or [])]
-        cells = (cells + [""] * ncols)[:ncols]
-        rendered.append("| " + " | ".join(cells) + " |")
-    new_rows_md = ("\n".join(rendered) + "\n") if rendered else ""
-    return md_text[: match.start()] + header_block + new_rows_md + md_text[match.end():]
+def _stringify_dates(obj):
+    """Recursively convert date/datetime values to ISO strings in parsed YAML."""
+    if isinstance(obj, (datetime.date, datetime.datetime)):
+        return obj.isoformat()
+    if isinstance(obj, dict):
+        return {k: _stringify_dates(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_stringify_dates(item) for item in obj]
+    return obj
 
 
 # ---------------------------------------------------------------------------
@@ -91,13 +61,13 @@ def scan_trips(trips_dir: Path | None = None) -> list[dict]:
             continue
         try:
             text = trip_md.read_text(encoding="utf-8")
-            match = build_trip.FRONTMATTER_RE.match(text)
+            match = _FRONTMATTER_RE.match(text)
             if not match:
                 trips.append({"name": trip_dir.name, "error": "missing frontmatter"})
                 continue
             fm = yaml.safe_load(match.group(1)) or {}
-            fm = build_trip._stringify_dates(fm)
-            park_info = build_trip._load_park_info(fm.get("park", ""))
+            fm = _stringify_dates(fm)
+            park_info = parks_svc.load_park_info(fm.get("park", ""))
             trips.append({
                 "name": trip_dir.name,
                 "park": fm.get("park", ""),
@@ -229,44 +199,6 @@ def create_trip(
     return slug
 
 
-def rebuild_trip(slug: str, trips_dir: Path | None = None) -> str:
-    """Re-render the trip's HTML. Returns the slug on success."""
-    if trips_dir is None:
-        trips_dir = TRIPS_DIR
-    trip_dir = trips_dir / slug
-    if not slug or not trip_dir.is_dir():
-        raise TripError("trip not found", status=404)
-    html = build_trip.build_html(trip_dir)
-    (trip_dir / "trip.html").write_text(html, encoding="utf-8")
-    return slug
-
-
-def save_gear_table(
-    slug: str,
-    rows: list[list[str]],
-    trips_dir: Path | None = None,
-) -> None:
-    """Replace gear.md's first table with `rows` and re-render the HTML."""
-    if trips_dir is None:
-        trips_dir = TRIPS_DIR
-    trip_dir = trips_dir / slug
-    if not slug or not trip_dir.is_dir():
-        raise TripError("trip not found", status=404)
-    gear_md = trip_dir / "gear.md"
-    if not gear_md.exists():
-        raise TripError("gear.md not found", status=404)
-    if not isinstance(rows, list) or any(not isinstance(r, list) for r in rows):
-        raise TripError("rows must be a list of lists", status=400)
-    text = gear_md.read_text(encoding="utf-8")
-    try:
-        new_text = replace_first_table(text, rows)
-    except ValueError as exc:
-        raise TripError(str(exc), status=400) from exc
-    gear_md.write_text(new_text, encoding="utf-8")
-    html = build_trip.build_html(trip_dir)
-    (trip_dir / "trip.html").write_text(html, encoding="utf-8")
-
-
 def list_trips_v2(trips_dir: Path | None = None) -> list[dict]:
     """List trips by reading trip.json. Sorted by start date."""
     from app.services import trip_store
@@ -283,7 +215,7 @@ def list_trips_v2(trips_dir: Path | None = None) -> list[dict]:
             t = trip_store.load(sub)
         except Exception:
             continue
-        park_info = build_trip._load_park_info(t.park) if t.park else {}
+        park_info = parks_svc.load_park_info(t.park) if t.park else {}
         entries.append({
             "slug": sub.name,
             "name": t.name,
