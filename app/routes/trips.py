@@ -1,6 +1,8 @@
 """Trip mutation endpoints (new, rebuild, save-gear)."""
 
 from fastapi import APIRouter, Body, HTTPException, Query
+from pydantic import BaseModel
+from datetime import date as _date_t
 
 from app.models import (
     NewTripRequest,
@@ -186,3 +188,34 @@ def get_routes(slug: str):
     if not p.exists():
         return []
     return _json.loads(p.read_text())
+
+
+class CreateTripRequest(BaseModel):
+    park: str
+    start: _date_t
+    end: _date_t
+    participants: list[str] = []
+
+
+@router.post("/trips")
+def create_trip(body: CreateTripRequest):
+    try:
+        slug = trips_svc.create_trip_v2(
+            park=body.park, start_date=body.start, end_date=body.end,
+            participants=body.participants,
+        )
+    except FileExistsError as e:
+        raise HTTPException(status_code=409, detail={"error": f"trip exists: {e}"})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail={"error": str(e)})
+    return {"ok": True, "slug": slug}
+
+
+@router.delete("/trips/{slug}")
+def delete_trip(slug: str):
+    import shutil
+    trip_dir = trips_svc.TRIPS_DIR / slug
+    if not trip_dir.exists():
+        raise HTTPException(404)
+    shutil.rmtree(trip_dir)
+    return {"ok": True}

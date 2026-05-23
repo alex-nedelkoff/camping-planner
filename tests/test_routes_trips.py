@@ -125,3 +125,31 @@ def test_put_routes_writes_file(client, tmp_path):
     assert r.status_code == 200
     r2 = client.get("/api/trips/a-2026-04/routes")
     assert r2.json()[0]["name"] == "Day 1 paddle"
+
+
+def test_post_create_writes_trip_json(client, tmp_path):
+    r = client.post("/api/trips", json={
+        "park": "killarney", "start": "2027-06-01", "end": "2027-06-04",
+        "participants": ["Alex"],
+    })
+    assert r.status_code == 200
+    slug = r.json()["slug"]
+    assert slug == "killarney-2027-06"
+    body = client.get(f"/api/trips/{slug}").json()
+    assert body["dates"]["start"] == "2027-06-01"
+    assert body["participants"] == ["Alex"]
+
+
+def test_post_create_409_on_duplicate(client):
+    payload = {"park": "killarney", "start": "2027-06-01",
+                "end": "2027-06-04", "participants": []}
+    client.post("/api/trips", json=payload)
+    r = client.post("/api/trips", json=payload)
+    assert r.status_code == 409
+
+
+def test_delete_trip_removes_dir(client):
+    r = client.delete("/api/trips/a-2026-04")
+    assert r.status_code == 200
+    r2 = client.get("/api/trips/a-2026-04")
+    assert r2.status_code == 404

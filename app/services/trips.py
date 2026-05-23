@@ -298,3 +298,28 @@ def list_trips_v2(trips_dir: Path | None = None) -> list[dict]:
         e["prev_slug"] = entries[i - 1]["slug"] if i > 0 else None
         e["next_slug"] = entries[i + 1]["slug"] if i < len(entries) - 1 else None
     return entries
+
+
+def create_trip_v2(park: str, start_date, end_date, participants: list[str]) -> str:
+    """Create a new trip directory with trip.json. Returns the slug."""
+    from datetime import date as _date
+    from app.services import trip_store
+    if not park:
+        raise ValueError("park required")
+    sd = _date.fromisoformat(str(start_date))
+    ed = _date.fromisoformat(str(end_date))
+    if ed < sd:
+        raise ValueError("end date before start")
+    slug = f"{park}-{sd.year:04d}-{sd.month:02d}"
+    trip_dir = TRIPS_DIR / slug
+    if trip_dir.exists():
+        raise FileExistsError(slug)
+    trip_dir.mkdir(parents=True)
+    from app.models_trip import Trip, TripDates
+    trip = Trip(
+        schema_version=1, name=slug, park=park,
+        dates=TripDates(start=sd, end=ed),
+        participants=participants or [], access_point="",
+    )
+    trip_store.save(trip_dir, trip)
+    return slug
