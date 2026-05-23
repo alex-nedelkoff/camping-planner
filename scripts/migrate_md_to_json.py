@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from app.models_trip import (  # noqa: E402
-    SCHEMA_VERSION, Trip, TripDates, Night, ItineraryDay, FoodSlot,
+    SCHEMA_VERSION, Trip,
 )
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?(.*)", re.DOTALL)
@@ -84,28 +84,45 @@ def _parse_md_table(text: str) -> list[list[str]]:
     return rows
 
 
-def _gear_from_md(text: str) -> dict:
-    shared = []
-    personal = []
-    sections = _split_sections(text)
-    for heading, body in sections:
+def _gear_from_md(text: str) -> list:
+    """Produce unified TripItem list from a gear.md (shared table + personal sections)."""
+    out = []
+    for heading, body in _split_sections(text):
         if heading.lower().startswith("shared"):
             for row in _parse_md_table(body):
                 row = (row + ["", "", ""])[:3]
-                shared.append({"item": row[0], "who": row[1], "notes": row[2]})
+                who = (row[1] or "").strip()
+                bringers = [who] if who and who.lower() != "tbd" else []
+                out.append({"item": row[0], "category": "Shared gear",
+                            "notes": row[2], "bringers": bringers, "shared": True})
         elif heading.lower().startswith("personal"):
-            # Body has ### per-person subsections
             person_parts = re.split(r"^### (.+)$", body, flags=re.MULTILINE)
             for i in range(1, len(person_parts), 2):
                 person = person_parts[i].strip()
                 items_block = person_parts[i + 1] if i + 1 < len(person_parts) else ""
-                items = []
                 for ln in items_block.splitlines():
                     m = re.match(r"^\s*[-*+]\s+(.+)$", ln)
                     if m:
-                        items.append({"item": m.group(1).strip(), "notes": ""})
-                personal.append({"person": person, "items": items})
-    return {"shared": shared, "personal": personal}
+                        out.append({"item": m.group(1).strip(), "category": "Personal",
+                                    "notes": "", "bringers": [person], "shared": False})
+    return out
+
+
+def _packing_to_gear_items(text: str) -> list:
+    """Merge packing.md categories into the unified gear list."""
+    SHARED_CATS = {"shelter & sleep", "kitchen", "paddling"}
+    out = []
+    for heading, body in _split_sections(text):
+        is_shared = heading.lower() in SHARED_CATS
+        for m in CHECKBOX_RE.finditer(body):
+            out.append({
+                "item": m.group("label").strip(),
+                "category": heading,
+                "notes": "",
+                "bringers": [],
+                "shared": is_shared,
+            })
+    return out
 
 
 def _costs_from_md(text: str) -> list[dict]:
@@ -123,17 +140,7 @@ def _costs_from_md(text: str) -> list[dict]:
     return out
 
 
-def _packing_from_md(text: str) -> list[dict]:
-    out = []
-    for heading, body in _split_sections(text):
-        items = []
-        for m in CHECKBOX_RE.finditer(body):
-            items.append({
-                "label": m.group("label").strip(),
-                "checked": m.group("mark").lower() == "x",
-            })
-        out.append({"category": heading, "items": items})
-    return out
+# (packing parser merged into _packing_to_gear_items above)
 
 
 def migrate_trip(trip_dir: Path, slug: str, force: bool = False,
@@ -177,10 +184,9 @@ def migrate_trip(trip_dir: Path, slug: str, force: bool = False,
             for n in (fm.get("nights") or [])
         ],
         "itinerary": _itinerary_from_md(_read("itinerary.md")),
-        "gear": _gear_from_md(_read("gear.md")),
+        "gear": _gear_from_md(_read("gear.md")) + _packing_to_gear_items(_read("packing.md")),
         "food": _food_from_md(_read("food.md")),
         "costs": _costs_from_md(_read("costs.md")),
-        "packing": _packing_from_md(_read("packing.md")),
     }
 
     # Validate via Pydantic before writing

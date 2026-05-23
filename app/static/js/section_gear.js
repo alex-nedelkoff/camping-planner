@@ -3,82 +3,97 @@
   if (!sectionEl) return;
   const slug = document.body.dataset.tripSlug;
 
-  function renderEdit(gear) {
-    const wrap = document.createElement('div');
-    wrap.innerHTML = `
-      <h3>Shared</h3>
-      <table class="gear-shared-edit"><thead>
-        <tr><th>Item</th><th>Who</th><th>Notes</th><th></th></tr>
-      </thead><tbody></tbody></table>
-      <button class="btn btn-ghost add-shared">+ row</button>
-      <h3>Personal</h3>
-      <div class="personal-edit"></div>
-      <button class="btn btn-ghost add-person">+ person</button>`;
-    const sharedTbody = wrap.querySelector('.gear-shared-edit tbody');
-    function addSharedRow(row = {item:'', who:'', notes:''}) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td><input value="${row.item || ''}"></td>
-        <td><input value="${row.who || ''}"></td>
-        <td><input value="${row.notes || ''}"></td>
-        <td><button class="btn btn-ghost delete">×</button></td>`;
-      tr.querySelector('.delete').onclick = () => tr.remove();
-      sharedTbody.appendChild(tr);
-    }
-    (gear.shared || []).forEach(addSharedRow);
-    wrap.querySelector('.add-shared').onclick = () => addSharedRow();
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
 
-    const personalDiv = wrap.querySelector('.personal-edit');
-    function addPerson(p = {person:'', items:[]}) {
-      const block = document.createElement('div');
-      block.className = 'person-edit';
-      block.innerHTML = `<input class="person-name" value="${p.person || ''}" placeholder="name">
-        <ul class="items"></ul>
-        <button class="btn btn-ghost add-item">+ item</button>
-        <button class="btn btn-ghost rm-person">remove person</button>`;
-      const ul = block.querySelector('.items');
-      function addItem(i = {item:'', notes:''}) {
-        const li = document.createElement('li');
-        li.innerHTML = `<input class="i-item" value="${i.item || ''}">
-          <input class="i-notes" value="${i.notes || ''}" placeholder="notes">
-          <button class="btn btn-ghost rm-item">×</button>`;
-        li.querySelector('.rm-item').onclick = () => li.remove();
-        ul.appendChild(li);
+  function renderEdit(gear, trip) {
+    const participants = (trip && trip.participants) || [];
+    const wrap = document.createElement('div');
+    wrap.className = 'gear-edit-wrap';
+
+    const hint = document.createElement('p');
+    hint.className = 'edit-hint';
+    hint.textContent = 'Check the box under each person bringing/packing the item. Check Shared if it’s community gear (canoe, bear barrel, tarp). Multiple checks = each person brings their own copy.';
+    wrap.appendChild(hint);
+
+    const table = document.createElement('table');
+    table.className = 'gear-edit-table';
+    let header = '<thead><tr><th>Category</th><th>Item</th><th>Notes</th>';
+    for (const p of participants) header += `<th>${esc(p)}</th>`;
+    header += '<th>Shared</th><th class="rm-col"></th></tr></thead>';
+    table.innerHTML = header + '<tbody></tbody>';
+    wrap.appendChild(table);
+    const tbody = table.querySelector('tbody');
+
+    // Collect unique existing categories for a datalist suggestion
+    const cats = Array.from(new Set((gear || []).map(it => it.category).filter(Boolean))).sort();
+    const datalist = document.createElement('datalist');
+    datalist.id = 'gear-cats';
+    cats.forEach(c => {
+      const o = document.createElement('option'); o.value = c; datalist.appendChild(o);
+    });
+    wrap.appendChild(datalist);
+
+    function addRow(it = {item:'', category:'', notes:'', bringers:[], shared:false}) {
+      const tr = document.createElement('tr');
+      let cells = `<td><input class="g-cat" list="gear-cats" value="${esc(it.category)}" placeholder="category"></td>`;
+      cells += `<td><input class="g-item" value="${esc(it.item)}" placeholder="item"></td>`;
+      cells += `<td><input class="g-notes" value="${esc(it.notes)}"></td>`;
+      for (const p of participants) {
+        const checked = (it.bringers || []).includes(p) ? "checked" : "";
+        cells += `<td class="cb-cell"><input type="checkbox" class="g-who" data-who="${esc(p)}" ${checked}></td>`;
       }
-      (p.items || []).forEach(addItem);
-      block.querySelector('.add-item').onclick = () => addItem();
-      block.querySelector('.rm-person').onclick = () => block.remove();
-      personalDiv.appendChild(block);
+      cells += `<td class="cb-cell"><input type="checkbox" class="g-shared" ${it.shared ? 'checked' : ''}></td>`;
+      cells += `<td class="rm-cell"><button type="button" class="btn-icon rm-row" title="remove">×</button></td>`;
+      tr.innerHTML = cells;
+      tr.querySelector('.rm-row').onclick = () => tr.remove();
+      tbody.appendChild(tr);
     }
-    (gear.personal || []).forEach(addPerson);
-    wrap.querySelector('.add-person').onclick = () => addPerson();
+    // Sort by category in the editor too
+    const sorted = (gear || []).slice().sort((a, b) =>
+      (a.category || '').localeCompare(b.category || '') ||
+      (a.item || '').localeCompare(b.item || '')
+    );
+    sorted.forEach(addRow);
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'btn btn-ghost add-row';
+    addBtn.textContent = '+ item';
+    addBtn.onclick = () => addRow();
+    wrap.appendChild(addBtn);
+
+    if (participants.length === 0) {
+      const warn = document.createElement('p');
+      warn.className = 'edit-hint warn';
+      warn.textContent = 'No participants on this trip — add some via "Edit trip details" first, then per-attendee columns will appear.';
+      wrap.insertBefore(warn, hint);
+    }
     return wrap;
   }
 
   function collectEdit(root) {
-    const shared = [];
-    root.querySelectorAll('.gear-shared-edit tbody tr').forEach(tr => {
-      const inputs = tr.querySelectorAll('input');
-      shared.push({item: inputs[0].value, who: inputs[1].value, notes: inputs[2].value});
-    });
-    const personal = [];
-    root.querySelectorAll('.person-edit').forEach(block => {
-      const items = [];
-      block.querySelectorAll('.items li').forEach(li => {
-        items.push({
-          item: li.querySelector('.i-item').value,
-          notes: li.querySelector('.i-notes').value,
-        });
+    const out = [];
+    root.querySelectorAll('tbody tr').forEach(tr => {
+      const item = tr.querySelector('.g-item').value.trim();
+      if (!item) return;  // drop empty rows
+      const bringers = [];
+      tr.querySelectorAll('input.g-who:checked').forEach(cb => {
+        bringers.push(cb.dataset.who);
       });
-      personal.push({
-        person: block.querySelector('.person-name').value,
-        items,
+      out.push({
+        item,
+        category: tr.querySelector('.g-cat').value.trim(),
+        notes: tr.querySelector('.g-notes').value,
+        bringers,
+        shared: tr.querySelector('.g-shared').checked,
       });
     });
-    return {shared, personal};
+    return out;
   }
 
-  SectionEditor.setup({
-    name: 'gear', readEl: sectionEl, slug,
-    renderEdit, collectEdit,
-  });
+  SectionEditor.setup({name: 'gear', readEl: sectionEl, slug, renderEdit, collectEdit});
 })();

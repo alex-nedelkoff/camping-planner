@@ -49,26 +49,33 @@ def test_migrate_gear_costs_packing(tmp_path):
     migrate_trip(dest, slug="x")
     result = json.loads((dest / "trip.json").read_text())
 
-    assert result["gear"]["shared"] == [
-        {"item": "Canoe", "who": "TBD", "notes": "confirm with outfitter"},
-        {"item": "Paddles (2-3)", "who": "", "notes": ""},
-    ]
-    assert result["gear"]["personal"] == [
-        {"person": "Alex",
-         "items": [{"item": "Sleeping bag", "notes": ""},
-                   {"item": "Headlamp", "notes": ""}]}
-    ]
+    # gear is now a unified list (gear.md "shared" + "personal" + packing.md merged)
+    gear = result["gear"]
+    # From shared gear table
+    canoe = next(g for g in gear if g["item"] == "Canoe")
+    assert canoe == {"item": "Canoe", "category": "Shared gear",
+                       "notes": "confirm with outfitter", "bringers": [], "shared": True}
+    paddles = next(g for g in gear if g["item"] == "Paddles (2-3)")
+    assert paddles == {"item": "Paddles (2-3)", "category": "Shared gear",
+                        "notes": "", "bringers": [], "shared": True}
+    # From personal gear section
+    bag_alex = next(g for g in gear if g["item"] == "Sleeping bag" and "Alex" in g["bringers"])
+    assert bag_alex == {"item": "Sleeping bag", "category": "Personal",
+                         "notes": "", "bringers": ["Alex"], "shared": False}
+    headlamp = next(g for g in gear if g["item"] == "Headlamp")
+    assert headlamp == {"item": "Headlamp", "category": "Personal",
+                         "notes": "", "bringers": ["Alex"], "shared": False}
+    # From packing.md (Shelter category = shared)
+    tent = next(g for g in gear if g["item"] == "Tent")
+    assert tent == {"item": "Tent", "category": "Shelter & sleep",
+                     "notes": "", "bringers": [], "shared": True}
+    # Costs unchanged
     assert result["costs"] == [
         {"item": "Permit", "who_paid": "Alex", "amount": 45.0, "currency": "CAD"},
         {"item": "Gas", "who_paid": "", "amount": None, "currency": "CAD"},
     ]
-    assert result["packing"] == [
-        {"category": "Shelter & sleep",
-         "items": [{"label": "Tent", "checked": False},
-                   {"label": "Sleeping bag", "checked": True}]},
-        {"category": "Kitchen",
-         "items": [{"label": "Stove", "checked": False}]},
-    ]
+    # No packing field on the new schema
+    assert "packing" not in result
 
 
 def test_migrate_archives_md_files(tmp_path):

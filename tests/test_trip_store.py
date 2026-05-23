@@ -18,10 +18,9 @@ def sample_trip_dict():
         "access_point": "George Lake",
         "nights": [],
         "itinerary": [],
-        "gear": {"shared": [], "personal": []},
+        "gear": [],
         "food": [],
         "costs": [],
-        "packing": [],
     }
 
 

@@ -16,11 +16,10 @@ def test_trip_minimal_validates():
         access_point="George Lake",
         nights=[],
         itinerary=[],
-        gear={"shared": [], "personal": []},
+        gear=[],
         food=[],
         costs=[],
-        packing=[],
-    )
+        )
     assert t.schema_version == 1
     assert t.dates.start.isoformat() == "2026-05-15"
 
@@ -30,8 +29,8 @@ def test_trip_rejects_wrong_schema_version():
         Trip(schema_version=99, name="x", park="y",
              dates=TripDates(start="2026-01-01", end="2026-01-02"),
              participants=[], access_point="", nights=[],
-             itinerary=[], gear={"shared": [], "personal": []},
-             food=[], costs=[], packing=[])
+             itinerary=[], gear=[],
+             food=[], costs=[], )
 
 
 def test_night_optional_gps():

@@ -1,28 +1,44 @@
 <section id="gear" class="trip-section" data-section="gear">
   <header class="section-header">
-    <h2>Gear</h2>
+    <h2>Gear &amp; Packing</h2>
     <button class="btn btn-ghost edit-btn" data-section="gear">Edit</button>
   </header>
   <div class="section-body">
-    <h3>Shared</h3>
-    <table>
-      <thead><tr><th>Item</th><th>Who</th><th>Notes</th></tr></thead>
+    {% if trip.gear %}
+    {# Group items by category for display #}
+    {% set ns = namespace(current_cat=None) %}
+    <table class="gear-table">
+      <thead>
+        <tr>
+          <th class="item-col">Item</th>
+          <th class="notes-col">Notes</th>
+          {% for p in trip.participants %}<th class="who-col">{{ p }}</th>{% endfor %}
+          <th class="shared-col">Shared</th>
+        </tr>
+      </thead>
       <tbody>
-        {% for row in trip.gear.shared %}
-        <tr><td>{{ row.item }}</td><td>{{ row.who }}</td><td>{{ row.notes }}</td></tr>
-        {% else %}
-        <tr><td colspan="3" class="empty">Empty</td></tr>
+        {% for it in trip.gear | sort(attribute="category") %}
+        {% if it.category != ns.current_cat %}
+        {% set ns.current_cat = it.category %}
+        <tr class="cat-row"><td colspan="{{ 3 + (trip.participants | length) }}">{{ it.category or "Uncategorized" }}</td></tr>
+        {% endif %}
+        <tr>
+          <td class="item-cell">{{ it.item }}</td>
+          <td class="notes-cell">{{ it.notes }}</td>
+          {% for p in trip.participants %}
+          <td class="who-cell {% if p in it.bringers %}checked{% endif %}">
+            {% if p in it.bringers %}&#10003;{% endif %}
+          </td>
+          {% endfor %}
+          <td class="shared-cell {% if it.shared %}checked{% endif %}">
+            {% if it.shared %}&#10003;{% endif %}
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
-    <h3>Personal</h3>
-    {% for person in trip.gear.personal %}
-    <div class="person-gear">
-      <h4>{{ person.person }}</h4>
-      <ul>{% for it in person.items %}<li>{{ it.item }}{% if it.notes %} &mdash; {{ it.notes }}{% endif %}</li>{% endfor %}</ul>
-    </div>
     {% else %}
-    <p class="empty">No personal lists yet.</p>
-    {% endfor %}
+    <p class="empty">No gear/packing items yet.</p>
+    {% endif %}
   </div>
 </section>

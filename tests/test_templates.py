@@ -23,8 +23,8 @@ def client(tmp_path, monkeypatch):
             "dates": {"start": start, "end": start[:8] + "10"},
             "participants": ["Alex"], "access_point": "",
             "nights": [], "itinerary": [],
-            "gear": {"shared": [], "personal": []},
-            "food": [], "costs": [], "packing": [],
+            "gear": [],
+            "food": [], "costs": [],
         }))
     monkeypatch.setattr(trips_svc, "TRIPS_DIR", tmp_trips)
     monkeypatch.setattr(config, "TRIPS_DIR", tmp_trips)

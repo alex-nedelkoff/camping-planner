@@ -56,76 +56,281 @@
       "notes": "- Pack up, paddle out to George Lake access\n- Drive home to Ajax"
     }
   ],
-  "gear": {
-    "shared": [
-      {
-        "item": "Canoe (rental?)",
-        "who": "TBD",
-        "notes": "confirm with George Lake outfitter if renting"
-      },
-      {
-        "item": "Paddles (2-3)",
-        "who": "",
-        "notes": ""
-      },
-      {
-        "item": "PFDs (2)",
-        "who": "",
-        "notes": ""
-      },
-      {
-        "item": "Throw bag",
-        "who": "",
-        "notes": ""
-      },
-      {
-        "item": "Tarp + ridgeline",
-        "who": "",
-        "notes": ""
-      },
-      {
-        "item": "Stove + fuel",
-        "who": "",
-        "notes": ""
-      },
-      {
-        "item": "Cookpot + lid",
-        "who": "",
-        "notes": ""
-      },
-      {
-        "item": "Water filter / pump",
-        "who": "",
-        "notes": ""
-      },
-      {
-        "item": "Bear barrel or hang rope",
-        "who": "",
-        "notes": "mandatory in Killarney interior"
-      },
-      {
-        "item": "First aid kit",
-        "who": "",
-        "notes": ""
-      },
-      {
-        "item": "Map (waterproof) + compass",
-        "who": "",
-        "notes": "Chrismar Killarney recommended"
-      },
-      {
-        "item": "Lighter + matches in dry bag",
-        "who": "",
-        "notes": ""
-      },
-      {
-        "item": "Repair kit (duct tape, multitool)",
-        "who": "",
-        "notes": ""
-      }
-    ],
-    "personal": []
-  },
+  "gear": [
+    {
+      "item": "Canoe (rental?)",
+      "category": "Boat & safety",
+      "notes": "confirm with George Lake outfitter if renting",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Paddles (2-3)",
+      "category": "Boat & safety",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "PFDs (2)",
+      "category": "Boat & safety",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Throw bag",
+      "category": "Boat & safety",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Camp shoes",
+      "category": "Clothing",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Hat",
+      "category": "Clothing",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Quick-dry pants/shorts",
+      "category": "Clothing",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Quick-dry shirts",
+      "category": "Clothing",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Rain jacket",
+      "category": "Clothing",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Warm layer (fleece/down)",
+      "category": "Clothing",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Wool socks",
+      "category": "Clothing",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Bear barrel or hang rope",
+      "category": "Group gear",
+      "notes": "mandatory in Killarney interior",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Cookpot + lid",
+      "category": "Group gear",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "First aid kit",
+      "category": "Group gear",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Lighter + matches in dry bag",
+      "category": "Group gear",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Map (waterproof) + compass",
+      "category": "Group gear",
+      "notes": "Chrismar Killarney recommended",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Repair kit (duct tape, multitool)",
+      "category": "Group gear",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Stove + fuel",
+      "category": "Group gear",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Tarp + ridgeline",
+      "category": "Group gear",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Water filter / pump",
+      "category": "Group gear",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Bowl + utensils",
+      "category": "Kitchen",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Fuel canister",
+      "category": "Kitchen",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Lighter / matches",
+      "category": "Kitchen",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Pot / pan",
+      "category": "Kitchen",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Stove",
+      "category": "Kitchen",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Water bottles",
+      "category": "Kitchen",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Dry bag",
+      "category": "Paddling",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "PFD",
+      "category": "Paddling",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Quick-dry towel",
+      "category": "Paddling",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Bug spray",
+      "category": "Personal",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Headlamp + spare batteries",
+      "category": "Personal",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Personal meds",
+      "category": "Personal",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Phone charger / power bank",
+      "category": "Personal",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Sunscreen",
+      "category": "Personal",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Toothbrush + toothpaste",
+      "category": "Personal",
+      "notes": "",
+      "bringers": [],
+      "shared": false
+    },
+    {
+      "item": "Pillow / stuff sack",
+      "category": "Shelter & sleep",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Sleeping bag",
+      "category": "Shelter & sleep",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Sleeping pad",
+      "category": "Shelter & sleep",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    },
+    {
+      "item": "Tent",
+      "category": "Shelter & sleep",
+      "notes": "",
+      "bringers": [],
+      "shared": true
+    }
+  ],
   "food": [
     {
       "slot": "friday-dinner",
@@ -144,31 +349,83 @@
           "who": "Alex"
         }
       ],
-      "notes": "Fillet Mignon, instant mashed, gravy, mushrooms"
+      "notes": ""
     },
     {
       "slot": "saturday-breakfast",
       "label": "Saturday breakfast",
-      "items": [],
-      "notes": "Oatmeal, freeze dried meal"
+      "items": [
+        {
+          "name": "Oatmeal",
+          "who": "Alex"
+        },
+        {
+          "name": "Freeze dried thing",
+          "who": "pizza-zip"
+        }
+      ],
+      "notes": ""
     },
     {
       "slot": "saturday-lunch",
       "label": "Saturday lunch",
-      "items": [],
-      "notes": "Snacks, bars"
+      "items": [
+        {
+          "name": "Snacks",
+          "who": "Alex"
+        },
+        {
+          "name": "Bars",
+          "who": "Alex"
+        },
+        {
+          "name": "Snacks",
+          "who": "pizza-zip"
+        },
+        {
+          "name": "Bars",
+          "who": "pizza-zip"
+        }
+      ],
+      "notes": ""
     },
     {
       "slot": "saturday-dinner",
       "label": "Saturday dinner",
-      "items": [],
-      "notes": "Toasted naan, lentil thing, rice"
+      "items": [
+        {
+          "name": "Toasted naan",
+          "who": "Alex"
+        },
+        {
+          "name": "Lentil chilli",
+          "who": "Alex"
+        },
+        {
+          "name": "Rice",
+          "who": "Alex"
+        },
+        {
+          "name": "Freeze dried thing",
+          "who": "pizza-zip"
+        }
+      ],
+      "notes": ""
     },
     {
       "slot": "sunday-breakfast",
       "label": "Sunday breakfast",
-      "items": [],
-      "notes": "Oatmeal, freeze dried meal"
+      "items": [
+        {
+          "name": "Oatmeal",
+          "who": "Alex"
+        },
+        {
+          "name": "Freeze dried thing",
+          "who": "pizza-zip"
+        }
+      ],
+      "notes": ""
     },
     {
       "slot": "sunday-lunch",
@@ -179,14 +436,40 @@
     {
       "slot": "sunday-dinner",
       "label": "Sunday dinner",
-      "items": [],
-      "notes": "Mac and cheese w bacon"
+      "items": [
+        {
+          "name": "Mac and Cheese",
+          "who": "Alex"
+        },
+        {
+          "name": "Precooked bacon",
+          "who": "Alex"
+        },
+        {
+          "name": "Tuna packet",
+          "who": "Alex"
+        },
+        {
+          "name": "Chickpea curry",
+          "who": "Alex"
+        },
+        {
+          "name": "Rice",
+          "who": "Alex"
+        }
+      ],
+      "notes": ""
     },
     {
       "slot": "monday-breakfast",
       "label": "Monday breakfast",
-      "items": [],
-      "notes": "NOTHIN"
+      "items": [
+        {
+          "name": "NOTHIN",
+          "who": "Alex"
+        }
+      ],
+      "notes": ""
     }
   ],
   "costs": [
@@ -207,137 +490,6 @@
       "who_paid": "",
       "amount": null,
       "currency": "CAD"
-    }
-  ],
-  "packing": [
-    {
-      "category": "Shelter & sleep",
-      "items": [
-        {
-          "label": "Tent",
-          "checked": false
-        },
-        {
-          "label": "Sleeping bag",
-          "checked": false
-        },
-        {
-          "label": "Sleeping pad",
-          "checked": false
-        },
-        {
-          "label": "Pillow / stuff sack",
-          "checked": false
-        }
-      ]
-    },
-    {
-      "category": "Kitchen",
-      "items": [
-        {
-          "label": "Stove",
-          "checked": false
-        },
-        {
-          "label": "Fuel canister",
-          "checked": false
-        },
-        {
-          "label": "Pot / pan",
-          "checked": false
-        },
-        {
-          "label": "Lighter / matches",
-          "checked": false
-        },
-        {
-          "label": "Bowl + utensils",
-          "checked": false
-        },
-        {
-          "label": "Water bottles",
-          "checked": false
-        }
-      ]
-    },
-    {
-      "category": "Clothing",
-      "items": [
-        {
-          "label": "Rain jacket",
-          "checked": false
-        },
-        {
-          "label": "Warm layer (fleece/down)",
-          "checked": false
-        },
-        {
-          "label": "Quick-dry shirts",
-          "checked": false
-        },
-        {
-          "label": "Quick-dry pants/shorts",
-          "checked": false
-        },
-        {
-          "label": "Wool socks",
-          "checked": false
-        },
-        {
-          "label": "Camp shoes",
-          "checked": false
-        },
-        {
-          "label": "Hat",
-          "checked": false
-        }
-      ]
-    },
-    {
-      "category": "Personal",
-      "items": [
-        {
-          "label": "Headlamp + spare batteries",
-          "checked": false
-        },
-        {
-          "label": "Toothbrush + toothpaste",
-          "checked": false
-        },
-        {
-          "label": "Sunscreen",
-          "checked": false
-        },
-        {
-          "label": "Bug spray",
-          "checked": false
-        },
-        {
-          "label": "Personal meds",
-          "checked": false
-        },
-        {
-          "label": "Phone charger / power bank",
-          "checked": false
-        }
-      ]
-    },
-    {
-      "category": "Paddling",
-      "items": [
-        {
-          "label": "PFD",
-          "checked": false
-        },
-        {
-          "label": "Dry bag",
-          "checked": false
-        },
-        {
-          "label": "Quick-dry towel",
-          "checked": false
-        }
-      ]
     }
   ]
 }

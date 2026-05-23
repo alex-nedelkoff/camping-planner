@@ -23,20 +23,21 @@ class Night(BaseModel):
     gps: Optional[list[float]] = None
 
 
-class GearItem(BaseModel):
+class TripItem(BaseModel):
+    """Unified gear+packing item.
+
+    bringers: list of participant names who are bringing/packing it.
+    shared:   item is shared/community gear (a separate flag, independent of
+              who's bringing it). Canoe is shared (one bringer). Headlamp
+              is not shared (each person packs their own; bringers has both).
+    A checkbox in the UI under attendee X = X in bringers. A checkbox in the
+    Shared column = shared=True.
+    """
     item: str
-    who: str = ""
+    category: str = ""
     notes: str = ""
-
-
-class PersonalGear(BaseModel):
-    person: str
-    items: list[GearItem] = Field(default_factory=list)
-
-
-class GearSection(BaseModel):
-    shared: list[GearItem] = Field(default_factory=list)
-    personal: list[PersonalGear] = Field(default_factory=list)
+    bringers: list[str] = Field(default_factory=list)
+    shared: bool = False
 
 
 class FoodItem(BaseModel):
@@ -58,16 +59,6 @@ class CostRow(BaseModel):
     currency: str = "CAD"
 
 
-class PackingItem(BaseModel):
-    label: str
-    checked: bool = False
-
-
-class PackingCategory(BaseModel):
-    category: str
-    items: list[PackingItem] = Field(default_factory=list)
-
-
 class ItineraryDay(BaseModel):
     date: date
     label: str = ""
@@ -83,7 +74,6 @@ class Trip(BaseModel):
     access_point: str = ""
     nights: list[Night] = Field(default_factory=list)
     itinerary: list[ItineraryDay] = Field(default_factory=list)
-    gear: GearSection = Field(default_factory=GearSection)
+    gear: list[TripItem] = Field(default_factory=list)
     food: list[FoodSlot] = Field(default_factory=list)
     costs: list[CostRow] = Field(default_factory=list)
-    packing: list[PackingCategory] = Field(default_factory=list)

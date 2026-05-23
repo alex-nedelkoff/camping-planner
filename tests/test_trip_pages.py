@@ -23,14 +23,16 @@ def client(tmp_path, monkeypatch):
                     "location": "OSA Lake", "gps": None}],
         "itinerary": [{"date": "2026-05-15", "label": "Day 1",
                        "notes": "Depart Ajax"}],
-        "gear": {"shared": [{"item": "Canoe", "who": "TBD", "notes": ""}],
-                 "personal": []},
+        "gear": [
+            {"item": "Canoe", "category": "Boat", "notes": "",
+             "bringers": [], "shared": True},
+            {"item": "Tent", "category": "Sleep", "notes": "",
+             "bringers": [], "shared": True},
+        ],
         "food": [{"slot": "friday-dinner", "label": "Friday dinner",
                   "items": [], "notes": ""}],
         "costs": [{"item": "Permit", "who_paid": "Alex",
                    "amount": 45.0, "currency": "CAD"}],
-        "packing": [{"category": "Sleep",
-                     "items": [{"label": "Tent", "checked": False}]}],
     }))
     monkeypatch.setattr(trips_svc, "TRIPS_DIR", tmp_trips)
     monkeypatch.setattr(config, "TRIPS_DIR", tmp_trips)

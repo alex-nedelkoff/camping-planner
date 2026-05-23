@@ -212,3 +212,36 @@ th { background: #f7f7f5; font-weight: 600; font-size: 0.88rem;
 
 .error { color: #a8451f; }
 .route-summary { font-weight: 500; color: #4a5d4f; margin: 0.3rem 0 0.75rem; }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Gear & Packing — unified table
+   ────────────────────────────────────────────────────────────────────────── */
+.gear-table .cat-row td {
+  background: #ece9df; color: #3a4a3a; font-weight: 600;
+  font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 0.45rem 0.7rem;
+}
+.gear-table .item-cell { font-weight: 500; }
+.gear-table .who-col, .gear-table .shared-col { text-align: center; width: 5rem; }
+.gear-table .who-cell, .gear-table .shared-cell {
+  text-align: center; color: #2d5016; font-size: 1.05rem;
+}
+.gear-table .who-cell.checked, .gear-table .shared-cell.checked { background: #f0f7ea; }
+.gear-table .shared-col, .gear-table .shared-cell {
+  border-left: 1px solid #eee;
+}
+
+.gear-edit-wrap .gear-edit-table { table-layout: auto; }
+.gear-edit-wrap .gear-edit-table .cb-cell {
+  text-align: center; vertical-align: middle;
+}
+.gear-edit-wrap .gear-edit-table .cb-cell input[type="checkbox"] {
+  margin: 0;
+}
+.gear-edit-wrap .gear-edit-table .rm-col { width: 2rem; }
+.gear-edit-wrap .gear-edit-table .rm-cell {
+  text-align: center; vertical-align: middle;
+}
+.gear-edit-wrap .gear-edit-table input.g-cat { max-width: 9rem; }
+.gear-edit-wrap .gear-edit-table input.g-item { min-width: 12rem; }
+.gear-edit-wrap .add-row { margin-top: 0.75rem; }

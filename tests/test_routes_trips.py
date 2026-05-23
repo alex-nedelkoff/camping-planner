@@ -29,8 +29,8 @@ def client(tmp_path, monkeypatch):
             "dates": {"start": start,
                        "end": start[:8] + str(int(start[8:]) + 2).zfill(2)},
             "participants": ["Alex"], "access_point": "",
-            "nights": [], "itinerary": [], "gear": {"shared": [], "personal": []},
-            "food": [], "costs": [], "packing": [],
+            "nights": [], "itinerary": [], "gear": [],
+            "food": [], "costs": [],
         }))
     monkeypatch.setattr(trips_svc, "TRIPS_DIR", tmp_trips)
     monkeypatch.setattr(config, "TRIPS_DIR", tmp_trips)
@@ -100,11 +100,13 @@ def test_patch_meta_updates_fields(client):
 
 def test_put_section_replaces_gear(client):
     r = client.put("/api/trips/a-2026-04/section/gear",
-                    json={"shared": [{"item": "Canoe", "who": "Alex", "notes": ""}],
-                          "personal": []})
+                    json=[{"item": "Canoe", "category": "Boat", "notes": "",
+                            "bringers": ["Alex"], "shared": True}])
     assert r.status_code == 200
     body = client.get("/api/trips/a-2026-04").json()
-    assert body["gear"]["shared"][0]["item"] == "Canoe"
+    assert body["gear"][0]["item"] == "Canoe"
+    assert body["gear"][0]["bringers"] == ["Alex"]
+    assert body["gear"][0]["shared"] is True
 
 
 def test_put_section_rejects_unknown_section(client):
@@ -115,7 +117,7 @@ def test_put_section_rejects_unknown_section(client):
 
 def test_put_section_validates(client):
     r = client.put("/api/trips/a-2026-04/section/gear",
-                    json={"shared": [{"item": 123}], "personal": []})
+                    json=[{"item": 123, "bringers": ["Alex"]}])
     assert r.status_code == 422
 
 

@@ -10,7 +10,7 @@ from app.models import (
     TripListEntry,
 )
 from app.models_trip import (
-    GearSection, FoodSlot, CostRow, PackingCategory, ItineraryDay, Trip,
+    TripItem, FoodSlot, CostRow, ItineraryDay, Trip,
 )
 from app.services import trip_store, trips as trips_svc
 
@@ -18,10 +18,9 @@ router = APIRouter(prefix="/api")
 
 # (model_class, field_name, is_list_of_model)
 SECTION_FIELD_MAP = {
-    "gear":      (GearSection, "gear",      False),
+    "gear":      (TripItem,    "gear",      True),   # unified gear+packing list
     "food":      (FoodSlot,    "food",      True),
     "costs":     (CostRow,     "costs",     True),
-    "packing":   (PackingCategory, "packing", True),
     "itinerary": (ItineraryDay, "itinerary", True),
 }
 
