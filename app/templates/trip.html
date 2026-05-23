@@ -6,6 +6,7 @@
 {% block body %}
   <script>document.body.dataset.tripSlug = "{{ slug }}";</script>
   {% include "partials/nav_band.html" %}
+  {% include "partials/trip_sidenav.html" %}
   <div class="trip-page">
     {% include "partials/trip_header.html" %}
     {% include "partials/section_route.html" %}
@@ -21,4 +22,5 @@
   <script src="/static/js/section_food.js?v={{ static_version }}"></script>
   <script src="/static/js/section_meta.js?v={{ static_version }}"></script>
   <script src="/static/js/section_route.js?v={{ static_version }}"></script>
+  <script src="/static/js/trip_sidenav.js?v={{ static_version }}"></script>
 {% endblock %}

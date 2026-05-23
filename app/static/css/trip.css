@@ -270,3 +270,54 @@ th { background: #f7f7f5; font-weight: 600; font-size: 0.88rem;
 .cat-combo .cat-dropdown li:hover { background: #f0f4ee; color: #2d5016; }
 /* Bump cat column width since it now hosts the combobox + chevron */
 .gear-edit-wrap .gear-edit-table .cat-col { width: 11rem; }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Trip side-nav (jump to section)
+   ────────────────────────────────────────────────────────────────────────── */
+.trip-sidenav {
+  position: fixed;
+  top: 4.5rem;
+  left: 1.25rem;
+  z-index: 40;
+  background: white;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border: 1px solid #ece9df;
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+}
+.trip-sidenav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.trip-sidenav li { margin: 0; }
+.trip-sidenav a {
+  display: block;
+  padding: 0.3rem 0.7rem;
+  text-decoration: none;
+  color: #4a5d4f;
+  border-radius: 4px;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  border-left: 2px solid transparent;
+  transition: background 80ms ease, color 80ms ease, border-color 80ms ease;
+}
+.trip-sidenav a:hover {
+  background: #f0f4ee;
+  color: #2d5016;
+}
+.trip-sidenav a.active {
+  background: #f0f4ee;
+  color: #2d5016;
+  font-weight: 600;
+  border-left-color: #2d5016;
+}
+
+/* Hide on narrow viewports — the page already lists all sections vertically */
+@media (max-width: 1100px) {
+  .trip-sidenav { display: none; }
+}
+
+html { scroll-behavior: smooth; }
