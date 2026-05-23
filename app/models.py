@@ -1,6 +1,7 @@
 """Pydantic request/response schemas for the API."""
 
 from datetime import date
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,7 +19,7 @@ class SaveGearRequest(BaseModel):
 
 class OkResponse(BaseModel):
     ok: bool = True
-    message: str | None = None
+    message: Optional[str] = None
 
 
 class NewTripResponse(BaseModel):
@@ -33,7 +34,7 @@ class CampgroundAvailability(BaseModel):
 
 class AvailabilityResponse(BaseModel):
     ok: bool = True
-    park_name: str | None = None
+    park_name: Optional[str] = None
     total_available: int = 0
     campgrounds: dict[str, CampgroundAvailability] = Field(default_factory=dict)
     cached: bool = False
@@ -55,3 +56,19 @@ class WhoamiResponse(BaseModel):
 
 class WhoamiSetRequest(BaseModel):
     user: str = Field(min_length=1, max_length=40)
+
+class TripListEntry(BaseModel):
+    slug: str
+    name: str
+    park: str
+    park_name: Optional[str] = None
+    start: date
+    end: date
+    participant_count: int
+    prev_slug: Optional[str] = None
+    next_slug: Optional[str] = None
+
+
+class TripsListResponse(BaseModel):
+    ok: bool = True
+    trips: list[TripListEntry]

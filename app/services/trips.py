@@ -4,6 +4,8 @@ Pure functions over the filesystem and the existing build_trip module.
 Routes call into these; tests import them directly.
 """
 
+from __future__ import annotations
+
 import datetime
 import json
 import re
@@ -263,3 +265,36 @@ def save_gear_table(
     gear_md.write_text(new_text, encoding="utf-8")
     html = build_trip.build_html(trip_dir)
     (trip_dir / "trip.html").write_text(html, encoding="utf-8")
+
+
+def list_trips_v2(trips_dir: Path | None = None) -> list[dict]:
+    """List trips by reading trip.json. Sorted by start date."""
+    from app.services import trip_store
+
+    if trips_dir is None:
+        trips_dir = TRIPS_DIR
+    entries = []
+    if not trips_dir.exists():
+        return entries
+    for sub in sorted(trips_dir.iterdir()):
+        if not sub.is_dir() or not trip_store.exists(sub):
+            continue
+        try:
+            t = trip_store.load(sub)
+        except Exception:
+            continue
+        park_info = build_trip._load_park_info(t.park) if t.park else {}
+        entries.append({
+            "slug": sub.name,
+            "name": t.name,
+            "park": t.park,
+            "park_name": park_info.get("name"),
+            "start": t.dates.start,
+            "end": t.dates.end,
+            "participant_count": len(t.participants),
+        })
+    entries.sort(key=lambda e: e["start"])
+    for i, e in enumerate(entries):
+        e["prev_slug"] = entries[i - 1]["slug"] if i > 0 else None
+        e["next_slug"] = entries[i + 1]["slug"] if i < len(entries) - 1 else None
+    return entries

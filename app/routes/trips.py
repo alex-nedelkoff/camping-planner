@@ -7,6 +7,8 @@ from app.models import (
     NewTripResponse,
     OkResponse,
     SaveGearRequest,
+    TripsListResponse,
+    TripListEntry,
 )
 from app.services import trips as trips_svc
 from app.services.trips import TripError
@@ -54,3 +56,11 @@ def save_gear(body: SaveGearRequest, trip: str = Query(..., min_length=1)):
     except Exception as exc:
         raise HTTPException(status_code=500, detail={"ok": False, "error": str(exc)})
     return OkResponse()
+
+
+@router.get("/trips", response_model=TripsListResponse)
+def list_trips():
+    entries = trips_svc.list_trips_v2()
+    return TripsListResponse(
+        trips=[TripListEntry(**e) for e in entries]
+    )
