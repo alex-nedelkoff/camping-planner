@@ -245,3 +245,28 @@ th { background: #f7f7f5; font-weight: 600; font-size: 0.88rem;
 .gear-edit-wrap .gear-edit-table input.g-cat { max-width: 9rem; }
 .gear-edit-wrap .gear-edit-table input.g-item { min-width: 12rem; }
 .gear-edit-wrap .add-row { margin-top: 0.75rem; }
+
+/* Category combobox in gear editor */
+.cat-combo { position: relative; display: block; max-width: 10rem; }
+.cat-combo input.g-cat { padding-right: 1.6rem; width: 100%; box-sizing: border-box; }
+.cat-combo .cat-chevron {
+  position: absolute; right: 0.25rem; top: 50%; transform: translateY(-50%);
+  background: transparent; border: none; color: #8a8a78;
+  font-size: 0.85rem; line-height: 1; padding: 0.2rem 0.3rem;
+  cursor: pointer; border-radius: 3px;
+}
+.cat-combo .cat-chevron:hover { background: #eef0ea; color: #2d5016; }
+.cat-combo .cat-dropdown {
+  position: absolute; top: calc(100% + 2px); left: 0; right: 0;
+  background: white; border: 1px solid #d4d4d0; border-radius: 4px;
+  max-height: 14rem; overflow: auto; z-index: 50;
+  list-style: none; margin: 0; padding: 0.25rem 0;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+}
+.cat-combo .cat-dropdown li {
+  padding: 0.3rem 0.7rem; cursor: pointer; font-size: 0.88rem;
+  color: #222; white-space: nowrap;
+}
+.cat-combo .cat-dropdown li:hover { background: #f0f4ee; color: #2d5016; }
+/* Bump cat column width since it now hosts the combobox + chevron */
+.gear-edit-wrap .gear-edit-table .cat-col { width: 11rem; }
