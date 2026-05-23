@@ -1,0 +1,41 @@
+<nav class="nav-band">
+  <a class="nav-home" href="{{ nav.home_href | default('/') }}" title="Trips home">🏕</a>
+  <span class="nav-sep">/</span>
+
+  {% if nav.trip_slug %}
+    {% if nav.prev_slug %}
+      <a class="nav-chevron" href="/trip/{{ nav.prev_slug }}" title="Previous trip">←</a>
+    {% else %}
+      <span class="nav-chevron disabled">←</span>
+    {% endif %}
+
+    <div class="trip-dropdown">
+      <button type="button" class="trip-dropdown-trigger" onclick="this.parentElement.classList.toggle('open')">
+        {{ nav.trip_label or nav.trip_slug }} ▼
+      </button>
+      <ul class="trip-dropdown-menu">
+        {% for t in nav.trip_dropdown or [] %}
+        <li><a href="/trip/{{ t.slug }}"
+               class="{% if t.slug == nav.trip_slug %}current{% endif %}">
+          {{ t.name }}
+        </a></li>
+        {% endfor %}
+        <li class="divider"></li>
+        <li><a href="/" class="new-trip">+ New trip</a></li>
+      </ul>
+    </div>
+
+    {% if nav.next_slug %}
+      <a class="nav-chevron" href="/trip/{{ nav.next_slug }}" title="Next trip">→</a>
+    {% else %}
+      <span class="nav-chevron disabled">→</span>
+    {% endif %}
+  {% elif nav.back_href %}
+    <a class="nav-back" href="{{ nav.back_href }}">← {{ nav.back_label }}</a>
+  {% endif %}
+
+  <span class="nav-spacer"></span>
+  {% if nav.show_user_pill | default(true) %}
+    <button id="user-pill" class="user-pill unset" onclick="switchUser && switchUser()" title="Click to set / change name">…</button>
+  {% endif %}
+</nav>

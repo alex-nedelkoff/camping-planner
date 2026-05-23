@@ -34,8 +34,14 @@ def trip_page(slug: str, request: Request):
         {
             "trip": trip,
             "slug": slug,
-            "siblings": siblings,
-            "prev_slug": me["prev_slug"] if me else None,
-            "next_slug": me["next_slug"] if me else None,
+            "nav": {
+                "home_href": "/",
+                "trip_slug": slug,
+                "trip_label": trip.name,
+                "trip_dropdown": [{"slug": s["slug"], "name": s["name"]} for s in siblings],
+                "prev_slug": me["prev_slug"] if me else None,
+                "next_slug": me["next_slug"] if me else None,
+                "show_user_pill": True,
+            },
         },
     )

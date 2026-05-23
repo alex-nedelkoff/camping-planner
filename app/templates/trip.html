@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="/static/css/trip.css">
 {% endblock %}
 {% block body %}
-  {# nav band — fully wired in Phase 5 #}
+  {% include "partials/nav_band.html" %}
   <div class="trip-page">
     {% include "partials/trip_header.html" %}
     {% include "partials/section_route.html" %}

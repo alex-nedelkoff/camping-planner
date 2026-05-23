@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Camping Trips{% endblock %}
 {% block body %}
-<header class="trip-header">
+{% include "partials/nav_band.html" %}
+<header class="page-title">
   <h1>🏕 Camping Trips</h1>
   <div class="header-actions">
-    <button id="user-pill" class="user-pill unset" onclick="switchUser()" title="Click to set / change name">…</button>
+    <a class="btn btn-ghost" href="/overlay/" target="_blank" rel="noopener" title="Detailed map overlay">🗺 Map overlay</a>
     <button class="btn" onclick="toggleNewTrip()">+ New Trip</button>
   </div>
 </header>

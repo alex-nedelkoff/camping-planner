@@ -32,6 +32,8 @@ section { background: white; padding: 1.25rem 1.5rem; margin: 1rem 0;
 .btn:disabled { opacity: 0.6; cursor: wait; }
 .btn.secondary { background: #6b7a5a; }
 .btn.secondary:hover { background: #7d8d6c; }
+.btn.btn-ghost { background: transparent; color: #2d5016; border: 1px solid #2d5016; }
+.btn.btn-ghost:hover { background: #2d5016; color: white; }
 form label { display: block; margin: 0.6rem 0; font-size: 0.95rem; }
 form input, form select { padding: 0.4rem; border: 1px solid #ccc;
                           border-radius: 4px; min-width: 220px;
@@ -44,3 +46,30 @@ form input, form select { padding: 0.4rem; border: 1px solid #ccc;
 table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
 th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; }
 th { background: #f0f4ee; }
+.nav-band { display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.5rem 1rem; background: #1f3a3a; color: white;
+            font-family: -apple-system, sans-serif; }
+.nav-band a { color: white; text-decoration: none; }
+.nav-band .nav-home { font-size: 1.3rem; }
+.nav-band .nav-sep { opacity: 0.5; }
+.nav-band .nav-chevron { padding: 0.2rem 0.6rem; border-radius: 4px; }
+.nav-band .nav-chevron:hover { background: rgba(255,255,255,0.1); }
+.nav-band .nav-chevron.disabled { opacity: 0.3; pointer-events: none; }
+.nav-band .nav-spacer { flex: 1; }
+.trip-dropdown { position: relative; }
+.trip-dropdown-trigger { background: rgba(255,255,255,0.1); color: white;
+    border: none; padding: 0.3rem 0.7rem; border-radius: 4px; cursor: pointer;
+    font-family: inherit; font-size: 0.95rem; }
+.trip-dropdown-trigger:hover { background: rgba(255,255,255,0.18); }
+.trip-dropdown-menu { display: none; position: absolute; top: 100%; left: 0;
+    background: white; color: #222; min-width: 220px; list-style: none;
+    margin: 0.25rem 0 0; padding: 0.3rem 0; border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.18); z-index: 100; }
+.trip-dropdown.open .trip-dropdown-menu { display: block; }
+.trip-dropdown-menu li a { display: block; padding: 0.4rem 0.9rem; color: #222; }
+.trip-dropdown-menu li a:hover { background: #f0f4ee; }
+.trip-dropdown-menu li a.current { font-weight: 600; }
+.trip-dropdown-menu li.divider { border-top: 1px solid #eee; margin: 0.3rem 0; }
+.trip-dropdown-menu li a.new-trip { color: #2d5016; font-weight: 500; }
+.nav-back { padding: 0.2rem 0.6rem; border-radius: 4px; }
+.nav-back:hover { background: rgba(255,255,255,0.1); }
