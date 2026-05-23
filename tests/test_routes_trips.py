@@ -52,3 +52,16 @@ def test_list_trips_returns_sorted_with_neighbours(client):
     assert body["trips"][0]["next_slug"] == "b-2026-06"
     assert body["trips"][1]["prev_slug"] == "a-2026-04"
     assert body["trips"][1]["next_slug"] is None
+
+
+def test_get_trip_returns_json(client):
+    r = client.get("/api/trips/a-2026-04")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["name"] == "a-2026-04"
+    assert body["dates"]["start"] == "2026-04-01"
+
+
+def test_get_trip_404(client):
+    r = client.get("/api/trips/does-not-exist")
+    assert r.status_code == 404

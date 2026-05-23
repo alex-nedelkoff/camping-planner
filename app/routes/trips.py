@@ -10,7 +10,7 @@ from app.models import (
     TripsListResponse,
     TripListEntry,
 )
-from app.services import trips as trips_svc
+from app.services import trip_store, trips as trips_svc
 from app.services.trips import TripError
 
 router = APIRouter(prefix="/api")
@@ -64,3 +64,13 @@ def list_trips():
     return TripsListResponse(
         trips=[TripListEntry(**e) for e in entries]
     )
+
+
+@router.get("/trips/{slug}")
+def get_trip(slug: str):
+    trip_dir = trips_svc.TRIPS_DIR / slug
+    try:
+        t = trip_store.load(trip_dir)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    return t.model_dump(mode="json")
