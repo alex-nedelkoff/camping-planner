@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "name": "killarney-2026-05",
+  "park": "killarney",
+  "dates": {
+    "start": "2026-05-15",
+    "end": "2026-05-18"
+  },
+  "participants": [
+    "Alex",
+    "pizza-zip"
+  ],
+  "access_point": "George Lake",
+  "nights": [
+    {
+      "date": "2026-05-15",
+      "site": "61",
+      "location": "OSA Lake",
+      "gps": null
+    },
+    {
+      "date": "2026-05-16",
+      "site": "82",
+      "location": "Baie Fine",
+      "gps": [
+        46.044041,
+        -81.503845
+      ]
+    },
+    {
+      "date": "2026-05-17",
+      "site": "12",
+      "location": "Killarney Lake",
+      "gps": null
+    }
+  ],
+  "itinerary": [
+    {
+      "date": "2026-05-15",
+      "label": "Friday 2026-05-15 \u2014 Day 1",
+      "notes": "- Depart Ajax in the morning (~5h drive to George Lake access)\n- Permit pickup at George Lake park office\n- Launch from George Lake\n- Portage / paddle into Killarney Lake then north to OSA Lake\n- Camp: site 61, OSA Lake"
+    },
+    {
+      "date": "2026-05-16",
+      "label": "Saturday 2026-05-16 \u2014 Day 2",
+      "notes": "- Pack up, paddle south back through Killarney Lake\n- Three Narrows portage into Baie Fine\n- Camp: site 82, Baie Fine"
+    },
+    {
+      "date": "2026-05-17",
+      "label": "Sunday 2026-05-17 \u2014 Day 3",
+      "notes": "- Pack up, paddle / portage back into Killarney Lake\n- Camp: site 12, Killarney Lake"
+    },
+    {
+      "date": "2026-05-18",
+      "label": "Monday 2026-05-18 \u2014 Day 4",
+      "notes": "- Pack up, paddle out to George Lake access\n- Drive home to Ajax"
+    }
+  ],
+  "gear": {
+    "shared": [
+      {
+        "item": "Canoe (rental?)",
+        "who": "TBD",
+        "notes": "confirm with George Lake outfitter if renting"
+      },
+      {
+        "item": "Paddles (2-3)",
+        "who": "",
+        "notes": ""
+      },
+      {
+        "item": "PFDs (2)",
+        "who": "",
+        "notes": ""
+      },
+      {
+        "item": "Throw bag",
+        "who": "",
+        "notes": ""
+      },
+      {
+        "item": "Tarp + ridgeline",
+        "who": "",
+        "notes": ""
+      },
+      {
+        "item": "Stove + fuel",
+        "who": "",
+        "notes": ""
+      },
+      {
+        "item": "Cookpot + lid",
+        "who": "",
+        "notes": ""
+      },
+      {
+        "item": "Water filter / pump",
+        "who": "",
+        "notes": ""
+      },
+      {
+        "item": "Bear barrel or hang rope",
+        "who": "",
+        "notes": "mandatory in Killarney interior"
+      },
+      {
+        "item": "First aid kit",
+        "who": "",
+        "notes": ""
+      },
+      {
+        "item": "Map (waterproof) + compass",
+        "who": "",
+        "notes": "Chrismar Killarney recommended"
+      },
+      {
+        "item": "Lighter + matches in dry bag",
+        "who": "",
+        "notes": ""
+      },
+      {
+        "item": "Repair kit (duct tape, multitool)",
+        "who": "",
+        "notes": ""
+      }
+    ],
+    "personal": []
+  },
+  "food": [
+    {
+      "slot": "friday-dinner",
+      "label": "Friday dinner",
+      "items": [],
+      "notes": "- _meal idea_ \u2014 _who_"
+    },
+    {
+      "slot": "saturday-breakfast",
+      "label": "Saturday breakfast",
+      "items": [],
+      "notes": ""
+    },
+    {
+      "slot": "saturday-lunch",
+      "label": "Saturday lunch",
+      "items": [],
+      "notes": "(On the water \u2014 wraps / bars / cheese.)"
+    },
+    {
+      "slot": "saturday-dinner",
+      "label": "Saturday dinner",
+      "items": [],
+      "notes": ""
+    },
+    {
+      "slot": "sunday-breakfast",
+      "label": "Sunday breakfast",
+      "items": [],
+      "notes": ""
+    },
+    {
+      "slot": "sunday-lunch",
+      "label": "Sunday lunch",
+      "items": [],
+      "notes": ""
+    },
+    {
+      "slot": "sunday-dinner",
+      "label": "Sunday dinner",
+      "items": [],
+      "notes": ""
+    },
+    {
+      "slot": "monday-breakfast",
+      "label": "Monday breakfast",
+      "items": [],
+      "notes": "(Quick \u2014 break camp and paddle out.)"
+    }
+  ],
+  "costs": [
+    {
+      "item": "Permit / reservation",
+      "who_paid": "",
+      "amount": null,
+      "currency": "CAD"
+    },
+    {
+      "item": "Gas",
+      "who_paid": "",
+      "amount": null,
+      "currency": "CAD"
+    },
+    {
+      "item": "Groceries",
+      "who_paid": "",
+      "amount": null,
+      "currency": "CAD"
+    }
+  ],
+  "packing": [
+    {
+      "category": "Shelter & sleep",
+      "items": [
+        {
+          "label": "Tent",
+          "checked": false
+        },
+        {
+          "label": "Sleeping bag",
+          "checked": false
+        },
+        {
+          "label": "Sleeping pad",
+          "checked": false
+        },
+        {
+          "label": "Pillow / stuff sack",
+          "checked": false
+        }
+      ]
+    },
+    {
+      "category": "Kitchen",
+      "items": [
+        {
+          "label": "Stove",
+          "checked": false
+        },
+        {
+          "label": "Fuel canister",
+          "checked": false
+        },
+        {
+          "label": "Pot / pan",
+          "checked": false
+        },
+        {
+          "label": "Lighter / matches",
+          "checked": false
+        },
+        {
+          "label": "Bowl + utensils",
+          "checked": false
+        },
+        {
+          "label": "Water bottles",
+          "checked": false
+        }
+      ]
+    },
+    {
+      "category": "Clothing",
+      "items": [
+        {
+          "label": "Rain jacket",
+          "checked": false
+        },
+        {
+          "label": "Warm layer (fleece/down)",
+          "checked": false
+        },
+        {
+          "label": "Quick-dry shirts",
+          "checked": false
+        },
+        {
+          "label": "Quick-dry pants/shorts",
+          "checked": false
+        },
+        {
+          "label": "Wool socks",
+          "checked": false
+        },
+        {
+          "label": "Camp shoes",
+          "checked": false
+        },
+        {
+          "label": "Hat",
+          "checked": false
+        }
+      ]
+    },
+    {
+      "category": "Personal",
+      "items": [
+        {
+          "label": "Headlamp + spare batteries",
+          "checked": false
+        },
+        {
+          "label": "Toothbrush + toothpaste",
+          "checked": false
+        },
+        {
+          "label": "Sunscreen",
+          "checked": false
+        },
+        {
+          "label": "Bug spray",
+          "checked": false
+        },
+        {
+          "label": "Personal meds",
+          "checked": false
+        },
+        {
+          "label": "Phone charger / power bank",
+          "checked": false
+        }
+      ]
+    },
+    {
+      "category": "Paddling",
+      "items": [
+        {
+          "label": "PFD",
+          "checked": false
+        },
+        {
+          "label": "Dry bag",
+          "checked": false
+        },
+        {
+          "label": "Quick-dry towel",
+          "checked": false
+        }
+      ]
+    }
+  ]
+}
