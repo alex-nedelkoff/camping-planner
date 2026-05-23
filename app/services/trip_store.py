@@ -9,13 +9,10 @@ from pydantic import ValidationError
 
 from app.models_trip import SCHEMA_VERSION, Trip
 
-
 TRIP_JSON_NAME = "trip.json"
-
 
 class SchemaVersionError(Exception):
     """Raised when trip.json has an unknown or unsupported schema_version."""
-
 
 def load(trip_dir: Path) -> Trip:
     path = trip_dir / TRIP_JSON_NAME
@@ -29,13 +26,11 @@ def load(trip_dir: Path) -> Trip:
         )
     return Trip.model_validate(raw)
 
-
 def save(trip_dir: Path, trip: Trip) -> None:
     path = trip_dir / TRIP_JSON_NAME
     trip_dir.mkdir(parents=True, exist_ok=True)
     payload = trip.model_dump(mode="json")
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-
 
 def exists(trip_dir: Path) -> bool:
     return (trip_dir / TRIP_JSON_NAME).exists()
