@@ -58,3 +58,19 @@ window.SectionEditor = (function() {
 
   return { setup, loadTrip, saveSection };
 })();
+
+// Generic helper for the "Refresh" buttons (weather, route): POST + reload.
+window.refreshSection = async function(btn, url) {
+  const original = btn.textContent;
+  btn.textContent = 'Refreshing…';
+  btn.disabled = true;
+  try {
+    const r = await fetch(url, {method: 'POST'});
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    window.location.reload();
+  } catch (e) {
+    alert('Refresh failed: ' + e.message);
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+};

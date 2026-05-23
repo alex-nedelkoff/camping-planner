@@ -26,6 +26,9 @@
   }
 
   html, body, #map { height: 100%; margin: 0; }
+  body { max-width: none; padding: 0; }  /* override index.css for full-bleed overlay */
+  #map { width: 100%; }
+  .nav-band { position: relative; z-index: 1100; }  /* sit above Leaflet panes */
   #map { background: #ede2c9; }  /* parchment-deep — visible when OSM tiles off */
   body {
     font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;

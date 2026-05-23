@@ -1,19 +1,19 @@
 <section id="weather" class="trip-section" data-section="weather">
   <header class="section-header">
     <h2>Weather</h2>
-    <form method="post" action="/api/trips/{{ slug }}/refresh-weather" style="display:inline">
-      <button class="btn btn-ghost" type="submit">↻ Refresh</button>
-    </form>
+    <button class="btn btn-ghost"
+            onclick="refreshSection(this, '/api/trips/{{ slug }}/refresh-weather')"
+            type="button">&#8634; Refresh</button>
   </header>
   <div class="section-body">
     {% if weather_error %}
-      <p class="error">Weather unavailable: {{ weather_error }} — <a href="?">retry</a></p>
+      <p class="error">Weather unavailable: {{ weather_error }} &mdash; <a href="?">retry</a></p>
     {% elif weather and weather.days %}
       <div class="weather-strip">
         {% for d in weather.days %}
         <div class="weather-day">
           <div class="wx-date">{{ d.date }}</div>
-          <div class="wx-temps">{{ d.high }}° / {{ d.low }}°</div>
+          <div class="wx-temps">{{ d.high }}&deg; / {{ d.low }}&deg;</div>
           <div class="wx-cond">{{ d.summary }}</div>
         </div>
         {% endfor %}
