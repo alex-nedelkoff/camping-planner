@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Campsite Search{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/css/sites.css?v={{ static_version }}">{% endblock %}
+{% block body %}
+{% include "partials/nav_band.html" %}
+<header class="page-title">
+  <h1>🔍 Campsite Search</h1>
+</header>
+{% if surveys %}
+<div class="survey-grid">
+  {% for s in surveys %}
+  <a class="survey-card" href="/sites/{{ s.park_slug }}">
+    <h2>{{ s.park_name }}</h2>
+    <p>{{ s.site_count }} sites{% if s.pulled_on %} · surveyed {{ s.pulled_on }}{% endif %}</p>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="empty">No park surveys yet. Run <code>scripts/compile_site_survey.py</code> to add one.</p>
+{% endif %}
+{% endblock %}

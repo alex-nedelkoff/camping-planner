@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}{{ survey.park_name }} — Sites{% endblock %}
+{% block body_class %}sites-page{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/css/sites.css?v={{ static_version }}">{% endblock %}
+{% block body %}
+{% include "partials/nav_band.html" %}
+<header class="page-title">
+  <h1>{{ survey.park_name }}</h1>
+  <p class="sub">{{ survey.site_count }} sites{% if survey.pulled_on %} · surveyed {{ survey.pulled_on }}{% endif %} · <span id="counter"></span></p>
+</header>
+
+<div class="filters">
+  <div class="filter-group">
+    <label class="title">Campground</label>
+    <div class="checks">
+      {% for c in filters.campgrounds %}
+      <label class="opt"><input type="checkbox" class="f-camp" value="{{ c }}" checked> {{ c }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="filter-group">
+    <label class="title">Privacy</label>
+    <div class="checks">
+      {% for p in filters.privacy %}
+      <label class="opt"><input type="checkbox" class="f-priv" value="{{ p }}" checked> {{ p }}</label>
+      {% endfor %}
+      {% if filters.has_unrated %}
+      <label class="opt"><input type="checkbox" class="f-priv" value="" checked> Unrated</label>
+      {% endif %}
+    </div>
+  </div>
+  <div class="filter-group">
+    <label class="title">Equipment type</label>
+    <div class="checks">
+      {% for e in filters.equipment %}
+      <label class="opt"><input type="checkbox" class="f-eq" value="{{ e }}" checked> {{ e }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="filter-group">
+    <label class="title">Site length (m)</label>
+    <div class="range-row">
+      ≥ <input type="number" id="len-min" value="{{ filters.len_min }}" min="{{ filters.len_min }}" max="{{ filters.len_max }}">
+      ≤ <input type="number" id="len-max" value="{{ filters.len_max }}" min="{{ filters.len_min }}" max="{{ filters.len_max }}">
+    </div>
+  </div>
+  <div class="filter-group">
+    <label class="title">Other</label>
+    <label class="opt"><input type="checkbox" id="with-photos"> Has photos</label>
+    <input type="search" id="q" placeholder="search name / desc">
+  </div>
+  <div class="actions">
+    <button id="reset-filters" type="button">Reset</button>
+    <button id="check-none-camp" type="button">Camp: none</button>
+    <button id="check-all-camp" type="button">Camp: all</button>
+    <span class="count" id="count"></span>
+  </div>
+</div>
+
+<div class="grid" id="grid" data-len-min="{{ filters.len_min }}" data-len-max="{{ filters.len_max }}">
+  {% for s in sites %}
+  {% set length_num = s.attributes.get("Site Length (m)") %}
+  <div class="site"
+       data-camp="{{ s.campground }}"
+       data-priv="{{ s.attributes.get('Privacy') or '' }}"
+       data-eq="{{ s.equipment_bucket }}"
+       data-len="{{ length_num if length_num is not none else '' }}"
+       data-photos="{{ s.photos | length }}"
+       data-q="{{ (s.name ~ ' ' ~ s.description) | lower }}">
+    {% if s.photos %}
+    <div class="photos{% if s.photos|length == 1 %} single{% endif %}">
+      {% for p in s.photos[:4] %}<img loading="lazy" src="{{ p }}" onclick="siteLightbox(this.src)">{% endfor %}
+    </div>
+    {% else %}
+    <div class="photos empty">no photos</div>
+    {% endif %}
+    <div class="body">
+      <h3>{{ s.name or '?' }}</h3>
+      <div class="area">{{ s.campground }} · {{ s.equipment_bucket }}</div>
+      <dl>
+        {% for k in key_attrs %}
+          {% set v = s.attributes.get(k) %}
+          {% if v not in (none, '') %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endif %}
+        {% endfor %}
+      </dl>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lbi"></div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/site_search.js?v={{ static_version }}"></script>
+{% endblock %}
