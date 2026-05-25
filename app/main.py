@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import STATIC_DIR, TRIPS_DIR
-from app.routes import checklist, identity, pages, parks, trip_pages, trips
+from app.routes import checklist, identity, pages, parks, sites, trip_pages, trips
 from app.services import db
 
 app = FastAPI(title="Camping Planner")
@@ -24,6 +24,7 @@ app.include_router(pages.router)
 app.include_router(trip_pages.router)
 app.include_router(trips.router)
 app.include_router(parks.router)
+app.include_router(sites.router)
 app.include_router(checklist.router)
 app.include_router(identity.router)
 
