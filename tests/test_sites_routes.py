@@ -48,3 +48,9 @@ def test_sites_park_renders_sites_and_filters(client):
 def test_sites_park_unknown_returns_404(client):
     r = client.get("/sites/does-not-exist")
     assert r.status_code == 404
+
+
+def test_home_page_links_to_sites(client):
+    r = client.get("/")
+    assert r.status_code == 200
+    assert 'href="/sites"' in r.text
