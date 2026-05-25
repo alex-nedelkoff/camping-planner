@@ -11,6 +11,7 @@ DATABASE_PATH = REPO_ROOT / "camping.sqlite3"
 APP_DIR = Path(__file__).resolve().parent
 JINJA_TEMPLATES_DIR = APP_DIR / "templates"
 STATIC_DIR = APP_DIR / "static"
+SITE_SURVEYS_DIR = APP_DIR / "data" / "site_surveys"
 
 # Cache TTLs (seconds)
 AVAILABILITY_CACHE_TTL = 15 * 60   # 15 min — Camis WAF risk dominates correctness
