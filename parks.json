@@ -16,7 +16,8 @@
       "name": "Balsam Lake",
       "resourceLocationId": -2147483638,
       "mapId": null,
-      "driveFromAjax": "1.25 hrs"
+      "driveFromAjax": "1.25 hrs",
+      "campgroundMapUrl": "https://www.ontarioparks.ca/pdf/maps/balsamlake/park_map.pdf"
     },
     "presquile": {
       "name": "Presqu'ile",
