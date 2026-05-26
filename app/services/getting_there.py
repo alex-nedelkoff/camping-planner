@@ -7,6 +7,7 @@ can hide blocks individually.
 from __future__ import annotations
 
 import weather
+from app import config
 from app.services import parks as parks_svc
 from app.services import site_surveys
 
@@ -23,14 +24,23 @@ def _directions_url(park_slug: str) -> str | None:
 def build(park_slug: str, booked_site: str) -> dict:
     """Return template context for the getting-there section.
 
-    Keys: park_name, drive_label, directions_url, map_url, booked_site.
+    Keys: park_name, drive_label, directions_url, map_url, booked_site,
+    home_coords, home_label, park_coords.
     """
     info = parks_svc.load_park_info(park_slug) or {}
     survey = site_surveys.load_survey(park_slug)
+    coords = getattr(weather, "PARK_COORDS", {}).get(park_slug)
+    try:
+        park_coords = (coords[0], coords[1])
+    except (TypeError, IndexError, KeyError):
+        park_coords = None
     return {
         "park_name": info.get("name") or park_slug,
         "drive_label": info.get("driveFromAjax") or None,
         "directions_url": _directions_url(park_slug),
         "map_url": info.get("campgroundMapUrl") or None,
         "booked_site": site_surveys.find_site(survey, booked_site),
+        "home_coords": getattr(config, "HOME_COORDS", None),
+        "home_label": getattr(config, "HOME_LABEL", None),
+        "park_coords": park_coords,
     }

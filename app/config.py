@@ -16,3 +16,7 @@ SITE_SURVEYS_DIR = APP_DIR / "data" / "site_surveys"
 # Cache TTLs (seconds)
 AVAILABILITY_CACHE_TTL = 15 * 60   # 15 min — Camis WAF risk dominates correctness
 WEATHER_CACHE_TTL = 60 * 60        # 1 hour — Open-Meteo forecast cadence
+
+# Drive origin for car-camping route maps (Ajax, ON).
+HOME_COORDS = (43.851, -79.020)
+HOME_LABEL = "Ajax"
