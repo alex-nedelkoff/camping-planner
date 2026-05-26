@@ -123,12 +123,12 @@ trip_pages.py
        park_assets.park_maps(park)  → [{title,url}, ...]
   ▼
 section_getting_there.html
-  • gt-drive: label + directions link + #route-map (data-home, data-park)
+  • gt-drive: label + directions link + #gt-route-map (data-home, data-park)
   • gt-site:  booked-site card (unchanged)
   • gt-maps:  one zoomable viewer per park_map + PDF link
   ▼
 car_maps.js
-  • initRouteMap(#route-map): Leaflet + LRM(OSRM) Ajax→park; fallback line on error
+  • initRouteMap(#gt-route-map): Leaflet + LRM(OSRM) Ajax→park; fallback line on error
   • initZoomableMaps(.zoom-map): Leaflet CRS.Simple + imageOverlay per image
 ```
 
@@ -140,7 +140,7 @@ car_maps.js
   when none.
 - `getting_there.build`: includes `home_coords` (from config) and `park_coords`
   (from PARK_COORDS), still degrades when data missing.
-- Route render: a car-camping trip page renders the `#route-map` container with
+- Route render: a car-camping trip page renders the `#gt-route-map` container with
   home/park data attributes and a `.zoom-map` container per available map plus the
   PDF link; a paddle trip page renders neither and uses the default hero.
 - Camis/survey remain mocked; no live API calls. (CSS-only changes — the journal

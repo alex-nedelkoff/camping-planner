@@ -48,7 +48,9 @@ def trip_page(slug: str, request: Request):
         except Exception as exc:  # never 500 the page
             getting_there = {"park_name": trip.park, "drive_label": None,
                              "directions_url": None, "map_url": None,
-                             "booked_site": None, "error": str(exc)}
+                             "booked_site": None, "home_coords": None,
+                             "home_label": None, "park_coords": None,
+                             "error": str(exc)}
         park_maps = park_assets.park_maps(trip.park)
     else:
         from app.services import route_cache

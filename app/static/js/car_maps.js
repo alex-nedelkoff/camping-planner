@@ -17,20 +17,10 @@
       maxZoom: 19, crossOrigin: '', attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    var routed = false;
-    if (L.Routing && hlat !== null && hlon !== null) {
-      try {
-        L.Routing.control({
-          waypoints: [L.latLng(hlat, hlon), park],
-          router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
-          addWaypoints: false, draggableWaypoints: false, fitSelectedRoutes: true, show: false,
-          lineOptions: { styles: [{ color: '#a8451f', weight: 5, opacity: 0.85 }] },
-          createMarker: function (i, wp) { return L.marker(wp.latLng); }
-        }).addTo(map);
-        routed = true;
-      } catch (e) { routed = false; }
-    }
-    if (!routed) {
+    var fallbackDrawn = false;
+    function drawFallback() {
+      if (fallbackDrawn) return;
+      fallbackDrawn = true;
       L.marker(park).addTo(map);
       if (hlat !== null && hlon !== null) {
         var home = L.latLng(hlat, hlon);
@@ -41,6 +31,26 @@
         map.setView(park, 12);
       }
     }
+
+    var control = null;
+    if (L.Routing && hlat !== null && hlon !== null) {
+      try {
+        control = L.Routing.control({
+          waypoints: [L.latLng(hlat, hlon), park],
+          router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
+          addWaypoints: false, draggableWaypoints: false, fitSelectedRoutes: true, show: false,
+          lineOptions: { styles: [{ color: '#a8451f', weight: 5, opacity: 0.85 }] },
+          createMarker: function (_i, wp) { return L.marker(wp.latLng); }
+        }).addTo(map);
+        // OSRM failures surface asynchronously as a routingerror event — draw the
+        // straight-line fallback then (the sync try/catch only covers init errors).
+        control.on('routingerror', function () {
+          if (control) { try { map.removeControl(control); } catch (e) {} control = null; }
+          drawFallback();
+        });
+      } catch (e) { control = null; }
+    }
+    if (!control) drawFallback();
   }
 
   function initZoomableMaps() {
