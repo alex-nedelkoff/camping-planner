@@ -11,7 +11,7 @@
       {% if g.directions_url %}<a class="btn btn-ghost" href="{{ g.directions_url }}" target="_blank" rel="noopener">Get directions ↗</a>{% endif %}
       {% if not g.drive_label and not g.directions_url %}<p class="empty">No drive info for this park yet.</p>{% endif %}
       {% if g.park_coords %}
-      <div id="route-map"
+      <div id="gt-route-map"
            data-home-lat="{{ g.home_coords[0] if g.home_coords else '' }}"
            data-home-lon="{{ g.home_coords[1] if g.home_coords else '' }}"
            data-home-label="{{ g.home_label or 'Home' }}"

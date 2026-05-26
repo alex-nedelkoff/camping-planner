@@ -477,7 +477,7 @@ html { scroll-behavior: smooth; }
 /* ──────────────────────────────────────────────────────────────────────────
    Car-camping: route map + zoomable park maps
    ────────────────────────────────────────────────────────────────────────── */
-#route-map {
+#gt-route-map {
   height: 320px;
   margin-top: 1rem;
   border-radius: 4px;

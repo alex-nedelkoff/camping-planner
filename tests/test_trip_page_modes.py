@@ -76,7 +76,7 @@ def test_car_camping_renders_route_map_and_zoom_maps(client, tmp_path, monkeypat
     slug = _write_trip(tmp_path, monkeypatch, mode="car_camping", site="401")
     r = client.get(f"/trip/{slug}")
     assert r.status_code == 200
-    assert 'id="route-map"' in r.text
+    assert 'id="gt-route-map"' in r.text
     assert 'data-park-lat=' in r.text and 'data-home-lat=' in r.text
     assert r.text.count('class="zoom-map"') == 2
     assert 'data-img="/static/img/parks/balsam-lake/campground-map.png"' in r.text

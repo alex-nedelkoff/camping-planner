@@ -5,7 +5,7 @@
   function num(v) { var n = parseFloat(v); return isNaN(n) ? null : n; }
 
   function initRouteMap() {
-    var el = document.getElementById('route-map');
+    var el = document.getElementById('gt-route-map');
     if (!el || typeof L === 'undefined') return;
     var plat = num(el.dataset.parkLat), plon = num(el.dataset.parkLon);
     if (plat === null || plon === null) return;
