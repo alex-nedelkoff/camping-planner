@@ -43,3 +43,24 @@ def test_paddle_still_renders_route(client, tmp_path, monkeypatch):
     assert r.status_code == 200
     assert 'data-section="route"' in r.text
     assert 'data-section="getting-there"' not in r.text
+
+
+def test_hero_image_set_per_park(client, tmp_path, monkeypatch):
+    import app.services.park_assets as pa
+    parks_root = tmp_path / "parksimg"
+    (parks_root / "balsam-lake").mkdir(parents=True)
+    (parks_root / "balsam-lake" / "hero.jpg").write_bytes(b"x")
+    monkeypatch.setattr(pa, "PARKS_IMG_DIR", parks_root)
+    slug = _write_trip(tmp_path, monkeypatch, mode="car_camping", site="401")
+    r = client.get(f"/trip/{slug}")
+    assert r.status_code == 200
+    assert '--hero-image: url("/static/img/parks/balsam-lake/hero.jpg")' in r.text
+
+
+def test_hero_image_default_when_absent(client, tmp_path, monkeypatch):
+    import app.services.park_assets as pa
+    monkeypatch.setattr(pa, "PARKS_IMG_DIR", tmp_path / "empty")
+    slug = _write_trip(tmp_path, monkeypatch, mode="paddle")
+    r = client.get(f"/trip/{slug}")
+    assert r.status_code == 200
+    assert '--hero-image: url("/static/img/killarney-hero.jpg")' in r.text

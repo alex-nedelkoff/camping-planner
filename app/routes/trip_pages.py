@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from app.services import trip_store, trips as trips_svc
+from app.services import park_assets
 from app.routes.sites import KEY_ATTRS
 
 router = APIRouter()
@@ -38,6 +39,7 @@ def trip_page(slug: str, request: Request):
     route_render = {"html": "", "distance_km": 0, "empty": True}
     route_error = None
     getting_there = None
+    park_maps = []
     if trip.mode == "car_camping":
         from app.services import getting_there as gt
         booked = trip.nights[0].site if trip.nights else ""
@@ -47,6 +49,7 @@ def trip_page(slug: str, request: Request):
             getting_there = {"park_name": trip.park, "drive_label": None,
                              "directions_url": None, "map_url": None,
                              "booked_site": None, "error": str(exc)}
+        park_maps = park_assets.park_maps(trip.park)
     else:
         from app.services import route_cache
         routes_path = trip_dir / "manual_routes.json"
@@ -76,6 +79,8 @@ def trip_page(slug: str, request: Request):
             "route_render": route_render,
             "route_error": route_error,
             "getting_there": getting_there,
+            "hero_image": park_assets.hero_image(trip.park),
+            "park_maps": park_maps,
             "key_attrs": KEY_ATTRS,
         },
     )

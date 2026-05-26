@@ -3,6 +3,11 @@
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/trip.css?v={{ static_version }}">
 <link rel="stylesheet" href="/static/css/sites.css?v={{ static_version }}">
+<style>:root { --hero-image: url("{{ hero_image }}"); }</style>
+{% if trip.mode == "car_camping" %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
+{% endif %}
 {% endblock %}
 {% block body_class %}has-fixed-hero{% endblock %}
 {% block body %}
@@ -29,5 +34,10 @@
   <script src="/static/js/section_meta.js?v={{ static_version }}"></script>
   <script src="/static/js/section_route.js?v={{ static_version }}"></script>
   <script src="/static/js/site_search.js?v={{ static_version }}"></script>
+  {% if trip.mode == "car_camping" %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+  <script src="/static/js/car_maps.js?v={{ static_version }}"></script>
+  {% endif %}
   <script src="/static/js/trip_sidenav.js?v={{ static_version }}"></script>
 {% endblock %}
