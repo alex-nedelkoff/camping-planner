@@ -54,3 +54,9 @@ def test_home_page_links_to_sites(client):
     r = client.get("/")
     assert r.status_code == 200
     assert 'href="/sites"' in r.text
+
+
+def test_site_cards_have_id_anchor(client):
+    r = client.get("/sites/balsam-lake")
+    assert r.status_code == 200
+    assert 'id="site-' in r.text

@@ -59,32 +59,7 @@
 
 <div class="grid" id="grid" data-len-min="{{ filters.len_min }}" data-len-max="{{ filters.len_max }}">
   {% for s in sites %}
-  {% set length_num = s.attributes.get("Site Length (m)") %}
-  <div class="site"
-       data-camp="{{ s.campground }}"
-       data-priv="{{ s.attributes.get('Privacy') or '' }}"
-       data-eq="{{ s.equipment_bucket }}"
-       data-len="{{ length_num if length_num is not none else '' }}"
-       data-photos="{{ s.photos | length }}"
-       data-q="{{ (s.name ~ ' ' ~ s.description) | lower }}">
-    {% if s.photos %}
-    <div class="photos{% if s.photos|length == 1 %} single{% endif %}">
-      {% for p in s.photos[:4] %}<img loading="lazy" src="{{ p }}" onclick="siteLightbox(this.src)">{% endfor %}
-    </div>
-    {% else %}
-    <div class="photos empty">no photos</div>
-    {% endif %}
-    <div class="body">
-      <h3>{{ s.name or '?' }}</h3>
-      <div class="area">{{ s.campground }} · {{ s.equipment_bucket }}</div>
-      <dl>
-        {% for k in key_attrs %}
-          {% set v = s.attributes.get(k) %}
-          {% if v not in (none, '') %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endif %}
-        {% endfor %}
-      </dl>
-    </div>
-  </div>
+  {% include "partials/site_card.html" %}
   {% endfor %}
 </div>
 
