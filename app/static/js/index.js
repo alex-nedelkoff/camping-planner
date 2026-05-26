@@ -14,6 +14,7 @@ async function createTrip(ev) {
     start: f.start.value,
     end: f.end.value,
     participants: f.participants.value.split(',').map(function(s){return s.trim();}).filter(Boolean),
+    mode: f.mode.value,
   };
   try {
     var r = await fetch('/api/trips', {

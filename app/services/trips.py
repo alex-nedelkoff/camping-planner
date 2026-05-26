@@ -232,7 +232,7 @@ def list_trips_v2(trips_dir: Path | None = None) -> list[dict]:
     return entries
 
 
-def create_trip_v2(park: str, start_date, end_date, participants: list[str]) -> str:
+def create_trip_v2(park: str, start_date, end_date, participants: list[str], mode: str = "paddle") -> str:
     """Create a new trip directory with trip.json. Returns the slug."""
     from datetime import date as _date
     from app.services import trip_store
@@ -249,7 +249,7 @@ def create_trip_v2(park: str, start_date, end_date, participants: list[str]) -> 
     trip_dir.mkdir(parents=True)
     from app.models_trip import Trip, TripDates
     trip = Trip(
-        schema_version=1, name=slug, park=park,
+        schema_version=1, name=slug, park=park, mode=mode,
         dates=TripDates(start=sd, end=ed),
         participants=participants or [], access_point="",
     )

@@ -148,6 +148,7 @@ class CreateTripRequest(BaseModel):
     start: _date_t
     end: _date_t
     participants: list[str] = []
+    mode: str = "paddle"
 
 
 @router.post("/trips")
@@ -155,7 +156,7 @@ def create_trip(body: CreateTripRequest):
     try:
         slug = trips_svc.create_trip_v2(
             park=body.park, start_date=body.start, end_date=body.end,
-            participants=body.participants,
+            participants=body.participants, mode=body.mode,
         )
     except FileExistsError as e:
         raise HTTPException(status_code=409, detail={"error": f"trip exists: {e}"})
