@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "name": "Balsam Lake — May 2026",
+  "park": "balsam-lake",
+  "mode": "car_camping",
+  "dates": {"start": "2026-05-30", "end": "2026-06-01"},
+  "participants": ["Alex"],
+  "nights": [
+    {"date": "2026-05-30", "site": "401", "location": "Sites #200-416"}
+  ],
+  "itinerary": [
+    {"date": "2026-05-30", "label": "Sat May 30 — Arrive + overnight", "notes": "Check in at site **401** (Sites #200-416). Staying overnight Sat night.\n\n**Vehicle permits:** my car is covered by the camping permit. **Additional vehicles must buy a daily vehicle permit on arrival** — purchase at the gate day-of."},
+    {"date": "2026-05-31", "label": "Sun May 31 — Day use", "notes": "Day use at site 401. **Not** staying overnight Sun → Mon."},
+    {"date": "2026-06-01", "label": "Mon Jun 1 — Day use / depart", "notes": "Day use, then pack up and head home."}
+  ],
+  "gear": [],
+  "food": [],
+  "costs": []
+}
