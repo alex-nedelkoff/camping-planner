@@ -65,3 +65,24 @@ def derive_filters(sites: list[dict]) -> dict:
         "len_min": len_min,
         "len_max": len_max,
     }
+
+
+def _norm_site(name: str) -> str:
+    """Normalize a site label for matching: lowercase, drop a leading
+    'site' word, collapse whitespace. 'Site 123' / '123' / ' 7 ' → '123'/'7'."""
+    s = (name or "").strip().lower()
+    if s.startswith("site"):
+        s = s[len("site"):].strip()
+    return " ".join(s.split())
+
+
+def find_site(survey: dict | None, name: str) -> dict | None:
+    """Return the survey site whose name matches `name` (tolerant of a
+    'Site ' prefix, case, and surrounding whitespace), or None."""
+    if not survey or not (name or "").strip():
+        return None
+    target = _norm_site(name)
+    for s in survey.get("sites", []):
+        if _norm_site(s.get("name", "")) == target:
+            return s
+    return None
