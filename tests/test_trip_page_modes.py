@@ -64,3 +64,20 @@ def test_hero_image_default_when_absent(client, tmp_path, monkeypatch):
     r = client.get(f"/trip/{slug}")
     assert r.status_code == 200
     assert '--hero-image: url("/static/img/killarney-hero.jpg")' in r.text
+
+
+def test_car_camping_renders_route_map_and_zoom_maps(client, tmp_path, monkeypatch):
+    import app.services.park_assets as pa
+    parks_root = tmp_path / "parksimg"
+    (parks_root / "balsam-lake").mkdir(parents=True)
+    for f in ("campground-map.png", "park-map.png"):
+        (parks_root / "balsam-lake" / f).write_bytes(b"x")
+    monkeypatch.setattr(pa, "PARKS_IMG_DIR", parks_root)
+    slug = _write_trip(tmp_path, monkeypatch, mode="car_camping", site="401")
+    r = client.get(f"/trip/{slug}")
+    assert r.status_code == 200
+    assert 'id="route-map"' in r.text
+    assert 'data-park-lat=' in r.text and 'data-home-lat=' in r.text
+    assert r.text.count('class="zoom-map"') == 2
+    assert 'data-img="/static/img/parks/balsam-lake/campground-map.png"' in r.text
+    assert "Download official PDF" in r.text
