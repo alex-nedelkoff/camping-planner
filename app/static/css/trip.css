@@ -60,7 +60,7 @@ body.has-fixed-hero::before {
       rgba(245,239,225,0.40) 0%,
       rgba(236,226,201,0.58) 45%,
       rgba(236,226,201,0.72) 100%),
-    url("/static/img/killarney-hero.jpg") center / cover no-repeat;
+    var(--hero-image, url("/static/img/killarney-hero.jpg")) center / cover no-repeat;
   pointer-events: none;
 }
 
@@ -88,19 +88,6 @@ body.has-fixed-hero::before {
   isolation: isolate;
 }
 .trip-hero > * { position: relative; z-index: 1; }
-.trip-hero::before {
-  /* monospace supertitle above the headline — adds a journal-stamp feel */
-  content: "FIELD JOURNAL  \B7  EXPEDITION LOG";
-  display: block;
-  position: relative;
-  z-index: 1;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.28em;
-  color: var(--rust-bright);
-  margin-bottom: 0.65rem;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
-}
 .trip-hero h1 {
   font-family: var(--font-serif);
   font-style: italic;
@@ -486,3 +473,38 @@ th {
 }
 @media (max-width: 1100px) { .trip-sidenav { display: none; } }
 html { scroll-behavior: smooth; }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Car-camping: route map + zoomable park maps
+   ────────────────────────────────────────────────────────────────────────── */
+#route-map {
+  height: 320px;
+  margin-top: 1rem;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.gt-maps-section { margin-top: 1.75rem; }
+.gt-maps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin: 0.5rem 0 1rem;
+}
+.gt-map-fig { margin: 0; }
+.zoom-map {
+  height: 360px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--parchment-deep);
+  box-shadow: var(--shadow);
+}
+.zoom-map .leaflet-container { background: var(--parchment-deep); }
+.gt-map-caption {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0.45rem 0 0;
+}
