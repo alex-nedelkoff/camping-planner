@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from app.services import trip_store, trips as trips_svc
+from app.routes.sites import KEY_ATTRS
 
 router = APIRouter()
 from app.templating import templates
@@ -33,15 +34,26 @@ def trip_page(slug: str, request: Request):
     except Exception as exc:
         weather_error = str(exc)
 
-    # Route render — also best-effort
-    from app.services import route_cache
-    routes_path = trip_dir / "manual_routes.json"
+    # Location section — branch on trip mode, both best-effort.
     route_render = {"html": "", "distance_km": 0, "empty": True}
     route_error = None
-    try:
-        route_render = route_cache.get_route_render(routes_path, slug)
-    except Exception as exc:
-        route_error = str(exc)
+    getting_there = None
+    if trip.mode == "car_camping":
+        from app.services import getting_there as gt
+        booked = trip.nights[0].site if trip.nights else ""
+        try:
+            getting_there = gt.build(trip.park, booked)
+        except Exception as exc:  # never 500 the page
+            getting_there = {"park_name": trip.park, "drive_label": None,
+                             "directions_url": None, "map_url": None,
+                             "booked_site": None, "error": str(exc)}
+    else:
+        from app.services import route_cache
+        routes_path = trip_dir / "manual_routes.json"
+        try:
+            route_render = route_cache.get_route_render(routes_path, slug)
+        except Exception as exc:
+            route_error = str(exc)
 
     return templates.TemplateResponse(
         request,
@@ -63,5 +75,7 @@ def trip_page(slug: str, request: Request):
             "weather_error": weather_error,
             "route_render": route_render,
             "route_error": route_error,
+            "getting_there": getting_there,
+            "key_attrs": KEY_ATTRS,
         },
     )

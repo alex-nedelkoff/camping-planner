@@ -69,6 +69,9 @@
 })();
 
 window.siteLightbox = function (src) {
-  document.getElementById('lbi').src = src;
-  document.getElementById('lb').classList.add('open');
+  var lbi = document.getElementById('lbi');
+  var lb = document.getElementById('lb');
+  if (!lb || !lbi) return;
+  lbi.src = src;
+  lb.classList.add('open');
 };

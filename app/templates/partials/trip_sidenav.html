@@ -1,7 +1,11 @@
 <nav class="trip-sidenav" aria-label="Section navigation">
   <ul>
     <li><a href="#top">↑ Top</a></li>
+    {% if trip.mode == "car_camping" %}
+    <li><a href="#getting-there">Getting There</a></li>
+    {% else %}
     <li><a href="#route">Route</a></li>
+    {% endif %}
     <li><a href="#weather">Weather</a></li>
     <li><a href="#itinerary">Itinerary</a></li>
     <li><a href="#gear">Gear &amp; Packing</a></li>
