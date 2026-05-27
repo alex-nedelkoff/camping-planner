@@ -5,7 +5,7 @@ from app.models_trip import Trip
 from app.services.identity import User
 
 # /meta fields only the owner may change. participants + access_point stay open.
-CORE_META_FIELDS = {"park", "dates", "nights", "mode", "name"}
+CORE_META_FIELDS = {"park", "dates", "nights", "mode", "name", "access_point"}
 
 
 def can_edit_core(trip: Trip, user: User) -> bool:

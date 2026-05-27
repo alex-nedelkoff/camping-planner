@@ -39,7 +39,13 @@ def auth_callback(request: Request, token_hash: str = "",
 
 
 @router.post("/logout")
-def logout():
+def logout(request: Request):
+    token = request.cookies.get(identity.ACCESS_COOKIE, "")
+    if token:
+        try:
+            auth.signout(token)
+        except Exception:
+            pass
     resp = RedirectResponse("/login", status_code=303)
     identity.clear_session(resp)
     return resp

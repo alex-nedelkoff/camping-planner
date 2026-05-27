@@ -57,3 +57,26 @@ def set_session(response: Response, access_token: str, refresh_token: str) -> No
 def clear_session(response: Response) -> None:
     response.delete_cookie(ACCESS_COOKIE, path="/")
     response.delete_cookie(REFRESH_COOKIE, path="/")
+
+def current_user_refreshing(request: Request, response: Response) -> "User | None":
+    """current_user, but on a missing/expired access token try the refresh cookie
+    (re-setting cookies on `response`). Falls back to current_user() so tests that
+    monkeypatch current_user keep working."""
+    u = current_user(request)
+    if u is not None:
+        return u
+    if not config.AUTH_ENABLED:
+        return None
+    rt = request.cookies.get(REFRESH_COOKIE, "")
+    if not rt:
+        return None
+    try:
+        from app.services import auth
+        session = auth.refresh(rt)
+        set_session(response, session["access_token"], session["refresh_token"])
+        claims = _decode(session["access_token"])
+    except Exception:
+        return None
+    if not claims or not claims.get("sub"):
+        return None
+    return User(id=claims["sub"], email=claims.get("email", ""))

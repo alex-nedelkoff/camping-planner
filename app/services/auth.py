@@ -36,3 +36,8 @@ def refresh(refresh_token: str) -> dict:
                    headers=_headers(), timeout=15)
     r.raise_for_status()
     return r.json()
+
+def signout(access_token: str) -> None:
+    httpx.post(f"{_base()}/logout",
+               headers={**_headers(), "Authorization": f"Bearer {access_token}"},
+               timeout=10)
