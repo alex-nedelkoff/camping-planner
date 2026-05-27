@@ -1,5 +1,3 @@
-import time
-import jwt
 from app import config
 from app.services import identity
 
@@ -18,20 +16,35 @@ def test_auth_disabled_returns_local_user(monkeypatch):
 
 def test_auth_enabled_no_cookie_is_none(monkeypatch):
     monkeypatch.setattr(config, "AUTH_ENABLED", True)
-    monkeypatch.setattr(config, "SUPABASE_JWT_SECRET", "secret")
     assert identity.current_user(_req()) is None
 
 
-def test_auth_enabled_valid_token(monkeypatch):
+def test_signed_cookie_round_trips(monkeypatch):
     monkeypatch.setattr(config, "AUTH_ENABLED", True)
-    monkeypatch.setattr(config, "SUPABASE_JWT_SECRET", "secret")
-    tok = jwt.encode({"sub": "uid-1", "email": "a@b.c", "aud": "authenticated",
-                      "exp": int(time.time()) + 3600}, "secret", algorithm="HS256")
-    u = identity.current_user(_req({"cp_at": tok}))
-    assert u.id == "uid-1" and u.email == "a@b.c"
+    monkeypatch.setattr(config, "SESSION_SECRET", "secret")
+    token = identity.sign("Alex")
+    u = identity.current_user(_req({identity.SESSION_COOKIE: token}))
+    assert u.id == "Alex" and u.email == "Alex"
 
 
-def test_auth_enabled_bad_token(monkeypatch):
+def test_tampered_username_rejected(monkeypatch):
     monkeypatch.setattr(config, "AUTH_ENABLED", True)
-    monkeypatch.setattr(config, "SUPABASE_JWT_SECRET", "secret")
-    assert identity.current_user(_req({"cp_at": "garbage"})) is None
+    monkeypatch.setattr(config, "SESSION_SECRET", "secret")
+    token = identity.sign("Alex")
+    # swap the username half while keeping the old signature
+    bad = identity._b64e(b"Mallory") + "." + token.split(".", 1)[1]
+    assert identity.current_user(_req({identity.SESSION_COOKIE: bad})) is None
+
+
+def test_wrong_secret_rejected(monkeypatch):
+    monkeypatch.setattr(config, "AUTH_ENABLED", True)
+    monkeypatch.setattr(config, "SESSION_SECRET", "secret")
+    token = identity.sign("Alex")
+    monkeypatch.setattr(config, "SESSION_SECRET", "different")
+    assert identity.current_user(_req({identity.SESSION_COOKIE: token})) is None
+
+
+def test_garbage_cookie_rejected(monkeypatch):
+    monkeypatch.setattr(config, "AUTH_ENABLED", True)
+    monkeypatch.setattr(config, "SESSION_SECRET", "secret")
+    assert identity.current_user(_req({identity.SESSION_COOKIE: "garbage"})) is None

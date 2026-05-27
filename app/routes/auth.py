@@ -1,51 +1,46 @@
-"""Magic-link auth routes (server-side)."""
+"""Shared-password auth routes (username + site password)."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Form, Query, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.services import auth, identity
+from app import config
+from app.services import identity
 from app.templating import templates
 
 router = APIRouter()
 
 
+def _login_page(request: Request, error: str | None = None, status: int = 200):
+    return templates.TemplateResponse(
+        request, "login.html", {"nav": {}, "error": error}, status_code=status
+    )
+
+
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"nav": {}})
+    return _login_page(request)
 
 
-@router.post("/login", response_class=HTMLResponse)
-def login_submit(request: Request, email: str = Form(...)):
-    redirect_to = str(request.base_url).rstrip("/") + "/auth/callback"
-    try:
-        auth.send_magic_link(email, redirect_to)
-    except Exception:
-        pass  # don't reveal whether the email exists
-    return templates.TemplateResponse(request, "check_email.html",
-                                      {"email": email, "nav": {}})
-
-
-@router.get("/auth/callback")
-def auth_callback(request: Request, token_hash: str = "",
-                  link_type: str = Query("magiclink", alias="type")):
+@router.post("/login")
+def login_submit(request: Request,
+                 username: str = Form(...), password: str = Form(...)):
+    username = username.strip()
+    if not config.SITE_PASSWORD:
+        return _login_page(request, "Login is not configured yet.", status=503)
+    if not username:
+        return _login_page(request, "Please enter a name.", status=400)
+    # Constant-time compare to avoid leaking the password via timing.
+    import hmac
+    if not hmac.compare_digest(password, config.SITE_PASSWORD):
+        return _login_page(request, "Wrong password — try again.", status=401)
     resp = RedirectResponse("/", status_code=303)
-    try:
-        session = auth.verify_token_hash(token_hash, link_type)
-        identity.set_session(resp, session["access_token"], session["refresh_token"])
-    except Exception:
-        return RedirectResponse("/login?error=1", status_code=303)
+    identity.set_session(resp, username)
     return resp
 
 
 @router.post("/logout")
 def logout(request: Request):
-    token = request.cookies.get(identity.ACCESS_COOKIE, "")
-    if token:
-        try:
-            auth.signout(token)
-        except Exception:
-            pass
     resp = RedirectResponse("/login", status_code=303)
     identity.clear_session(resp)
     return resp

@@ -3,11 +3,14 @@
 {% block body %}
 <div class="auth-card">
   <h1>Camping Planner</h1>
-  <p>Enter your email and we'll send you a magic sign-in link.</p>
-  {% if request.query_params.get('error') %}<p class="error">That link didn't work — try again.</p>{% endif %}
+  <p>Enter your name and the shared site password.</p>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
   <form method="post" action="/login">
-    <input type="email" name="email" placeholder="you@example.com" required autofocus>
-    <button type="submit" class="btn">Send magic link</button>
+    <input type="text" name="username" placeholder="Your name" required autofocus
+           autocomplete="username">
+    <input type="password" name="password" placeholder="Site password" required
+           autocomplete="current-password">
+    <button type="submit" class="btn">Log in</button>
   </form>
 </div>
 {% endblock %}

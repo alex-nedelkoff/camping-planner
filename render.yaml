@@ -15,11 +15,12 @@ services:
         value: "1"
       - key: PYTHON_VERSION
         value: "3.12.7"
+      # Postgres connection (Supabase IPv4 session pooler — Render free has no IPv6).
       - key: DATABASE_URL
         sync: false
-      - key: SUPABASE_URL
+      # Shared site password everyone logs in with.
+      - key: SITE_PASSWORD
         sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SUPABASE_JWT_SECRET
-        sync: false
+      # Secret for signing the username session cookie.
+      - key: SESSION_SECRET
+        generateValue: true

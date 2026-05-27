@@ -27,11 +27,19 @@ STORAGE_BACKEND = os.environ.get("STORAGE_BACKEND", "filesystem")
 # Postgres connection string (Supabase pooled URL or a local Postgres).
 DATABASE_URL = os.environ.get("DATABASE_URL") or None
 
-# --- Auth (Phase 2) ---
+# --- Auth ---
+# Shared-password gate: one site password; each person picks a free-text
+# username at login. The username is the identity used for trip ownership and
+# per-person checklists. AUTH_ENABLED off (local/tests) -> synthetic local user.
 AUTH_ENABLED = os.environ.get("AUTH_ENABLED", "").strip().lower() in ("1", "true", "yes", "on")
+SITE_PASSWORD = os.environ.get("SITE_PASSWORD") or None
 SUPABASE_URL = os.environ.get("SUPABASE_URL") or None
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY") or None
 SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET") or None
+# Secret used to HMAC-sign the username session cookie so it can't be forged.
+# Falls back to the Supabase JWT secret (already set in prod) then a dev default.
+SESSION_SECRET = (os.environ.get("SESSION_SECRET") or SUPABASE_JWT_SECRET
+                  or "dev-only-insecure-session-secret")
 # Cookies marked Secure by default (prod HTTPS). Set COOKIE_SECURE=0 to test
 # auth locally over plain HTTP.
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "1").strip().lower() not in ("0", "false", "no", "off")
