@@ -15,3 +15,10 @@ create table if not exists checklist_state (
   updated_at timestamptz not null default now(),
   primary key (trip_slug, item_key, app_user)
 );
+
+-- Lock down Supabase's auto-generated data API: with RLS enabled and no
+-- policies, the anon/authenticated API roles get zero access. The app connects
+-- as the postgres role (via DATABASE_URL), which bypasses RLS, so it is
+-- unaffected. Idempotent — safe to re-run.
+alter table public.trips enable row level security;
+alter table public.checklist_state enable row level security;
