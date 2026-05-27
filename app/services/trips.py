@@ -199,30 +199,23 @@ def create_trip(
     return slug
 
 
-def list_trips_v2(trips_dir: Path | None = None) -> list[dict]:
-    """List trips by reading trip.json. Sorted by start date."""
-    from app.services import trip_store
-
-    if trips_dir is None:
-        trips_dir = TRIPS_DIR
+def list_trips_v2() -> list[dict]:
+    """List trips via the storage repo. Sorted by start date."""
+    from app.services import trip_repo
+    repo = trip_repo.get_repo()
     entries = []
-    if not trips_dir.exists():
-        return entries
-    for sub in sorted(trips_dir.iterdir()):
-        if not sub.is_dir() or not trip_store.exists(sub):
-            continue
+    for slug in repo.list_slugs():
         try:
-            t = trip_store.load(sub)
+            t = repo.get(slug)
         except Exception:
+            continue
+        if t is None:
             continue
         park_info = parks_svc.load_park_info(t.park) if t.park else {}
         entries.append({
-            "slug": sub.name,
-            "name": t.name,
-            "park": t.park,
+            "slug": slug, "name": t.name, "park": t.park,
             "park_name": park_info.get("name"),
-            "start": t.dates.start,
-            "end": t.dates.end,
+            "start": t.dates.start, "end": t.dates.end,
             "participant_count": len(t.participants),
         })
     entries.sort(key=lambda e: e["start"])
@@ -233,9 +226,10 @@ def list_trips_v2(trips_dir: Path | None = None) -> list[dict]:
 
 
 def create_trip_v2(park: str, start_date, end_date, participants: list[str], mode: str = "paddle") -> str:
-    """Create a new trip directory with trip.json. Returns the slug."""
+    """Create a new trip via the storage repo. Returns the slug."""
     from datetime import date as _date
-    from app.services import trip_store
+    from app.services import trip_repo
+    from app.models_trip import Trip, TripDates
     if not park:
         raise ValueError("park required")
     sd = _date.fromisoformat(str(start_date))
@@ -243,15 +237,11 @@ def create_trip_v2(park: str, start_date, end_date, participants: list[str], mod
     if ed < sd:
         raise ValueError("end date before start")
     slug = f"{park}-{sd.year:04d}-{sd.month:02d}"
-    trip_dir = TRIPS_DIR / slug
-    if trip_dir.exists():
+    repo = trip_repo.get_repo()
+    if repo.exists(slug):
         raise FileExistsError(slug)
-    trip_dir.mkdir(parents=True)
-    from app.models_trip import Trip, TripDates
-    trip = Trip(
-        schema_version=1, name=slug, park=park, mode=mode,
-        dates=TripDates(start=sd, end=ed),
-        participants=participants or [], access_point="",
-    )
-    trip_store.save(trip_dir, trip)
+    trip = Trip(schema_version=1, name=slug, park=park, mode=mode,
+                dates=TripDates(start=sd, end=ed),
+                participants=participants or [], access_point="")
+    repo.save(slug, trip)
     return slug
