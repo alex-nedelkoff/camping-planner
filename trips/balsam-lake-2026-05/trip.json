@@ -1,19 +1,50 @@
 {
   "schema_version": 1,
-  "name": "Balsam Lake — May 2026",
+  "name": "Balsam Lake \u2014 May 2026",
   "park": "balsam-lake",
   "mode": "car_camping",
-  "dates": {"start": "2026-05-30", "end": "2026-06-01"},
-  "participants": ["Alex"],
+  "dates": {
+    "start": "2026-05-30",
+    "end": "2026-06-01"
+  },
+  "participants": [
+    "Alex",
+    "Nicole"
+  ],
+  "access_point": "Oak & Fir ",
   "nights": [
-    {"date": "2026-05-30", "site": "401", "location": "Sites #200-416"}
+    {
+      "date": "2026-05-30",
+      "site": "401",
+      "location": "Sites #200-416",
+      "gps": null
+    }
   ],
   "itinerary": [
-    {"date": "2026-05-30", "label": "Sat May 30 — Arrive + overnight", "notes": "Check in at site **401** (Sites #200-416). Staying overnight Sat night.\n\n**Vehicle permits:** my car is covered by the camping permit. **Additional vehicles must buy a daily vehicle permit on arrival** — purchase at the gate day-of."},
-    {"date": "2026-05-31", "label": "Sun May 31 — Day use", "notes": "Day use at site 401. **Not** staying overnight Sun → Mon."},
-    {"date": "2026-06-01", "label": "Mon Jun 1 — Day use / depart", "notes": "Day use, then pack up and head home."}
+    {
+      "date": "2026-05-30",
+      "label": "Sat May 30 \u2014 Arrive + overnight",
+      "notes": "Check in at site **401** (Sites #200-416). Staying overnight Sat night.\n\n**Vehicle permits:** my car is covered by the camping permit. **Additional vehicles must buy a daily vehicle permit on arrival** \u2014 purchase at the gate day-of."
+    },
+    {
+      "date": "2026-05-31",
+      "label": "Sun May 31 \u2014 Day use",
+      "notes": "Day use at site 401. **Not** staying overnight Sun \u2192 Mon."
+    },
+    {
+      "date": "2026-06-01",
+      "label": "Mon Jun 1 \u2014 Day use / depart",
+      "notes": "Day use, then pack up and head home."
+    }
   ],
   "gear": [],
   "food": [],
-  "costs": []
+  "costs": [
+    {
+      "item": "Reservation 2x Nights",
+      "who_paid": "Alex",
+      "amount": 98.0,
+      "currency": "CAD"
+    }
+  ]
 }

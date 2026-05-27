@@ -272,7 +272,7 @@ def route_to_leaflet(route_data: dict, map_id: str = "route-map") -> str:
     """Generate HTML/JS for an interactive Leaflet map."""
     bounds = get_bounds(route_data)
 
-    # Convert tracks to GeoJSON
+    # Convert tracks to GeoJSON (auto-routed segments)
     features = []
     for track in route_data.get("tracks", []):
         if not track["points"]:
@@ -285,7 +285,22 @@ def route_to_leaflet(route_data: dict, map_id: str = "route-map") -> str:
             "properties": {"name": track["name"], "distance_km": round(dist, 1)},
         })
 
+    # Waypoints split into:
+    #   - "site" markers: rendered as numbered badges (site number from the
+    #     trip frontmatter, e.g. "61", "82")
+    #   - "access" markers: rendered as a flagged circle
+    #   - other: plain circleMarker (existing behavior, e.g. portage pins)
+    site_waypoints = []
+    other_waypoints = []
     for wpt in route_data.get("waypoints", []):
+        if wpt.get("kind") == "site" and wpt.get("site_number"):
+            site_waypoints.append(wpt)
+        elif wpt.get("kind") == "access":
+            site_waypoints.append(wpt)  # access also gets a special pin
+        else:
+            other_waypoints.append(wpt)
+
+    for wpt in other_waypoints:
         features.append({
             "type": "Feature",
             "geometry": {"type": "Point", "coordinates": [wpt["lon"], wpt["lat"]]},
@@ -293,11 +308,51 @@ def route_to_leaflet(route_data: dict, map_id: str = "route-map") -> str:
         })
 
     geojson = json.dumps({"type": "FeatureCollection", "features": features})
+    manual_routes = json.dumps(route_data.get("manual_routes") or [])
+    site_markers_json = json.dumps([
+        {"lat": w["lat"], "lon": w["lon"],
+         "kind": w.get("kind", "site"),
+         "label": w.get("site_number") or w.get("name", ""),
+         "name": w.get("name", ""),
+         "desc": w.get("desc", "")}
+        for w in site_waypoints
+    ])
 
     return f"""
+<div id="{map_id}-controls" style="margin-bottom:0.5rem"></div>
 <div id="{map_id}" style="height:400px;border-radius:10px;z-index:0"></div>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  #{map_id}-controls {{
+    display: flex; flex-wrap: wrap; gap: 0.4rem 0.85rem;
+    padding: 0.5rem 0.7rem; border: 1px solid #d9d2c0; border-radius: 6px;
+    background: #f6f1e3; font-size: 0.85rem; line-height: 1.4;
+  }}
+  #{map_id}-controls .mr-group-label {{
+    font-weight: 600; color: #5d4037; margin-right: 0.3rem;
+  }}
+  #{map_id}-controls label {{
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    cursor: pointer; user-select: none; padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+  }}
+  #{map_id}-controls label:hover {{ background: #ebe3cb; }}
+  #{map_id}-controls .mr-swatch {{
+    display: inline-block; width: 12px; height: 12px; border: 1.5px solid;
+  }}
+  #{map_id}-controls .mr-dist {{ color: #888; font-size: 0.78rem; }}
+  .site-badge {{
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #c62828; color: #fff;
+    border: 2.5px solid #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font: 700 13px/1 'JetBrains Mono', ui-monospace, monospace;
+    letter-spacing: -0.02em;
+  }}
+  .site-badge.access {{ background: #2d5016; border-radius: 4px; }}
+</style>
 <script>
 (function() {{
   var map = L.map('{map_id}').setView([{bounds['center_lat']}, {bounds['center_lon']}], 12);
@@ -307,12 +362,13 @@ def route_to_leaflet(route_data: dict, map_id: str = "route-map") -> str:
   }}).addTo(map);
 
   var geojson = {geojson};
+  var siteMarkers = {site_markers_json};
   var colors = ['#2d5016', '#1565c0', '#c62828', '#6a1b9a'];
   var colorIdx = 0;
 
-  L.geoJSON(geojson, {{
+  var autoLayer = L.geoJSON(geojson, {{
     style: function(feature) {{
-      return {{color: colors[colorIdx++ % colors.length], weight: 4, opacity: 0.8}};
+      return {{color: colors[colorIdx++ % colors.length], weight: 4, opacity: 0.7}};
     }},
     pointToLayer: function(feature, latlng) {{
       return L.circleMarker(latlng, {{radius: 7, fillColor: '#c62828', color: 'white', weight: 2, fillOpacity: 1}});
@@ -326,8 +382,83 @@ def route_to_leaflet(route_data: dict, map_id: str = "route-map") -> str:
     }}
   }}).addTo(map);
 
-  // Fit bounds
-  map.fitBounds([[{bounds['min_lat']}, {bounds['min_lon']}], [{bounds['max_lat']}, {bounds['max_lon']}]], {{padding: [30, 30]}});
+  // ── Numbered site / access-point badges ─────────────────────────────────
+  siteMarkers.forEach(function(m) {{
+    var cls = 'site-badge' + (m.kind === 'access' ? ' access' : '');
+    var icon = L.divIcon({{
+      className: '',
+      html: '<div class="' + cls + '">' + m.label + '</div>',
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
+    }});
+    var marker = L.marker([m.lat, m.lon], {{icon: icon}}).addTo(map);
+    var popup = '<strong>' + (m.name || ('Site ' + m.label)) + '</strong>';
+    if (m.desc) popup += '<br>' + m.desc;
+    marker.bindPopup(popup);
+  }});
+
+  // ── Manual routes (toggleable, labeled) ────────────────────────────────
+  var manualRoutes = {manual_routes};
+  var manualLayers = [];
+  var manualBoundsAll = [];
+  manualRoutes.forEach(function(r) {{
+    if (!r.geometry || r.geometry.length < 2) return;
+    var ly = L.polyline(r.geometry, {{
+      color: r.color || '#6b3a8a', weight: 4, opacity: 0.95, smoothFactor: 0
+    }}).bindPopup('<strong>' + r.label + '</strong><br>' + r.distance_km.toFixed(2) + ' km');
+    if (r.show !== false) ly.addTo(map);
+    manualLayers.push({{ route: r, layer: ly }});
+    r.geometry.forEach(function(p) {{ manualBoundsAll.push(p); }});
+  }});
+
+  // Toggle UI: auto-route toggle + per-manual-route toggles.
+  var controls = document.getElementById('{map_id}-controls');
+  if (controls) {{
+    var autoLabel = document.createElement('label');
+    autoLabel.innerHTML =
+      '<input type="checkbox" checked> <span class="mr-group-label">Auto-routed</span>';
+    autoLabel.querySelector('input').addEventListener('change', function(ev) {{
+      if (ev.target.checked) autoLayer.addTo(map); else map.removeLayer(autoLayer);
+    }});
+    controls.appendChild(autoLabel);
+
+    if (manualLayers.length) {{
+      var sep = document.createElement('span');
+      sep.className = 'mr-group-label';
+      sep.style.marginLeft = '0.6rem';
+      sep.textContent = 'Manual:';
+      controls.appendChild(sep);
+
+      manualLayers.forEach(function(entry) {{
+        var r = entry.route;
+        var lbl = document.createElement('label');
+        lbl.innerHTML =
+          '<input type="checkbox"' + (r.show !== false ? ' checked' : '') + '>' +
+          '<span class="mr-swatch" style="background:' + (r.color || '#6b3a8a') + '33; border-color:' + (r.color || '#6b3a8a') + ';"></span>' +
+          '<span>' + r.label + '</span>' +
+          '<span class="mr-dist">(' + r.distance_km.toFixed(2) + ' km)</span>';
+        lbl.querySelector('input').addEventListener('change', function(ev) {{
+          if (ev.target.checked) entry.layer.addTo(map);
+          else map.removeLayer(entry.layer);
+        }});
+        controls.appendChild(lbl);
+      }});
+    }}
+  }}
+
+  // Fit bounds. Include manual routes so they're in view too.
+  var fitBounds = [[{bounds['min_lat']}, {bounds['min_lon']}], [{bounds['max_lat']}, {bounds['max_lon']}]];
+  if (manualBoundsAll.length) {{
+    var lats = manualBoundsAll.map(function(p) {{ return p[0]; }});
+    var lons = manualBoundsAll.map(function(p) {{ return p[1]; }});
+    fitBounds = [
+      [Math.min(fitBounds[0][0], Math.min.apply(null, lats)),
+       Math.min(fitBounds[0][1], Math.min.apply(null, lons))],
+      [Math.max(fitBounds[1][0], Math.max.apply(null, lats)),
+       Math.max(fitBounds[1][1], Math.max.apply(null, lons))]
+    ];
+  }}
+  map.fitBounds(fitBounds, {{padding: [30, 30]}});
 }})();
 </script>"""
 
@@ -335,34 +466,14 @@ def route_to_leaflet(route_data: dict, map_id: str = "route-map") -> str:
 # ── Combined HTML section ────────────────────────────────────────────────────
 
 def generate_map_section(route_data: dict) -> str:
-    """Generate the full map section HTML with both Leaflet and SVG."""
-    if not route_data.get("tracks") and not route_data.get("waypoints"):
+    """Generate the route-map HTML section (Leaflet only)."""
+    if (not route_data.get("tracks")
+            and not route_data.get("waypoints")
+            and not route_data.get("manual_routes")):
         return ""
-
-    leaflet_html = route_to_leaflet(route_data)
-    svg_html = route_to_svg(route_data)
-
-    # Summary stats
-    stats = []
-    for track in route_data.get("tracks", []):
-        dist = total_distance(track["points"])
-        name = track["name"] or "Route"
-        stats.append(f"<li><strong>{name}</strong>: {dist:.1f} km</li>")
-
-    stats_html = f"<ul>{''.join(stats)}</ul>" if stats else ""
-    wpt_count = len(route_data.get("waypoints", []))
-    wpt_note = f"<p>{wpt_count} waypoint(s) marked</p>" if wpt_count else ""
-
     return f"""<section id="map">
 <h2>Route Map</h2>
-{stats_html}
-{wpt_note}
-<div class="map-online">{leaflet_html}</div>
-<noscript>{svg_html}</noscript>
-<details class="map-offline">
-<summary>Offline map (no internet needed)</summary>
-{svg_html}
-</details>
+<div class="map-online">{route_to_leaflet(route_data)}</div>
 </section>"""
 
 

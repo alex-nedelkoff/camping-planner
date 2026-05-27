@@ -1,0 +1,525 @@
+# Raw-ingredient library. One entry per ingredient.
+#
+# Schema (matches nutrition labels — enter what's on the back of the package):
+#   id: kebab-case-unique
+#   name: human label
+#   category: protein|grain|dairy|nut|fruit|veg|fat|sauce|sweet|bar|snack|drink|prepared|spice
+#   serving:
+#     g:        serving size in grams (e.g. 68 for a Clif bar, 100 for raw oats)
+#     kcal:     calories per serving
+#     protein_g, carbs_g, fat_g: macros per serving
+#   serving_label: optional human label (e.g. "1 bar", "1 pouch", "1 tbsp")
+#   tags: list (optional)
+#   notes: freeform
+#
+# kcal-per-100g is derived by the script and shown in `list foods` for
+# comparison. Don't store it.
+#
+# How meals reference foods:
+#   - { food: <id>, g: 60 }       → 60 grams (script scales serving block)
+#   - { food: <id>, servings: 2 } → 2 × this food's serving block
+#
+# Add entries anywhere — order doesn't matter, script keys by id.
+
+# ─── Proteins ────────────────────────────────────────────────────────────────
+
+- id: filet-mignon-raw
+  name: Filet mignon, raw
+  category: protein
+  serving:
+    g: 227
+    kcal: 568
+    protein_g: 59
+    carbs_g: 0
+    fat_g: 34
+  serving_label: "1 × 8 oz portion"
+  tags: [dinner, fresh, freeze-at-home]
+
+- id: pepperoni
+  name: Pepperoni (cured)
+  category: protein
+  serving:
+    g: 100
+    kcal: 504
+    protein_g: 22
+    carbs_g: 1
+    fat_g: 45
+  tags: [shelf-stable]
+
+- id: salami-genoa
+  name: Genoa salami
+  category: protein
+  serving:
+    g: 100
+    kcal: 407
+    protein_g: 22
+    carbs_g: 1
+    fat_g: 34
+  tags: [lunch, shelf-stable]
+
+- id: smoked-salmon
+  name: Smoked salmon (cold-smoked)
+  category: protein
+  serving:
+    g: 100
+    kcal: 117
+    protein_g: 18
+    carbs_g: 0
+    fat_g: 4
+  serving_label: "1 small pack"
+  tags: [breakfast, fresh]
+
+- id: garlic-sausage
+  name: Garlic sausage
+  category: protein
+  serving:
+    g: 100
+    kcal: 320
+    protein_g: 14
+    carbs_g: 2
+    fat_g: 28
+  tags: [dinner, shelf-stable]
+
+- id: beef-jerky
+  name: Beef jerky
+  category: protein
+  serving:
+    g: 100
+    kcal: 410
+    protein_g: 33
+    carbs_g: 11
+    fat_g: 26
+  tags: [snack, shelf-stable]
+
+# ─── Dairy / fats ───────────────────────────────────────────────────────────
+
+- id: butter
+  name: Butter (unsalted)
+  category: fat
+  serving:
+    g: 14
+    kcal: 100
+    protein_g: 0
+    carbs_g: 0
+    fat_g: 11
+  serving_label: "1 tbsp"
+  tags: [fresh]
+
+- id: feta
+  name: Feta cheese
+  category: dairy
+  serving:
+    g: 100
+    kcal: 264
+    protein_g: 14
+    carbs_g: 4
+    fat_g: 21
+
+- id: parmesan-block
+  name: Parmesan (block)
+  category: dairy
+  serving:
+    g: 100
+    kcal: 431
+    protein_g: 38
+    carbs_g: 4
+    fat_g: 29
+
+- id: mozzarella-vacuum
+  name: Mozzarella (vacuum-packed)
+  category: dairy
+  serving:
+    g: 100
+    kcal: 280
+    protein_g: 22
+    carbs_g: 2
+    fat_g: 22
+
+- id: cheddar-aged
+  name: Aged cheddar
+  category: dairy
+  serving:
+    g: 100
+    kcal: 403
+    protein_g: 25
+    carbs_g: 1
+    fat_g: 33
+  tags: [lunch]
+
+- id: cream-cheese
+  name: Cream cheese
+  category: dairy
+  serving:
+    g: 100
+    kcal: 342
+    protein_g: 6
+    carbs_g: 4
+    fat_g: 34
+  tags: [breakfast]
+
+# ─── Grains / starches ──────────────────────────────────────────────────────
+
+- id: oats-rolled
+  name: Rolled oats (dry)
+  category: grain
+  serving:
+    g: 60
+    kcal: 227
+    protein_g: 8
+    carbs_g: 41
+    fat_g: 4
+  serving_label: "½ cup dry"
+  tags: [breakfast]
+
+- id: oats-instant-flavored
+  name: Instant oatmeal packet (flavored)
+  category: grain
+  serving:
+    g: 35
+    kcal: 133
+    protein_g: 3
+    carbs_g: 25
+    fat_g: 2
+  serving_label: "1 packet"
+  tags: [breakfast]
+
+- id: basmati-rice-dry
+  name: Basmati rice (dry)
+  category: grain
+  serving:
+    g: 75
+    kcal: 270
+    protein_g: 6
+    carbs_g: 59
+    fat_g: 1
+  serving_label: "1 person portion, dry"
+  tags: [dinner]
+
+- id: penne-dry
+  name: Penne pasta (dry)
+  category: grain
+  serving:
+    g: 100
+    kcal: 371
+    protein_g: 13
+    carbs_g: 75
+    fat_g: 1
+  tags: [dinner]
+
+- id: tortilla-flour-large
+  name: Flour tortilla (large)
+  category: grain
+  serving:
+    g: 64
+    kcal: 195
+    protein_g: 5
+    carbs_g: 32
+    fat_g: 5
+  serving_label: "1 large tortilla"
+  tags: [lunch]
+
+- id: bagel-plain
+  name: Plain bagel
+  category: grain
+  serving:
+    g: 100
+    kcal: 250
+    protein_g: 10
+    carbs_g: 49
+    fat_g: 1
+  serving_label: "1 bagel"
+  tags: [breakfast]
+
+- id: naan
+  name: Naan
+  category: grain
+  serving:
+    g: 90
+    kcal: 279
+    protein_g: 8
+    carbs_g: 45
+    fat_g: 8
+  serving_label: "1 piece"
+  tags: [dinner]
+
+- id: pita-flatbread
+  name: Pita / flatbread
+  category: grain
+  serving:
+    g: 60
+    kcal: 165
+    protein_g: 5
+    carbs_g: 33
+    fat_g: 1
+  serving_label: "1 piece"
+  tags: [lunch, dinner]
+
+- id: idahoan-mashed-loaded
+  name: Idahoan Loaded Baked instant mashed potatoes
+  category: prepared
+  serving:
+    g: 113
+    kcal: 407
+    protein_g: 9
+    carbs_g: 76
+    fat_g: 7
+  serving_label: "1 pouch (4 servings)"
+  tags: [dinner, shelf-stable]
+
+# ─── Prepared / pouches ─────────────────────────────────────────────────────
+
+- id: chana-masala-mtr-pouch
+  name: MTR chana masala (pouch)
+  category: prepared
+  serving:
+    g: 300
+    kcal: 250
+    protein_g: 9
+    carbs_g: 30
+    fat_g: 11
+  serving_label: "1 pouch"
+  tags: [dinner, vegetarian, shelf-stable]
+
+- id: pesto-jarred
+  name: Pesto (jarred)
+  category: sauce
+  serving:
+    g: 100
+    kcal: 460
+    protein_g: 6
+    carbs_g: 5
+    fat_g: 47
+
+- id: tomato-paste-tube
+  name: Tomato paste (tube)
+  category: sauce
+  serving:
+    g: 100
+    kcal: 82
+    protein_g: 4
+    carbs_g: 19
+    fat_g: 0
+
+- id: sundried-tomatoes
+  name: Sun-dried tomatoes (oil-packed, drained)
+  category: veg
+  serving:
+    g: 100
+    kcal: 213
+    protein_g: 5
+    carbs_g: 43
+    fat_g: 3
+
+# ─── Nuts & dried fruit ─────────────────────────────────────────────────────
+
+- id: walnuts
+  name: Walnuts
+  category: nut
+  serving:
+    g: 100
+    kcal: 654
+    protein_g: 15
+    carbs_g: 14
+    fat_g: 65
+
+- id: cashews
+  name: Cashews
+  category: nut
+  serving:
+    g: 100
+    kcal: 553
+    protein_g: 18
+    carbs_g: 30
+    fat_g: 44
+
+- id: mixed-nuts-roasted
+  name: Mixed nuts (roasted, lightly salted)
+  category: nut
+  serving:
+    g: 100
+    kcal: 607
+    protein_g: 20
+    carbs_g: 21
+    fat_g: 54
+
+- id: dried-mango-sweetened
+  name: Dried mango (sweetened)
+  category: fruit
+  serving:
+    g: 100
+    kcal: 314
+    protein_g: 2
+    carbs_g: 81
+    fat_g: 1
+
+- id: raisins
+  name: Raisins
+  category: fruit
+  serving:
+    g: 100
+    kcal: 299
+    protein_g: 3
+    carbs_g: 79
+    fat_g: 0
+
+# ─── Fresh veg ──────────────────────────────────────────────────────────────
+
+- id: cremini-mushrooms
+  name: Cremini mushrooms
+  category: veg
+  serving:
+    g: 100
+    kcal: 22
+    protein_g: 3
+    carbs_g: 3
+    fat_g: 0
+
+- id: tomato-fresh
+  name: Tomato (fresh)
+  category: veg
+  serving:
+    g: 150
+    kcal: 27
+    protein_g: 1
+    carbs_g: 6
+    fat_g: 0
+  serving_label: "1 medium"
+
+- id: cucumber
+  name: Cucumber
+  category: veg
+  serving:
+    g: 300
+    kcal: 48
+    protein_g: 3
+    carbs_g: 11
+    fat_g: 0
+  serving_label: "1 medium"
+
+- id: garlic-clove
+  name: Garlic
+  category: spice
+  serving:
+    g: 3
+    kcal: 4
+    protein_g: 0
+    carbs_g: 1
+    fat_g: 0
+  serving_label: "1 clove"
+  notes: "Negligible at typical use; tracked for completeness."
+
+- id: lime
+  name: Lime
+  category: fruit
+  serving:
+    g: 67
+    kcal: 20
+    protein_g: 1
+    carbs_g: 7
+    fat_g: 0
+  serving_label: "1 whole"
+
+- id: lemon
+  name: Lemon
+  category: fruit
+  serving:
+    g: 60
+    kcal: 17
+    protein_g: 1
+    carbs_g: 5
+    fat_g: 0
+  serving_label: "1 whole"
+
+# ─── Fats & sweets ──────────────────────────────────────────────────────────
+
+- id: olive-oil
+  name: Olive oil
+  category: fat
+  serving:
+    g: 14
+    kcal: 124
+    protein_g: 0
+    carbs_g: 0
+    fat_g: 14
+  serving_label: "1 tbsp"
+
+- id: brown-sugar
+  name: Brown sugar
+  category: sweet
+  serving:
+    g: 100
+    kcal: 380
+    protein_g: 0
+    carbs_g: 98
+    fat_g: 0
+
+- id: dark-chocolate-75
+  name: Dark chocolate (75%+)
+  category: sweet
+  serving:
+    g: 100
+    kcal: 600
+    protein_g: 8
+    carbs_g: 30
+    fat_g: 50
+
+- id: mms-milk-chocolate
+  name: M&Ms (milk chocolate)
+  category: sweet
+  serving:
+    g: 100
+    kcal: 492
+    protein_g: 5
+    carbs_g: 71
+    fat_g: 21
+
+# ─── Bars ──────────────────────────────────────────────────────────────────
+
+- id: clif-bar
+  name: Clif bar
+  category: bar
+  serving:
+    g: 68
+    kcal: 270
+    protein_g: 11
+    carbs_g: 44
+    fat_g: 5
+  serving_label: "1 bar"
+  tags: [snack]
+
+# ─── Drinks ────────────────────────────────────────────────────────────────
+
+- id: skratch-sachet
+  name: Skratch hydration mix (sachet)
+  category: drink
+  serving:
+    g: 22
+    kcal: 84
+    protein_g: 0
+    carbs_g: 21
+    fat_g: 0
+  serving_label: "1 sachet"
+  tags: [hydration]
+
+- id: beer-can-355ml
+  name: Beer (355ml can, ~5% ABV)
+  category: drink
+  serving:
+    g: 355
+    kcal: 153
+    protein_g: 0
+    carbs_g: 14
+    fat_g: 0
+  serving_label: "1 can"
+  notes: "Cans weigh ~370g full with aluminum."
+
+- id: whisky
+  name: Whisky (40% ABV)
+  category: drink
+  serving:
+    g: 30
+    kcal: 75
+    protein_g: 0
+    carbs_g: 0
+    fat_g: 0
+  serving_label: "1 oz pour"

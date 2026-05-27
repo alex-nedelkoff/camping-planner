@@ -9,13 +9,13 @@ from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.models import ChecklistGetResponse, ChecklistSetRequest, OkResponse
 from app.services import db, identity
-from app.services.trips import TRIPS_DIR
 
 router = APIRouter(prefix="/api")
 
 
 def _ensure_trip(slug: str) -> None:
-    if not slug or not (TRIPS_DIR / slug).is_dir():
+    from app.services import trip_repo
+    if not slug or not trip_repo.get_repo().exists(slug):
         raise HTTPException(
             status_code=404,
             detail={"ok": False, "error": "trip not found"},

@@ -16,7 +16,6 @@ def _write_trip(tmp_path, monkeypatch, mode, site=""):
     import app.config as config
     monkeypatch.setattr(config, "STORAGE_BACKEND", "filesystem")
     monkeypatch.setattr(config, "TRIPS_DIR", tmp_path)
-    monkeypatch.setattr(trips_svc, "TRIPS_DIR", tmp_path)
     slug = "balsam-lake-2026-05"
     d = tmp_path / slug
     d.mkdir()

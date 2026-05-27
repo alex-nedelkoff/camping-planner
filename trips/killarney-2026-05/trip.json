@@ -60,7 +60,7 @@
     {
       "item": "Canoe (rental?)",
       "category": "Boat & safety",
-      "notes": "confirm with George Lake outfitter if renting",
+      "notes": "Killarney Outfitters Goated",
       "bringers": [],
       "shared": true
     },
@@ -75,8 +75,11 @@
       "item": "PFDs (2)",
       "category": "Boat & safety",
       "notes": "",
-      "bringers": [],
-      "shared": true
+      "bringers": [
+        "Alex",
+        "pizza-zip"
+      ],
+      "shared": false
     },
     {
       "item": "Throw bag",

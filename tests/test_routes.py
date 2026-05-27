@@ -12,7 +12,6 @@ from fastapi.testclient import TestClient
 
 from app import config
 from app.main import app
-from app.routes import checklist as checklist_route
 from app.services import availability as availability_svc
 from app.services import db
 from app.services import trips as trips_svc
@@ -30,7 +29,6 @@ def client(tmp_path, monkeypatch):
         tmp_trips.mkdir()
     monkeypatch.setattr(trips_svc, "TRIPS_DIR", tmp_trips)
     monkeypatch.setattr(config, "TRIPS_DIR", tmp_trips)
-    monkeypatch.setattr(checklist_route, "TRIPS_DIR", tmp_trips)
 
     tmp_db = tmp_path / "test.sqlite3"
     db.init_schema(tmp_db)

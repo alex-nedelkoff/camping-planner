@@ -1,0 +1,63 @@
+# Meal library. A meal = a named composition of foods, sized per recipe.
+#
+# Reference foods by id. Per ingredient pick ONE:
+#   - g: 60          (absolute grams)
+#   - servings: 2    (multiply the food's serving block)
+#
+# Schema:
+#   id: kebab-case-unique
+#   name: human label
+#   slot: breakfast|lunch|dinner|snack
+#   servings: int   (recipe yield; the totals script divides for per-serving)
+#   prep_minutes: int   (optional)
+#   ingredients:
+#     - food: <food-id>
+#       g: 60                 # OR
+#       servings: 1
+#       optional: true        # excluded from totals unless --include-optional
+#   notes: freeform
+#   tags: list
+#
+# Three real examples below to lock in the schema. Add the rest as you go.
+
+- id: oatmeal-mango-walnut
+  name: "Camp oatmeal — mango + walnut"
+  slot: breakfast
+  servings: 1
+  prep_minutes: 5
+  ingredients:
+    - { food: oats-instant-flavored, servings: 2 }
+    - { food: dried-mango-sweetened, g: 30 }
+    - { food: walnuts, g: 20 }
+    - { food: brown-sugar, g: 15 }
+  tags: [no-cook-prep, shelf-stable]
+
+- id: filet-mignon-camp-dinner
+  name: "Filet mignon + mushrooms + mash + salad"
+  slot: dinner
+  servings: 1
+  prep_minutes: 25
+  ingredients:
+    - { food: filet-mignon-raw, servings: 1 }      # 227g portion
+    - { food: cremini-mushrooms, g: 113 }
+    - { food: garlic-clove, servings: 1 }
+    - { food: butter, g: 15 }
+    - { food: idahoan-mashed-loaded, g: 56 }       # half a pouch
+    - { food: cucumber, g: 100 }
+    - { food: tomato-fresh, g: 75 }
+    - { food: feta, g: 40 }
+    - { food: olive-oil, g: 7 }
+  tags: [fresh, freeze-at-home, night-1]
+
+- id: rice-chana-masala
+  name: "Basmati rice + chana masala (with cashew lime)"
+  slot: dinner
+  servings: 2
+  prep_minutes: 20
+  ingredients:
+    - { food: basmati-rice-dry, g: 200 }
+    - { food: chana-masala-mtr-pouch, servings: 2 }
+    - { food: cashews, g: 40 }
+    - { food: lime, servings: 1 }
+    - { food: naan, servings: 2 }
+  tags: [vegetarian, shelf-stable]

@@ -163,6 +163,10 @@ def test_load_features_merges_jeffs_when_present(tmp_path, monkeypatch):
                         tmp_path / "absent_campsites.gpx")  # absent
     monkeypatch.setattr(_osm_data, "PORTAGES_GPX_PATH",
                         tmp_path / "absent_portages.gpx")  # absent
+    monkeypatch.setattr(_osm_data, "CANVEC_CACHE_PATH",
+                        tmp_path / "absent_canvec.json")  # absent
+    monkeypatch.setattr(_osm_data, "MANUAL_PORTAGES_PATH",
+                        tmp_path / "absent_manual.json")  # absent
 
     out = _osm_data.load_killarney_features()
     # Killarney Lake appears twice (Jeff's + OSM's), Other Lake once, Baie Fine once.
@@ -198,6 +202,10 @@ def test_load_features_works_without_jeffs(tmp_path, monkeypatch):
                         tmp_path / "absent_campsites.gpx")  # absent
     monkeypatch.setattr(_osm_data, "PORTAGES_GPX_PATH",
                         tmp_path / "absent_portages.gpx")  # absent
+    monkeypatch.setattr(_osm_data, "CANVEC_CACHE_PATH",
+                        tmp_path / "absent_canvec.json")  # absent
+    monkeypatch.setattr(_osm_data, "MANUAL_PORTAGES_PATH",
+                        tmp_path / "absent_manual.json")  # absent
 
     out = _osm_data.load_killarney_features()
     assert len(out["lakes"]) == 1
@@ -226,6 +234,10 @@ def test_load_features_includes_yellow_paths_when_cache_present(tmp_path, monkey
                         tmp_path / "absent_campsites.gpx")  # absent
     monkeypatch.setattr(_osm_data, "PORTAGES_GPX_PATH",
                         tmp_path / "absent_portages.gpx")  # absent
+    monkeypatch.setattr(_osm_data, "CANVEC_CACHE_PATH",
+                        tmp_path / "absent_canvec.json")  # absent
+    monkeypatch.setattr(_osm_data, "MANUAL_PORTAGES_PATH",
+                        tmp_path / "absent_manual.json")  # absent
 
     out = _osm_data.load_killarney_features()
     assert "paths" in out
@@ -247,6 +259,10 @@ def test_load_features_paths_default_empty_when_cache_absent(tmp_path, monkeypat
                         tmp_path / "absent_campsites.gpx")  # absent
     monkeypatch.setattr(_osm_data, "PORTAGES_GPX_PATH",
                         tmp_path / "absent_portages.gpx")  # absent
+    monkeypatch.setattr(_osm_data, "CANVEC_CACHE_PATH",
+                        tmp_path / "absent_canvec.json")  # absent
+    monkeypatch.setattr(_osm_data, "MANUAL_PORTAGES_PATH",
+                        tmp_path / "absent_manual.json")  # absent
 
     out = _osm_data.load_killarney_features()
     assert out.get("paths") == []
@@ -275,6 +291,10 @@ def test_load_features_uses_gpx_campsites_when_present(tmp_path, monkeypatch):
     monkeypatch.setattr(_osm_data, "CAMPSITES_GPX_PATH", campsites_gpx)
     monkeypatch.setattr(_osm_data, "PORTAGES_GPX_PATH",
                         tmp_path / "absent_portages.gpx")
+    monkeypatch.setattr(_osm_data, "CANVEC_CACHE_PATH",
+                        tmp_path / "absent_canvec.json")  # absent
+    monkeypatch.setattr(_osm_data, "MANUAL_PORTAGES_PATH",
+                        tmp_path / "absent_manual.json")  # absent
 
     out = _osm_data.load_killarney_features()
     assert len(out["campsites"]) == 1

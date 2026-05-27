@@ -220,9 +220,11 @@ def test_route_paddle_leg_picks_yellow_when_tolerance_met():
     entry = [45.985, -80.99]
     exit = [46.015, -80.99]
     geom = route_paddle_leg(entry, exit, lake, [yellow])
-    # Yellow route should produce more than just [entry, exit]: it includes
-    # the polyline's interior point (46.0, -80.985).
-    assert len(geom) >= 4
+    # Yellow route should include the polyline's interior point
+    # (46.0, -80.985). Consecutive duplicates are deduped, so when entry
+    # snaps exactly onto polyline[0] and exit onto polyline[-1] the output
+    # collapses to 3 points (entry + interior + exit) rather than 5.
+    assert len(geom) >= 3
     # First and last are entry/exit (after snap).
     assert _haversine_km(geom[0], entry) < 0.01
     assert _haversine_km(geom[-1], exit) < 0.01

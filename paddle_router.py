@@ -271,7 +271,34 @@ def _walk_yellow_path(entry, exit, polyline):
             out.append(list(polyline[i]))
         out.append(list(snap_x))
     out.append(list(exit))
-    return out
+
+    # De-duplicate consecutive identical points. Happens when a snap lands
+    # exactly on a polyline vertex (t=0 or t=1) so the same vertex appears
+    # both as snap_e/snap_x and as a walked-path vertex. Catmull-Rom
+    # smoothing downstream loops on consecutive duplicates.
+    deduped = [out[0]]
+    for pt in out[1:]:
+        last = deduped[-1]
+        if abs(pt[0] - last[0]) > 1e-9 or abs(pt[1] - last[1]) > 1e-9:
+            deduped.append(pt)
+    return deduped
+
+
+def _snap_to_polygon_ring(point, polygon):
+    """Snap a point to the nearest point on a polygon's outer ring.
+
+    Used when an endpoint (e.g. a campsite GPS) sits just outside a tight
+    polygon — we route to the shoreline rather than to a point on land.
+    Returns the original point unchanged if it's already inside.
+    """
+    if _point_in_polygon(point, polygon):
+        return point
+    # Treat polygon as a closed polyline and reuse _snap_to_polyline.
+    closed = list(polygon)
+    if closed[0] != closed[-1]:
+        closed = closed + [closed[0]]
+    snap, _, _ = _snap_to_polyline(point, closed)
+    return snap
 
 
 def route_paddle_leg(entry, exit, lake, yellow_paths=()):
@@ -283,8 +310,22 @@ def route_paddle_leg(entry, exit, lake, yellow_paths=()):
     smooth geometry — no client-side spline rendering required).
 
     yellow_paths is a list of {"points": [[lat,lon], ...], ...} dicts.
+
+    If `entry` or `exit` falls OUTSIDE the lake polygon (common with tight
+    CanVec polygons + GPX campsite GPS at the precise shoreline), the
+    endpoint is snapped to the nearest point on the polygon ring before
+    routing. The original on-land point is appended to the output so the
+    rendered line still terminates at the campsite marker.
     """
     polygon = lake.get("polygon") or []
+    orig_entry = list(entry)
+    orig_exit = list(exit)
+    entry_outside = bool(polygon) and not _point_in_polygon(entry, polygon)
+    exit_outside = bool(polygon) and not _point_in_polygon(exit, polygon)
+    if entry_outside:
+        entry = _snap_to_polygon_ring(entry, polygon)
+    if exit_outside:
+        exit = _snap_to_polygon_ring(exit, polygon)
 
     # Filter candidate yellow paths.
     candidates = []
@@ -305,13 +346,24 @@ def route_paddle_leg(entry, exit, lake, yellow_paths=()):
             total = d_e + d_x + (yp.get("length_km") or 0.0)
             candidates.append((total, pts))
 
+    def _terminate(geom):
+        """Prepend/append the original on-land endpoints so the rendered
+        line ties back to the displayed marker (campsite GPS, etc.)."""
+        if not geom:
+            return geom
+        if entry_outside:
+            geom = [orig_entry] + geom
+        if exit_outside:
+            geom = geom + [orig_exit]
+        return geom
+
     if candidates:
         candidates.sort(key=lambda c: c[0])
         for _, pts in candidates:
             walked = _walk_yellow_path(entry, exit, pts)
             if walked:
-                return walked
+                return _terminate(walked)
         # All candidates produced empty walks → fall through to centroid.
 
     # Centroid-region curve.
-    return fit_paddle_curve(entry, exit, lake)
+    return _terminate(fit_paddle_curve(entry, exit, lake))

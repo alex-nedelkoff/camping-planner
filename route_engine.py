@@ -42,30 +42,28 @@ KILLARNEY_ACCESS_POINTS = {
     "Chikanishing": {"gps": [46.0125, -81.4485], "lake": "Chikanishing River"},
 }
 
-# OSM doesn't tag Baie Fine as a separate lake (it's part of Lake Huron /
-# North Channel). Hardcode an approximate polygon and centroid so the route
-# engine can resolve trips that visit Baie Fine.
+LAKE_ALIASES: dict = {}
+
+# Hardcoded polygon for Baie Fine. CanVec includes the fjord as the northern
+# tip of Lake Huron's polygon, but site 82's GPS sits just outside that
+# polygon and the eastern Pool area isn't covered at all. This supplement
+# contains site 82, the Pool, and the Pig portage's east trailhead.
 LAKE_SUPPLEMENT = [
     {
         "name": "Baie Fine",
-        # Rough fjord outline: long diagonal SW-running inlet from The Pool
-        # (east end) out toward the North Channel mouth. Approximate, not
-        # survey-accurate — the centroid lands mid-fjord where backcountry
-        # sites cluster.
         "polygon": [
-            [46.020, -81.495],  # NE near Threenarrows
-            [46.022, -81.510],  # The Pool
-            [46.018, -81.530],
-            [46.012, -81.555],
-            [46.005, -81.580],
-            [46.000, -81.600],  # west mouth
-            [46.005, -81.575],  # return south shore
-            [46.010, -81.550],
-            [46.015, -81.525],
-            [46.018, -81.505],
-            [46.020, -81.495],  # close
+            [46.055, -81.486],
+            [46.050, -81.510],
+            [46.040, -81.540],
+            [46.025, -81.575],
+            [46.010, -81.595],
+            [45.998, -81.605],
+            [45.998, -81.490],
+            [46.020, -81.485],
+            [46.055, -81.486],
         ],
-        "centroid": [46.012, -81.540],
+        "centroid": [46.022, -81.545],
+        "source": "supplement",
     },
 ]
 
@@ -153,13 +151,26 @@ def _day_label(date_str: str) -> str:
 
 
 def _find_lake(name: str, lakes: list) -> Optional[dict]:
-    """Look up a lake by name (normalized). Returns lake dict or None."""
+    """Look up a lake by name (normalized). Returns lake dict or None.
+
+    Honors LAKE_ALIASES: if the name isn't found directly, retries against
+    its alias (e.g. "Baie Fine" → "Lake Huron") so locations that don't
+    have their own CanVec polygon still resolve to a routable lake.
+    """
     target = _norm_lake_name(name)
     for lake in lakes:
         if "name" not in lake:
             continue
         if _norm_lake_name(lake["name"]) == target:
             return lake
+    # Alias fallback (case-insensitive against the original name).
+    for raw, alias in LAKE_ALIASES.items():
+        if _norm_lake_name(raw) == target:
+            alias_target = _norm_lake_name(alias)
+            for lake in lakes:
+                if "name" in lake and _norm_lake_name(lake["name"]) == alias_target:
+                    return lake
+            break
     return None
 
 
@@ -189,28 +200,83 @@ def _min_dist_to_polygon_vertex(point: list, polygon: list) -> float:
     return best
 
 
-def _classify_portage_endpoints(portage: dict, lakes: list) -> list:
+def _polygon_area_sq_deg(polygon: list) -> float:
+    """Shoelace area in (degrees)². Used only for *relative* sorting of lakes,
+    so the units don't matter."""
+    if len(polygon) < 3:
+        return 0.0
+    s = 0.0
+    for i in range(len(polygon)):
+        x1, y1 = polygon[i][1], polygon[i][0]
+        x2, y2 = polygon[(i + 1) % len(polygon)][1], polygon[(i + 1) % len(polygon)][0]
+        s += x1 * y2 - x2 * y1
+    return abs(s) / 2.0
+
+
+def _polygon_bbox(polygon: list) -> tuple:
+    """(min_lat, min_lon, max_lat, max_lon) of a polygon."""
+    if not polygon:
+        return (0.0, 0.0, 0.0, 0.0)
+    lats = [p[0] for p in polygon]
+    lons = [p[1] for p in polygon]
+    return (min(lats), min(lons), max(lats), max(lons))
+
+
+def _classify_portage_endpoints(portage: dict, lakes: list,
+                                _bbox_cache: dict = None) -> list:
     """Return the lakes (one per endpoint) each portage endpoint best belongs to.
 
+    Iteration order matters when CanVec is loaded: it contributes ~500 small
+    unnamed polygons that can match a portage endpoint before the actual
+    named destination lake. Sort priority:
+      1. Named lakes before unnamed (canoe portages connect named lakes).
+      2. Larger polygons before smaller (avoid matching to a tiny pond
+         coincidentally containing the endpoint when a bigger lake also does).
+
     Strict point-in-polygon first; falls back to nearest-polygon-vertex within
-    PORTAGE_TOLERANCE_KM. Centroid distance is a poor proxy for large irregular
-    lakes — vertex distance correctly handles portage endpoints that lie exactly
-    on the shoreline but fail the ray-cast due to floating-point precision.
-    Returns [lake_or_None, lake_or_None].
+    PORTAGE_TOLERANCE_KM. Returns [lake_or_None, lake_or_None].
     """
+    # Sort lakes for classification priority. Named first (descending area),
+    # then unnamed (descending area).
+    def sort_key(l):
+        named = 0 if (l.get("name") or "").strip() else 1  # 0 = named first
+        area = _polygon_area_sq_deg(l.get("polygon") or [])
+        return (named, -area)
+    ordered = sorted(lakes, key=sort_key)
+    # Pre-cache each lake's bbox once. Saves rebuilding inside the inner loop
+    # for every (portage, endpoint) call.
+    if _bbox_cache is None:
+        _bbox_cache = {}
+    for l in ordered:
+        if id(l) not in _bbox_cache:
+            _bbox_cache[id(l)] = _polygon_bbox(l.get("polygon") or [])
+
+    # ~0.005° margin (~500 m) for bbox prefilter — covers the
+    # PORTAGE_TOLERANCE_KM = 0.3 km fallback case comfortably.
+    MARGIN = 0.005
+
     result = []
     for ep in portage["endpoints"]:
         match = None
-        # First: strict containment.
-        for lake in lakes:
+        elat, elon = ep[0], ep[1]
+        # First: strict containment with cheap bbox prefilter.
+        for lake in ordered:
+            bb = _bbox_cache[id(lake)]
+            if (elat < bb[0] - MARGIN or elat > bb[2] + MARGIN or
+                    elon < bb[1] - MARGIN or elon > bb[3] + MARGIN):
+                continue
             if _point_in_polygon(ep, lake["polygon"]):
                 match = lake
                 break
-        # Fallback: nearest polygon vertex within tolerance.
+        # Fallback: nearest polygon vertex within tolerance (also bbox-prefiltered).
         if match is None:
             best = None
             best_dist = PORTAGE_TOLERANCE_KM
-            for lake in lakes:
+            for lake in ordered:
+                bb = _bbox_cache[id(lake)]
+                if (elat < bb[0] - MARGIN or elat > bb[2] + MARGIN or
+                        elon < bb[1] - MARGIN or elon > bb[3] + MARGIN):
+                    continue
                 d = _min_dist_to_polygon_vertex(ep, lake["polygon"])
                 if d < best_dist:
                     best = lake
@@ -232,38 +298,51 @@ def _find_connecting_portage(lake_a: dict, lake_b: dict, portages: list) -> Opti
     return None
 
 
-def _build_lake_graph(lakes: list, portages: list) -> dict:
-    """Build adjacency: {lake_name: [(neighbor_name, portage_dict, ends), ...]}."""
-    graph: dict = {l["name"]: [] for l in lakes if "name" in l}
+def _build_lake_graph(lakes: list, portages: list) -> tuple:
+    """Build adjacency keyed by stable per-lake id (NOT by name — multiple
+    lakes can be unnamed, and keying by name collapses them into one node).
+
+    Returns (graph, key_to_lake) where graph is
+    {key: [(neighbor_key, portage, ends), ...]} and key_to_lake maps each
+    key back to the lake dict.
+    """
+    def _key(l):
+        # id() is sufficient: lakes list is stable for the duration of one
+        # build_route call, and we never re-load lakes between graph build
+        # and BFS traversal.
+        return id(l)
+
+    key_to_lake = {_key(l): l for l in lakes if "polygon" in l}
+    graph: dict = {k: [] for k in key_to_lake}
+    bbox_cache: dict = {}  # shared across all portage classifications
     for p in portages:
-        ends = _classify_portage_endpoints(p, lakes)
+        ends = _classify_portage_endpoints(p, lakes, _bbox_cache=bbox_cache)
         if ends[0] is None or ends[1] is None:
             continue
-        if "name" not in ends[0] or "name" not in ends[1]:
-            continue
-        a_name = ends[0]["name"]
-        b_name = ends[1]["name"]
-        if a_name == b_name:
-            continue  # portage with both endpoints on same lake; ignore
-        graph.setdefault(a_name, []).append((b_name, p, ends))
-        graph.setdefault(b_name, []).append((a_name, p, ends))
-    return graph
+        a_key = _key(ends[0])
+        b_key = _key(ends[1])
+        if a_key == b_key:
+            continue  # both endpoints on same lake
+        graph.setdefault(a_key, []).append((b_key, p, ends))
+        graph.setdefault(b_key, []).append((a_key, p, ends))
+    return graph, key_to_lake
 
 
 def _find_path_through_portages(lake_a: dict, lake_b: dict, lakes: list,
                                 portages: list) -> "list | None":
     """BFS over the lake-portage graph from lake_a to lake_b.
 
-    Returns a list of (next_lake_name, portage_dict, ends) tuples representing
-    the path from lake_a to lake_b, or None if no path within MAX_PORTAGE_HOPS.
+    Returns list of (next_lake_dict, portage_dict, ends) tuples — using the
+    actual lake DICT lets callers paddle in the correct polygon for
+    intermediate unnamed lakes (different unnamed polygons must remain
+    distinct nodes).
     """
-    graph = _build_lake_graph(lakes, portages)
-    start = lake_a["name"]
-    goal = lake_b["name"]
+    graph, key_to_lake = _build_lake_graph(lakes, portages)
+    start = id(lake_a)
+    goal = id(lake_b)
     if start not in graph:
         return None
 
-    # BFS
     queue: list = [(start, [])]
     visited = {start}
     while queue:
@@ -272,11 +351,13 @@ def _find_path_through_portages(lake_a: dict, lake_b: dict, lakes: list,
             return path
         if len(path) >= MAX_PORTAGE_HOPS:
             continue
-        for neighbor, portage, ends in graph.get(current, []):
-            if neighbor in visited:
+        for neighbor_key, portage, ends in graph.get(current, []):
+            if neighbor_key in visited:
                 continue
-            visited.add(neighbor)
-            queue.append((neighbor, path + [(neighbor, portage, ends)]))
+            visited.add(neighbor_key)
+            neighbor_lake = key_to_lake.get(neighbor_key)
+            queue.append((neighbor_key,
+                          path + [(neighbor_lake, portage, ends)]))
     return None
 
 
@@ -452,18 +533,21 @@ def build_route(nights: list, access_point: str, osm: dict,
 
             path = _find_path_through_portages(lake_a, lake_b, lakes, portages)
             if path:
+                def _llabel(l):
+                    n = (l.get("name") or "").strip() if l else ""
+                    return n if n else "(unnamed lake)"
+
                 current_lake = lake_a
                 current_pt = a_pt_resolved or lake_a["centroid"]
-                for next_name, portage, ends in path:
-                    # Find which endpoint is in current_lake.
-                    if ends[0] and ends[0]["name"] == current_lake["name"]:
+                for next_lake, portage, ends in path:
+                    # Find which endpoint is in current_lake (object identity —
+                    # the classifier returns dicts from the same `lakes` list).
+                    if ends[0] is current_lake:
                         entry, exit_ = portage["endpoints"]
                         portage_geom = portage["line"]
                     else:
                         exit_, entry = portage["endpoints"]
                         portage_geom = list(reversed(portage["line"]))
-                    # Paddle from current point to portage entry, routed around
-                    # peninsulas if a straight line would cross outside water.
                     yellow_in_lake = _yellow_paths_in_lake(
                         current_lake, osm.get("paths", []),
                     )
@@ -473,16 +557,14 @@ def build_route(nights: list, access_point: str, osm: dict,
                     )
                     segments.append(_segment(
                         day_label, "paddle",
-                        a["label"] if current_lake is lake_a else f"{current_lake['name']}",
-                        f"{current_lake['name']} portage",
+                        a["label"] if current_lake is lake_a else _llabel(current_lake),
+                        f"{_llabel(current_lake)} portage",
                         _path_distance_km(paddle_geom), paddle_geom,
                     ))
-                    # Portage.
-                    next_lake = next((l for l in lakes if "name" in l and l["name"] == next_name), None)
                     segments.append(_segment(
                         day_label, "portage",
-                        f"{current_lake['name']} portage",
-                        f"{next_name} portage",
+                        f"{_llabel(current_lake)} portage",
+                        f"{_llabel(next_lake)} portage",
                         portage["length_km"], portage_geom,
                     ))
                     current_lake = next_lake
@@ -535,8 +617,10 @@ def build_route(nights: list, access_point: str, osm: dict,
             "lat": access["gps"][0],
             "lon": access["gps"][1],
             "kind": "access",
+            "site_number": "★",
         })
     for night in nights:
+        site_number = str(night.get("site", "")) if night.get("site") is not None else ""
         # Use the same resolution priority as _night_point above.
         gps = night.get("gps")
         if gps and len(gps) == 2:
@@ -545,6 +629,7 @@ def build_route(nights: list, access_point: str, osm: dict,
                 "lat": gps[0],
                 "lon": gps[1],
                 "kind": "site",
+                "site_number": site_number,
             })
             continue
         site_ref = str(night.get("site", ""))
@@ -558,6 +643,7 @@ def build_route(nights: list, access_point: str, osm: dict,
                 "lat": campsite["lat"],
                 "lon": campsite["lon"],
                 "kind": "site",
+                "site_number": site_number,
             })
             continue
         # Legacy Jeff's-shape fallback (ref/gps/lake) — kept for any old
@@ -573,6 +659,7 @@ def build_route(nights: list, access_point: str, osm: dict,
                 "lat": legacy_campsite["gps"][0],
                 "lon": legacy_campsite["gps"][1],
                 "kind": "site",
+                "site_number": site_number,
             })
             continue
         lake = _find_lake(location, lakes)
@@ -582,6 +669,7 @@ def build_route(nights: list, access_point: str, osm: dict,
                 "lat": lake["centroid"][0],
                 "lon": lake["centroid"][1],
                 "kind": "site",
+                "site_number": site_number,
             })
 
     return {"segments": segments, "warnings": warnings, "markers": markers}

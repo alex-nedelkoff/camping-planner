@@ -63,11 +63,12 @@ def overlay_html(request: Request, trip: Optional[str] = None):
     trip_label = None
     if trip:
         try:
-            from app.services import trip_store
-            t = trip_store.load(trips_svc.TRIPS_DIR / trip)
-            trip_label = t.name
-            nav_ctx["back_href"] = f"/trip/{trip}"
-            nav_ctx["back_label"] = f"Back to {t.name}"
+            from app.services import trip_repo
+            t = trip_repo.get_repo().get(trip)
+            if t is not None:
+                trip_label = t.name
+                nav_ctx["back_href"] = f"/trip/{trip}"
+                nav_ctx["back_label"] = f"Back to {t.name}"
         except Exception:
             pass
     return templates.TemplateResponse(request, "overlay.html", {

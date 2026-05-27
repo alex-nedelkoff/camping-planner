@@ -5,6 +5,8 @@ in a `cp_user` cookie. Server reads the cookie to scope per-user state.
 An empty/absent cookie means "shared" (matches Phase 2 behaviour).
 """
 
+from __future__ import annotations
+
 import re
 
 from fastapi import Request

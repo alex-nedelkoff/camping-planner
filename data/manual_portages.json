@@ -1,0 +1,16 @@
+{
+  "portages": [
+    {
+      "name": "pig-portage",
+      "endpoints": [[46.063, -81.470], [46.025, -81.498]],
+      "line": [[46.063, -81.470], [46.025, -81.498]],
+      "length_km": 4.5,
+      "source": "manual",
+      "note": "Pig portage — bridges the data gap between Threenarrows Lake and Baie Fine. Threenarrows trailhead (46.063, -81.470) is inside the CanVec Threenarrows polygon; Baie Fine trailhead (46.025, -81.498) is inside the LAKE_SUPPLEMENT Baie Fine polygon. Real portage is famously rough ~5km; straight-line approximation is good enough for routing connectivity."
+    }
+  ],
+  "_meta": {
+    "purpose": "Synthetic portages added manually to bridge gaps in killarneyPortages.gpx. Each entry is a straight line between two real-world portage trailheads.",
+    "added_at": "2026-05-11"
+  }
+}

@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from app.services import trip_store, trips as trips_svc
+from app.services import trips as trips_svc
 from app.services import park_assets
 from app.routes.sites import KEY_ATTRS
 
@@ -13,10 +13,9 @@ from app.templating import templates
 
 @router.get("/trip/{slug}", response_class=HTMLResponse)
 def trip_page(slug: str, request: Request):
-    trip_dir = trips_svc.TRIPS_DIR / slug
-    try:
-        trip = trip_store.load(trip_dir)
-    except FileNotFoundError:
+    from app.services import trip_repo
+    trip = trip_repo.get_repo().get(slug)
+    if trip is None:
         raise HTTPException(status_code=404, detail="trip not found")
 
     siblings = trips_svc.list_trips_v2()

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "name": "killarney-2027-05",
+  "park": "killarney",
+  "dates": {
+    "start": "2027-05-23",
+    "end": "2027-05-23"
+  },
+  "participants": [
+    "Alex"
+  ],
+  "access_point": "",
+  "nights": [],
+  "itinerary": [],
+  "gear": {
+    "shared": [],
+    "personal": []
+  },
+  "food": [],
+  "costs": [],
+  "packing": []
+}

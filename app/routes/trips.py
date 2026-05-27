@@ -12,7 +12,7 @@ from app.models import (
 from app.models_trip import (
     TripItem, FoodSlot, CostRow, ItineraryDay, Trip,
 )
-from app.services import trip_store, trips as trips_svc
+from app.services import trip_repo, trips as trips_svc
 
 router = APIRouter(prefix="/api")
 
@@ -35,20 +35,18 @@ def list_trips():
 
 @router.get("/trips/{slug}")
 def get_trip(slug: str):
-    trip_dir = trips_svc.TRIPS_DIR / slug
-    try:
-        t = trip_store.load(trip_dir)
-    except FileNotFoundError:
+    t = trip_repo.get_repo().get(slug)
+    if t is None:
         raise HTTPException(status_code=404, detail={"error": "not_found"})
     return t.model_dump(mode="json")
 
 
 @router.post("/trips/{slug}/refresh-weather", response_model=OkResponse)
 def refresh_weather(slug: str):
-    trip_dir = trips_svc.TRIPS_DIR / slug
-    if not trip_store.exists(trip_dir):
+    repo = trip_repo.get_repo()
+    t = repo.get(slug)
+    if t is None:
         raise HTTPException(status_code=404, detail="trip not found")
-    t = trip_store.load(trip_dir)
     # weather_cache uses column-based key (park, start_date, end_date) — delete directly
     from app.services.db import connect
     with connect() as conn:
@@ -62,8 +60,7 @@ def refresh_weather(slug: str):
 @router.post("/trips/{slug}/refresh-route", response_model=OkResponse)
 def refresh_route(slug: str):
     from app.services import route_cache
-    trip_dir = trips_svc.TRIPS_DIR / slug
-    if not trip_store.exists(trip_dir):
+    if not trip_repo.get_repo().exists(slug):
         raise HTTPException(status_code=404, detail="trip not found")
     route_cache.invalidate(slug)
     return OkResponse(ok=True, message="route cache cleared")
@@ -71,10 +68,9 @@ def refresh_route(slug: str):
 
 @router.patch("/trips/{slug}/meta")
 def patch_meta(slug: str, body: dict = Body(...)):
-    trip_dir = trips_svc.TRIPS_DIR / slug
-    try:
-        trip = trip_store.load(trip_dir)
-    except FileNotFoundError:
+    repo = trip_repo.get_repo()
+    trip = repo.get(slug)
+    if trip is None:
         raise HTTPException(404)
     allowed = {"park", "dates", "participants", "access_point", "nights"}
     bad = set(body) - allowed
@@ -86,7 +82,7 @@ def patch_meta(slug: str, body: dict = Body(...)):
         new_trip = Trip.model_validate(data)
     except Exception as exc:
         raise HTTPException(422, detail=str(exc))
-    trip_store.save(trip_dir, new_trip)
+    repo.save(slug, new_trip)
     return new_trip.model_dump(mode="json")
 
 
@@ -95,10 +91,9 @@ def put_section(slug: str, name: str, body=Body(...)):
     if name not in SECTION_FIELD_MAP:
         raise HTTPException(400, detail={"error": f"unknown section: {name}"})
     model, field, is_list = SECTION_FIELD_MAP[name]
-    trip_dir = trips_svc.TRIPS_DIR / slug
-    try:
-        trip = trip_store.load(trip_dir)
-    except FileNotFoundError:
+    repo = trip_repo.get_repo()
+    trip = repo.get(slug)
+    if trip is None:
         raise HTTPException(404)
     try:
         if is_list:
@@ -112,23 +107,19 @@ def put_section(slug: str, name: str, body=Body(...)):
     data = trip.model_dump(mode="json")
     data[field] = field_value
     new_trip = Trip.model_validate(data)
-    trip_store.save(trip_dir, new_trip)
+    repo.save(slug, new_trip)
     return new_trip.model_dump(mode="json")
 
-
-import json as _json
 
 
 @router.put("/trips/{slug}/routes")
 def put_routes(slug: str, body=Body(...)):
-    trip_dir = trips_svc.TRIPS_DIR / slug
-    if not trip_store.exists(trip_dir):
+    repo = trip_repo.get_repo()
+    if not repo.exists(slug):
         raise HTTPException(404)
     if not isinstance(body, list):
         raise HTTPException(400, detail={"error": "expected list of routes"})
-    (trip_dir / "manual_routes.json").write_text(
-        _json.dumps(body, indent=2) + "\n", encoding="utf-8"
-    )
+    repo.set_routes(slug, body)
     from app.services import route_cache
     route_cache.invalidate(slug)
     return {"ok": True}
@@ -136,11 +127,10 @@ def put_routes(slug: str, body=Body(...)):
 
 @router.get("/trips/{slug}/routes")
 def get_routes(slug: str):
-    trip_dir = trips_svc.TRIPS_DIR / slug
-    p = trip_dir / "manual_routes.json"
-    if not p.exists():
+    data = trip_repo.get_repo().get_routes(slug)
+    if data is None:
         return []
-    return _json.loads(p.read_text())
+    return data
 
 
 class CreateTripRequest(BaseModel):
@@ -167,9 +157,8 @@ def create_trip(body: CreateTripRequest):
 
 @router.delete("/trips/{slug}")
 def delete_trip(slug: str):
-    import shutil
-    trip_dir = trips_svc.TRIPS_DIR / slug
-    if not trip_dir.exists():
+    repo = trip_repo.get_repo()
+    if not repo.exists(slug):
         raise HTTPException(404)
-    shutil.rmtree(trip_dir)
+    repo.delete(slug)
     return {"ok": True}
