@@ -1,34 +1,32 @@
-"""Cache rendered route HTML + computed distances per trip.
+"""Cache rendered route HTML + computed distances per trip (in-memory).
 
-Key: (trip_slug, sha256(manual_routes.json bytes)). On cache miss, calls
-the provider (which wraps build_trip._render_auto_route / route_engine).
+Key: (trip_slug, sha256(routes payload)). Routes come from the trip repo.
 """
-
 from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
 from typing import Callable, Optional
 
-from app.services import db
+from app.services import cache
 
 CACHE_TABLE = "route_cache"
-DEFAULT_TTL = 60 * 60 * 24 * 30  # 30 days — invalidate by content hash anyway
+DEFAULT_TTL = 60 * 60 * 24 * 30  # 30 days — invalidated by content hash anyway
 
 
-def _hash_file(path: Path) -> str:
-    if not path.exists():
+def _hash_routes(routes_payload) -> str:
+    if not routes_payload:
         return "no-routes"
-    return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+    blob = json.dumps(routes_payload, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest()[:16]
 
 
-def get_route_render(routes_path: Path, trip_slug: str,
-                     provider: Optional[Callable] = None) -> dict:
+def get_route_render(slug: str, provider: Optional[Callable] = None) -> dict:
     """Return {html, distance_km, ...} for this trip's routes, cached."""
-    h = _hash_file(routes_path)
-    key = (trip_slug, h)
-    cached = db.cache_get_json(CACHE_TABLE, key, DEFAULT_TTL)
+    from app.services import trip_repo
+    routes_payload = trip_repo.get_repo().get_routes(slug) or []
+    key = (slug, _hash_routes(routes_payload))
+    cached = cache.get(CACHE_TABLE, key, DEFAULT_TTL)
     if cached is not None:
         return cached
 
@@ -36,13 +34,11 @@ def get_route_render(routes_path: Path, trip_slug: str,
         from app.services import route_provider
         provider = route_provider.render
 
-    routes_payload = (json.loads(routes_path.read_text())
-                       if routes_path.exists() else [])
-    payload = provider(routes_payload, trip_slug)
-    db.cache_set_json(CACHE_TABLE, key, payload)
+    payload = provider(routes_payload, slug)
+    cache.set(CACHE_TABLE, key, payload)
     return payload
 
 
-def invalidate(trip_slug: str) -> None:
+def invalidate(slug: str) -> None:
     """Best-effort invalidation. Drops all cache rows for this trip."""
-    db.cache_drop_prefix(CACHE_TABLE, (trip_slug,))
+    cache.drop_prefix(CACHE_TABLE, (slug,))

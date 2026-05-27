@@ -3,7 +3,7 @@
 import weather
 
 from app.config import WEATHER_CACHE_TTL
-from app.services import db
+from app.services import cache
 
 
 CACHE_TABLE = "weather_cache"
@@ -11,11 +11,11 @@ CACHE_TABLE = "weather_cache"
 
 def get_weather(park_key: str, start_date: str, end_date: str) -> dict:
     key = (park_key or "", start_date, end_date)
-    cached = db.cache_get(CACHE_TABLE, key, WEATHER_CACHE_TTL)
+    cached = cache.get(CACHE_TABLE, key, WEATHER_CACHE_TTL)
     if cached is not None:
         return cached
     payload = weather.get_weather(
         park_key=park_key, start_date=start_date, end_date=end_date,
     )
-    db.cache_set(CACHE_TABLE, key, payload)
+    cache.set(CACHE_TABLE, key, payload)
     return payload

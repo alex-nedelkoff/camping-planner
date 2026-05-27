@@ -54,9 +54,8 @@ def trip_page(slug: str, request: Request):
         park_maps = park_assets.park_maps(trip.park)
     else:
         from app.services import route_cache
-        routes_path = trip_dir / "manual_routes.json"
         try:
-            route_render = route_cache.get_route_render(routes_path, slug)
+            route_render = route_cache.get_route_render(slug)
         except Exception as exc:
             route_error = str(exc)
 

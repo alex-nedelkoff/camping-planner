@@ -8,7 +8,7 @@ Camis Azure WAF's IP ban window (~30 min after ~15 rapid requests).
 import ontario_parks
 
 from app.config import AVAILABILITY_CACHE_TTL
-from app.services import db
+from app.services import cache
 
 
 CACHE_TABLE = "availability_cache"
@@ -35,11 +35,11 @@ def check(park: str, start: str, end: str, *, force_refresh: bool = False) -> di
     """Return cached or fresh availability shaped for the UI."""
     key = (park, start, end)
     if not force_refresh:
-        cached = db.cache_get(CACHE_TABLE, key, AVAILABILITY_CACHE_TTL)
+        cached = cache.get(CACHE_TABLE, key, AVAILABILITY_CACHE_TTL)
         if cached is not None:
             cached["cached"] = True
             return cached
     payload = _shape(ontario_parks.check_park(park, start, end))
-    db.cache_set(CACHE_TABLE, key, payload)
+    cache.set(CACHE_TABLE, key, payload)
     payload["cached"] = False
     return payload
