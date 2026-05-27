@@ -32,3 +32,6 @@ AUTH_ENABLED = os.environ.get("AUTH_ENABLED", "").strip().lower() in ("1", "true
 SUPABASE_URL = os.environ.get("SUPABASE_URL") or None
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY") or None
 SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET") or None
+# Cookies marked Secure by default (prod HTTPS). Set COOKIE_SECURE=0 to test
+# auth locally over plain HTTP.
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "1").strip().lower() not in ("0", "false", "no", "off")

@@ -1,34 +1,59 @@
-"""Cookie-based identity for the ≤8-person trusted group.
+"""Identity backed by Supabase Auth (Phase 2).
 
-No password, no accounts. The user picks a name once; the browser holds it
-in a `cp_user` cookie. Server reads the cookie to scope per-user state.
-An empty/absent cookie means "shared" (matches Phase 2 behaviour).
+current_user() verifies the access-token JWT from the cp_at cookie. With
+AUTH_ENABLED off (local/tests) it returns a synthetic local user so the app
+runs without login.
 """
-
 from __future__ import annotations
 
-import re
+from dataclasses import dataclass
 
-from fastapi import Request
+import jwt
+from fastapi import Request, Response
 
-COOKIE_NAME = "cp_user"
-MAX_LEN = 40
-# One year — friends rarely re-pick. They can switch via the UI.
-COOKIE_MAX_AGE = 365 * 24 * 60 * 60
+from app import config
 
-_NAME_RE = re.compile(r"^[A-Za-z0-9 _'\-.]{1,40}$")
-
-
-def normalise(name: str | None) -> str:
-    """Strip + length-cap. Returns '' for invalid/missing input (= shared)."""
-    if not name:
-        return ""
-    cleaned = name.strip()
-    if not cleaned or not _NAME_RE.match(cleaned):
-        return ""
-    return cleaned[:MAX_LEN]
+ACCESS_COOKIE = "cp_at"
+REFRESH_COOKIE = "cp_rt"
 
 
-def current_user(request: Request) -> str:
-    """Read the active user from the request cookie. '' = shared / unidentified."""
-    return normalise(request.cookies.get(COOKIE_NAME))
+@dataclass
+class User:
+    id: str
+    email: str
+
+
+def _local_user() -> User:
+    return User(id="local", email="local")
+
+
+def _decode(token: str) -> dict | None:
+    if not token or not config.SUPABASE_JWT_SECRET:
+        return None
+    try:
+        return jwt.decode(
+            token, config.SUPABASE_JWT_SECRET, algorithms=["HS256"],
+            audience="authenticated", options={"verify_aud": True},
+        )
+    except jwt.PyJWTError:
+        return None
+
+
+def current_user(request: Request) -> User | None:
+    if not config.AUTH_ENABLED:
+        return _local_user()
+    claims = _decode(request.cookies.get(ACCESS_COOKIE, ""))
+    if not claims or not claims.get("sub"):
+        return None
+    return User(id=claims["sub"], email=claims.get("email", ""))
+
+
+def set_session(response: Response, access_token: str, refresh_token: str) -> None:
+    common = dict(httponly=True, samesite="lax", secure=config.COOKIE_SECURE, path="/")
+    response.set_cookie(ACCESS_COOKIE, access_token, max_age=3600, **common)
+    response.set_cookie(REFRESH_COOKIE, refresh_token, max_age=60 * 60 * 24 * 30, **common)
+
+
+def clear_session(response: Response) -> None:
+    response.delete_cookie(ACCESS_COOKIE, path="/")
+    response.delete_cookie(REFRESH_COOKIE, path="/")
