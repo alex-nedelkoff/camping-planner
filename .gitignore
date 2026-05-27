@@ -15,3 +15,7 @@ jeffs_osm_overlay.html
 jeffs_osm_overlay_raster.jpg
 access_point_preview.html
 access_point_preview_raster.jpg
+
+# local-only Postgres/Supabase connection string (never commit)
+.dburl.local
+.env.local
