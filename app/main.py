@@ -10,13 +10,26 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import STATIC_DIR, TRIPS_DIR
 from app.routes import checklist, identity, pages, parks, sites, trip_pages, trips
-from app.services import db
+from app import config
 
 app = FastAPI(title="Camping Planner")
 
-db.init_schema()
+
+def init_storage() -> None:
+    if config.STORAGE_BACKEND == "postgres":
+        from app.services import pg
+        pg.ensure_schema()  # raises RuntimeError if DATABASE_URL missing
+    else:
+        from app.services import db
+        db.init_schema()
+
+
+init_storage()
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+# Ensure the trips dir exists for the /trips static mount below (it is the
+# trip-content source only in filesystem mode; in postgres mode it is an empty
+# mount point — but StaticFiles still needs the directory to exist).
 TRIPS_DIR.mkdir(exist_ok=True)
 app.mount("/trips", StaticFiles(directory=str(TRIPS_DIR)), name="trips")
 
