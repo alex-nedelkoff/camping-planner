@@ -1,0 +1,34 @@
+# Keep the image slim: drop VCS, caches, the local filesystem-backed DB,
+# heavy map assets, and dev-only dirs. All app code, root .py modules the app
+# imports (ontario_parks, route_engine, route_map, weather), parks.json,
+# palettes, and data/ are intentionally kept.
+.git
+.gitignore
+.claude
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Filesystem-backend SQLite (unused in postgres mode)
+camping.sqlite3
+camping.sqlite3-shm
+camping.sqlite3-wal
+
+# Heavy binary assets not served by the app
+*.kmz
+access_point_preview_raster.jpg
+jeffs_osm_overlay_raster.jpg
+
+# Dev / offline-only
+tests/
+legacy/
+docs/
+scripts/
+camping-planner-food/
+.venv/
+venv/
+
+# Secrets (never bake into the image)
+.env
+.env.local
+.dburl.local
