@@ -17,7 +17,11 @@ def run(out_dir: Path) -> int:
     fs = FilesystemTripRepo(Path(out_dir))
     n = 0
     for slug in src.list_slugs():
-        trip = src.get(slug)
+        try:
+            trip = src.get(slug)
+        except Exception as exc:
+            print(f"  skipped {slug}: {exc}")
+            continue
         if trip is None:
             continue
         fs.save(slug, trip)

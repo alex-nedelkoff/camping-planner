@@ -20,7 +20,11 @@ def run(trips_dir: Path) -> int:
     dst = PostgresTripRepo()
     n = 0
     for slug in fs.list_slugs():
-        trip = fs.get(slug)
+        try:
+            trip = fs.get(slug)
+        except Exception as exc:
+            print(f"  skipped {slug}: {exc}")
+            continue
         if trip is None:
             continue
         dst.save(slug, trip)
