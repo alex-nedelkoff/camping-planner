@@ -69,6 +69,7 @@ class Trip(BaseModel):
     schema_version: Literal[1]
     name: str
     park: str
+    owner_id: Optional[str] = None
     mode: Literal["paddle", "car_camping"] = "paddle"
     dates: TripDates
     participants: list[str] = Field(default_factory=list)

@@ -225,7 +225,7 @@ def list_trips_v2() -> list[dict]:
     return entries
 
 
-def create_trip_v2(park: str, start_date, end_date, participants: list[str], mode: str = "paddle") -> str:
+def create_trip_v2(park: str, start_date, end_date, participants: list[str], mode: str = "paddle", owner_id=None) -> str:
     """Create a new trip via the storage repo. Returns the slug."""
     from datetime import date as _date
     from app.services import trip_repo
@@ -241,6 +241,7 @@ def create_trip_v2(park: str, start_date, end_date, participants: list[str], mod
     if repo.exists(slug):
         raise FileExistsError(slug)
     trip = Trip(schema_version=1, name=slug, park=park, mode=mode,
+                owner_id=owner_id,
                 dates=TripDates(start=sd, end=ed),
                 participants=participants or [], access_point="")
     repo.save(slug, trip)
