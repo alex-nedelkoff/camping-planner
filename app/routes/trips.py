@@ -12,7 +12,7 @@ from app.models import (
 from app.models_trip import (
     TripItem, FoodSlot, CostRow, ItineraryDay, Trip,
 )
-from app.services import trip_repo, trips as trips_svc
+from app.services import trip_repo, trips as trips_svc, authz
 from app.deps import require_user
 
 router = APIRouter(prefix="/api")
@@ -64,12 +64,14 @@ def refresh_route(slug: str, _user=Depends(require_user)):
 
 
 @router.patch("/trips/{slug}/meta")
-def patch_meta(slug: str, body: dict = Body(...), _user=Depends(require_user)):
+def patch_meta(slug: str, body: dict = Body(...), user=Depends(require_user)):
     repo = trip_repo.get_repo()
     trip = repo.get(slug)
     if trip is None:
         raise HTTPException(404)
-    allowed = {"park", "dates", "participants", "access_point", "nights"}
+    if authz.meta_touches_core(body) and not authz.can_edit_core(trip, user):
+        raise HTTPException(403, detail={"error": "owner only"})
+    allowed = {"name", "park", "mode", "dates", "participants", "access_point", "nights"}
     bad = set(body) - allowed
     if bad:
         raise HTTPException(400, detail={"error": f"unknown fields: {sorted(bad)}"})
@@ -154,9 +156,12 @@ def create_trip(body: CreateTripRequest, user=Depends(require_user)):
 
 
 @router.delete("/trips/{slug}")
-def delete_trip(slug: str, _user=Depends(require_user)):
+def delete_trip(slug: str, user=Depends(require_user)):
     repo = trip_repo.get_repo()
-    if not repo.exists(slug):
+    trip = repo.get(slug)
+    if trip is None:
         raise HTTPException(404)
+    if not authz.can_edit_core(trip, user):
+        raise HTTPException(403, detail={"error": "owner only"})
     repo.delete(slug)
     return {"ok": True}
