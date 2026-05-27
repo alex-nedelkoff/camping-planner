@@ -47,13 +47,9 @@ def refresh_weather(slug: str):
     t = repo.get(slug)
     if t is None:
         raise HTTPException(status_code=404, detail="trip not found")
-    # weather_cache uses column-based key (park, start_date, end_date) — delete directly
-    from app.services.db import connect
-    with connect() as conn:
-        conn.execute(
-            "DELETE FROM weather_cache WHERE park = ? AND start_date = ?",
-            (t.park or "", str(t.dates.start)),
-        )
+    # weather_cache is now in-memory (app/services/cache.py); drop by park prefix
+    from app.services import cache
+    cache.drop_prefix("weather_cache", (t.park or "",))
     return OkResponse(ok=True, message="weather cache cleared")
 
 

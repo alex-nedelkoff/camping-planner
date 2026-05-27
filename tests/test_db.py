@@ -1,6 +1,5 @@
 """SQLite layer: schema init, generic cache, checklist state."""
 
-import time
 
 import pytest
 
@@ -22,38 +21,7 @@ def test_init_schema_is_idempotent(tmp_path):
         names = {r[0] for r in conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"
         )}
-    assert {"availability_cache", "weather_cache", "checklist_state"} <= names
-
-
-def test_cache_set_then_get_round_trip(dbpath):
-    key = ("killarney", "2027-07-10", "2027-07-12")
-    payload = {"park_name": "Killarney", "total_available": 5}
-    db.cache_set("availability_cache", key, payload, path=dbpath)
-    got = db.cache_get("availability_cache", key, ttl_seconds=60, path=dbpath)
-    assert got == payload
-
-
-def test_cache_get_returns_none_when_expired(dbpath, monkeypatch):
-    key = ("algonquin", "2027-07-10", "2027-07-12")
-    db.cache_set("weather_cache", key, {"x": 1}, path=dbpath)
-    # Move time forward past the TTL
-    real_time = time.time
-    monkeypatch.setattr(time, "time", lambda: real_time() + 9999)
-    assert db.cache_get("weather_cache", key, ttl_seconds=60, path=dbpath) is None
-
-
-def test_cache_get_misses_on_unknown_key(dbpath):
-    assert db.cache_get(
-        "availability_cache", ("nope", "a", "b"), ttl_seconds=60, path=dbpath,
-    ) is None
-
-
-def test_cache_set_upserts(dbpath):
-    key = ("k", "s", "e")
-    db.cache_set("availability_cache", key, {"v": 1}, path=dbpath)
-    db.cache_set("availability_cache", key, {"v": 2}, path=dbpath)
-    got = db.cache_get("availability_cache", key, ttl_seconds=60, path=dbpath)
-    assert got == {"v": 2}
+    assert "checklist_state" in names
 
 
 def test_checklist_round_trip(dbpath):
