@@ -1,18 +1,19 @@
 """Server-rendered HTML trip detail page."""
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from app.services import trips as trips_svc
 from app.services import park_assets
 from app.routes.sites import KEY_ATTRS
+from app.deps import require_user
 
 router = APIRouter()
 from app.templating import templates
 
 
 @router.get("/trip/{slug}", response_class=HTMLResponse)
-def trip_page(slug: str, request: Request):
+def trip_page(slug: str, request: Request, _user=Depends(require_user)):
     from app.services import trip_repo
     trip = trip_repo.get_repo().get(slug)
     if trip is None:

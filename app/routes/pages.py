@@ -3,11 +3,12 @@
 from datetime import date as _date
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 
 from app.config import JINJA_TEMPLATES_DIR, REPO_ROOT
 from app.services import trips as trips_svc
+from app.deps import require_user
 
 router = APIRouter()
 from app.templating import templates
@@ -26,7 +27,7 @@ def _shape_for_card(entry: dict) -> dict:
 
 
 @router.get("/", response_class=HTMLResponse)
-def index(request: Request):
+def index(request: Request, _user=Depends(require_user)):
     today = _date.today()
     entries = trips_svc.list_trips_v2()
     upcoming = [_shape_for_card(e) for e in entries if e["start"] >= today]
@@ -58,7 +59,7 @@ def overlay_redirect():
 
 
 @router.get("/overlay/", response_class=HTMLResponse)
-def overlay_html(request: Request, trip: Optional[str] = None):
+def overlay_html(request: Request, trip: Optional[str] = None, _user=Depends(require_user)):
     nav_ctx = {"home_href": "/", "show_user_pill": True}
     trip_label = None
     if trip:

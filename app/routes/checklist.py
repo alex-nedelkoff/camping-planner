@@ -5,10 +5,11 @@ trip page still writes localStorage as an offline-first fallback; the API is
 the source of truth when reachable.
 """
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.models import ChecklistGetResponse, ChecklistSetRequest, OkResponse
 from app.services import db, identity
+from app.deps import require_user
 
 router = APIRouter(prefix="/api")
 
@@ -23,7 +24,7 @@ def _ensure_trip(slug: str) -> None:
 
 
 @router.get("/checklist", response_model=ChecklistGetResponse)
-def get_checklist(request: Request, trip: str = Query(..., min_length=1)):
+def get_checklist(request: Request, trip: str = Query(..., min_length=1), _user=Depends(require_user)):
     _ensure_trip(trip)
     u = identity.current_user(request)
     user = u.id if u else ""
@@ -35,6 +36,7 @@ def set_checklist(
     body: ChecklistSetRequest,
     request: Request,
     trip: str = Query(..., min_length=1),
+    _user=Depends(require_user),
 ):
     _ensure_trip(trip)
     u = identity.current_user(request)

@@ -4,9 +4,11 @@ Run with:
     uvicorn app.main:app --reload --port 8000
 """
 
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.exception_handlers import http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import STATIC_DIR, TRIPS_DIR
 from app.routes import auth, checklist, pages, parks, sites, trip_pages, trips
@@ -40,6 +42,13 @@ app.include_router(trips.router)
 app.include_router(parks.router)
 app.include_router(sites.router)
 app.include_router(checklist.router)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _auth_redirect(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 401 and not request.url.path.startswith("/api/") and request.method == "GET":
+        return RedirectResponse("/login", status_code=303)
+    return await http_exception_handler(request, exc)
 
 
 @app.exception_handler(Exception)

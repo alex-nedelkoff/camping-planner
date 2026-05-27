@@ -1,6 +1,6 @@
 """Trip API endpoints (read + write via new /api/trips/* routes)."""
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 from datetime import date as _date_t
 
@@ -13,6 +13,7 @@ from app.models_trip import (
     TripItem, FoodSlot, CostRow, ItineraryDay, Trip,
 )
 from app.services import trip_repo, trips as trips_svc
+from app.deps import require_user
 
 router = APIRouter(prefix="/api")
 
@@ -26,7 +27,7 @@ SECTION_FIELD_MAP = {
 
 
 @router.get("/trips", response_model=TripsListResponse)
-def list_trips():
+def list_trips(_user=Depends(require_user)):
     entries = trips_svc.list_trips_v2()
     return TripsListResponse(
         trips=[TripListEntry(**e) for e in entries]
@@ -34,7 +35,7 @@ def list_trips():
 
 
 @router.get("/trips/{slug}")
-def get_trip(slug: str):
+def get_trip(slug: str, _user=Depends(require_user)):
     t = trip_repo.get_repo().get(slug)
     if t is None:
         raise HTTPException(status_code=404, detail={"error": "not_found"})
@@ -42,7 +43,7 @@ def get_trip(slug: str):
 
 
 @router.post("/trips/{slug}/refresh-weather", response_model=OkResponse)
-def refresh_weather(slug: str):
+def refresh_weather(slug: str, _user=Depends(require_user)):
     repo = trip_repo.get_repo()
     t = repo.get(slug)
     if t is None:
@@ -54,7 +55,7 @@ def refresh_weather(slug: str):
 
 
 @router.post("/trips/{slug}/refresh-route", response_model=OkResponse)
-def refresh_route(slug: str):
+def refresh_route(slug: str, _user=Depends(require_user)):
     from app.services import route_cache
     if not trip_repo.get_repo().exists(slug):
         raise HTTPException(status_code=404, detail="trip not found")
@@ -63,7 +64,7 @@ def refresh_route(slug: str):
 
 
 @router.patch("/trips/{slug}/meta")
-def patch_meta(slug: str, body: dict = Body(...)):
+def patch_meta(slug: str, body: dict = Body(...), _user=Depends(require_user)):
     repo = trip_repo.get_repo()
     trip = repo.get(slug)
     if trip is None:
@@ -83,7 +84,7 @@ def patch_meta(slug: str, body: dict = Body(...)):
 
 
 @router.put("/trips/{slug}/section/{name}")
-def put_section(slug: str, name: str, body=Body(...)):
+def put_section(slug: str, name: str, body=Body(...), _user=Depends(require_user)):
     if name not in SECTION_FIELD_MAP:
         raise HTTPException(400, detail={"error": f"unknown section: {name}"})
     model, field, is_list = SECTION_FIELD_MAP[name]
@@ -109,7 +110,7 @@ def put_section(slug: str, name: str, body=Body(...)):
 
 
 @router.put("/trips/{slug}/routes")
-def put_routes(slug: str, body=Body(...)):
+def put_routes(slug: str, body=Body(...), _user=Depends(require_user)):
     repo = trip_repo.get_repo()
     if not repo.exists(slug):
         raise HTTPException(404)
@@ -122,7 +123,7 @@ def put_routes(slug: str, body=Body(...)):
 
 
 @router.get("/trips/{slug}/routes")
-def get_routes(slug: str):
+def get_routes(slug: str, _user=Depends(require_user)):
     data = trip_repo.get_repo().get_routes(slug)
     if data is None:
         return []
@@ -138,7 +139,7 @@ class CreateTripRequest(BaseModel):
 
 
 @router.post("/trips")
-def create_trip(body: CreateTripRequest):
+def create_trip(body: CreateTripRequest, _user=Depends(require_user)):
     try:
         slug = trips_svc.create_trip_v2(
             park=body.park, start_date=body.start, end_date=body.end,
@@ -152,7 +153,7 @@ def create_trip(body: CreateTripRequest):
 
 
 @router.delete("/trips/{slug}")
-def delete_trip(slug: str):
+def delete_trip(slug: str, _user=Depends(require_user)):
     repo = trip_repo.get_repo()
     if not repo.exists(slug):
         raise HTTPException(404)
