@@ -1,6 +1,6 @@
 """Availability lookup — wraps ontario_parks.check_park into a UI-friendly shape.
 
-Results are cached in the SQLite `availability_cache` table for
+Results are cached in process memory (app.services.cache) for
 `AVAILABILITY_CACHE_TTL` seconds. Caching matters here mainly to avoid the
 Camis Azure WAF's IP ban window (~30 min after ~15 rapid requests).
 """
