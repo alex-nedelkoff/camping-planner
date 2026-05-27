@@ -17,6 +17,11 @@ from app import config
 app = FastAPI(title="Camping Planner")
 
 
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+
 def init_storage() -> None:
     if config.STORAGE_BACKEND == "postgres":
         from app.services import pg
