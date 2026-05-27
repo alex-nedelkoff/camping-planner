@@ -26,3 +26,9 @@ HOME_LABEL = "Ajax"
 STORAGE_BACKEND = os.environ.get("STORAGE_BACKEND", "filesystem")
 # Postgres connection string (Supabase pooled URL or a local Postgres).
 DATABASE_URL = os.environ.get("DATABASE_URL") or None
+
+# --- Auth (Phase 2) ---
+AUTH_ENABLED = os.environ.get("AUTH_ENABLED", "").strip().lower() in ("1", "true", "yes", "on")
+SUPABASE_URL = os.environ.get("SUPABASE_URL") or None
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY") or None
+SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET") or None
