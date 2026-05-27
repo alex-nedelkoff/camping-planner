@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"nav": {"show_user_pill": False}})
+    return templates.TemplateResponse(request, "login.html", {"nav": {}})
 
 
 @router.post("/login", response_class=HTMLResponse)
@@ -23,7 +23,7 @@ def login_submit(request: Request, email: str = Form(...)):
     except Exception:
         pass  # don't reveal whether the email exists
     return templates.TemplateResponse(request, "check_email.html",
-                                      {"email": email, "nav": {"show_user_pill": False}})
+                                      {"email": email, "nav": {}})
 
 
 @router.get("/auth/callback")

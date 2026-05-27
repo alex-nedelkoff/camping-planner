@@ -50,13 +50,6 @@ class ChecklistSetRequest(BaseModel):
     checked: bool
 
 
-class WhoamiResponse(BaseModel):
-    user: str
-
-
-class WhoamiSetRequest(BaseModel):
-    user: str = Field(min_length=1, max_length=40)
-
 class TripListEntry(BaseModel):
     slug: str
     name: str

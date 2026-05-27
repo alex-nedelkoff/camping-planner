@@ -13,7 +13,7 @@ from app.templating import templates
 
 
 @router.get("/trip/{slug}", response_class=HTMLResponse)
-def trip_page(slug: str, request: Request, _user=Depends(require_user)):
+def trip_page(slug: str, request: Request, user=Depends(require_user)):
     from app.services import trip_repo
     trip = trip_repo.get_repo().get(slug)
     if trip is None:
@@ -73,7 +73,7 @@ def trip_page(slug: str, request: Request, _user=Depends(require_user)):
                                   for s in siblings],
                 "prev_slug": me["prev_slug"] if me else None,
                 "next_slug": me["next_slug"] if me else None,
-                "show_user_pill": True,
+                "user_email": user.email,
             },
             "weather": weather_payload,
             "weather_error": weather_error,

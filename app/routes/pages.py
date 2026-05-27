@@ -27,7 +27,7 @@ def _shape_for_card(entry: dict) -> dict:
 
 
 @router.get("/", response_class=HTMLResponse)
-def index(request: Request, _user=Depends(require_user)):
+def index(request: Request, user=Depends(require_user)):
     today = _date.today()
     entries = trips_svc.list_trips_v2()
     upcoming = [_shape_for_card(e) for e in entries if e["start"] >= today]
@@ -40,7 +40,7 @@ def index(request: Request, _user=Depends(require_user)):
             "past": past,
             "broken": [],
             "park_options": trips_svc.load_park_options(),
-            "nav": {"home_href": "/", "show_user_pill": True},
+            "nav": {"home_href": "/", "user_email": user.email},
         },
     )
 
@@ -59,8 +59,8 @@ def overlay_redirect():
 
 
 @router.get("/overlay/", response_class=HTMLResponse)
-def overlay_html(request: Request, trip: Optional[str] = None, _user=Depends(require_user)):
-    nav_ctx = {"home_href": "/", "show_user_pill": True}
+def overlay_html(request: Request, trip: Optional[str] = None, user=Depends(require_user)):
+    nav_ctx = {"home_href": "/", "user_email": user.email}
     trip_label = None
     if trip:
         try:

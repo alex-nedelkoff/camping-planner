@@ -17,15 +17,15 @@ KEY_ATTRS = [
 
 
 @router.get("/sites", response_class=HTMLResponse)
-def sites_index(request: Request, _user=Depends(require_user)):
+def sites_index(request: Request, user=Depends(require_user)):
     return templates.TemplateResponse(request, "sites_index.html", {
         "surveys": site_surveys.list_surveys(),
-        "nav": {"home_href": "/", "show_user_pill": True},
+        "nav": {"home_href": "/", "user_email": user.email},
     })
 
 
 @router.get("/sites/{slug}", response_class=HTMLResponse)
-def sites_park(request: Request, slug: str, _user=Depends(require_user)):
+def sites_park(request: Request, slug: str, user=Depends(require_user)):
     survey = site_surveys.load_survey(slug)
     if survey is None:
         raise HTTPException(status_code=404, detail="No survey for that park")
@@ -36,5 +36,5 @@ def sites_park(request: Request, slug: str, _user=Depends(require_user)):
         "filters": site_surveys.derive_filters(sites),
         "key_attrs": KEY_ATTRS,
         "nav": {"home_href": "/", "back_href": "/sites",
-                "back_label": "All parks", "show_user_pill": True},
+                "back_label": "All parks", "user_email": user.email},
     })
