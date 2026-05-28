@@ -1,0 +1,121 @@
+/* Login splash — topographic-map scene.
+   Reuses the field-journal tokens defined in index.css :root. */
+
+.splash {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--parchment);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+/* --- map layer --- */
+.splash__map { position: absolute; inset: 0; z-index: 0; }
+.splash__map svg { width: 100%; height: 100%; display: block; }
+.splash__map .ct { fill: none; stroke: var(--moss); stroke-width: 1.4; opacity: .30; }
+.splash__map .ct--minor { stroke: var(--slate); opacity: .18; }
+.splash__map .lake { fill: var(--slate); opacity: .10; }
+.splash__map .route {
+  fill: none; stroke: var(--rust); stroke-width: 2.6;
+  stroke-dasharray: 1 11; stroke-linecap: round; opacity: .9;
+}
+.splash__map .route-dot { fill: var(--moss); stroke: var(--parchment-mist); stroke-width: 3.5; }
+.splash__map .pin-head { fill: var(--rust); }
+.splash__map .pin-dot { fill: var(--parchment-mist); }
+
+/* parchment wash so the panel side stays legible over the map */
+.splash::after {
+  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(120% 95% at 16% 80%,
+              rgba(245,239,225,.92), rgba(245,239,225,0) 56%);
+}
+
+/* --- map annotations --- */
+.splash__coords,
+.splash__legend {
+  position: absolute; z-index: 2;
+  font-family: var(--font-mono); color: var(--ink-faint);
+}
+.splash__coords {
+  top: clamp(1rem, 3vh, 2rem); right: clamp(1rem, 3vw, 2.5rem);
+  font-size: .72rem; letter-spacing: .08em; text-align: right; line-height: 1.7;
+}
+.splash__legend {
+  bottom: clamp(1rem, 3vh, 2rem); right: clamp(1rem, 3vw, 2.5rem);
+  font-size: .68rem; letter-spacing: .1em;
+}
+
+/* --- form panel --- */
+.splash__panel {
+  position: relative; z-index: 2;
+  width: min(430px, 92vw);
+  margin: clamp(2.5rem, 15vh, 11rem) 0 0 clamp(1.25rem, 7vw, 7rem);
+  background: var(--parchment-mist);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: clamp(1.6rem, 4vw, 2.6rem);
+  box-shadow: 0 24px 60px -28px rgba(31, 42, 35, .5);
+}
+.splash__kicker {
+  font-family: var(--font-mono); font-size: .7rem; letter-spacing: .26em;
+  text-transform: uppercase; color: var(--slate); margin: 0 0 .9rem;
+}
+.splash__title {
+  font-family: var(--font-serif); font-weight: 600;
+  font-size: clamp(2rem, 5vw, 2.9rem); line-height: 1.02; letter-spacing: -.01em;
+  margin: 0; color: var(--ink);
+}
+.splash__rule { width: 52px; height: 3px; background: var(--rust); border: 0;
+  margin: 1rem 0 1.1rem; border-radius: 2px; }
+.splash__tag { color: var(--ink-soft); font-size: 1rem; line-height: 1.5;
+  margin: 0 0 1.8rem; max-width: 34ch; }
+
+.splash__field { margin-bottom: 1rem; }
+.splash__field label {
+  display: block; font-family: var(--font-mono); font-size: .66rem; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-faint); margin-bottom: .35rem;
+}
+.splash__field input {
+  width: 100%; box-sizing: border-box; font: inherit; color: var(--ink);
+  background: var(--parchment); border: 1px solid var(--rule); border-radius: 8px;
+  padding: .7rem .85rem; transition: border-color .15s, box-shadow .15s;
+}
+.splash__field input::placeholder { color: var(--ink-faint); }
+.splash__field input:focus-visible {
+  outline: none; border-color: var(--rust); box-shadow: 0 0 0 3px rgba(168, 69, 31, .18);
+}
+.splash__btn {
+  width: 100%; font: 600 1rem var(--font-sans); letter-spacing: .02em;
+  color: var(--parchment-mist); background: var(--rust);
+  border: 0; border-radius: 8px; padding: .8rem; margin-top: .4rem; cursor: pointer;
+  transition: background-color .15s, transform .06s;
+}
+.splash__btn:hover { background: var(--rust-bright); }
+.splash__btn:active { transform: translateY(1px); }
+.splash__btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(168, 69, 31, .3); }
+.splash__error {
+  margin: 0 0 1.1rem; padding: .6rem .8rem; border-radius: 8px;
+  background: #fcebe5; border: 1px solid var(--rust); color: var(--rust); font-size: .9rem;
+}
+
+/* --- motion (skipped under reduced-motion) --- */
+@media (prefers-reduced-motion: no-preference) {
+  .splash__panel { animation: splash-rise .7s cubic-bezier(.22, 1, .36, 1) both; }
+  .splash__map .pin { transform-box: fill-box; transform-origin: center bottom;
+                      animation: pin-drop .6s cubic-bezier(.22, 1, .36, 1) .25s both; }
+  .splash__map .route { animation: route-fade .9s ease-out .15s both; }
+}
+@keyframes splash-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes pin-drop   { from { opacity: 0; transform: translateY(-22px); } to { opacity: 1; transform: none; } }
+@keyframes route-fade { from { opacity: 0; } to { opacity: .9; } }
+
+/* --- mobile: map recedes to a quiet backdrop, panel leads --- */
+@media (max-width: 640px) {
+  .splash { display: flex; align-items: center; }
+  .splash__panel { margin: auto 1rem; width: auto; }
+  .splash__coords, .splash__legend { display: none; }
+  .splash::after { background: radial-gradient(150% 80% at 50% 55%,
+                   rgba(245,239,225,.9), rgba(245,239,225,.45) 72%); }
+}
