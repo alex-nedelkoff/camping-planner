@@ -11,7 +11,7 @@ from fastapi.exception_handlers import http_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import STATIC_DIR, TRIPS_DIR
-from app.routes import auth, checklist, feedback, pages, parks, sites, trip_pages, trips
+from app.routes import auth, checklist, comments, feedback, pages, parks, sites, trip_pages, trips
 from app import config
 
 app = FastAPI(title="Camping Planner")
@@ -48,6 +48,7 @@ app.include_router(parks.router)
 app.include_router(sites.router)
 app.include_router(checklist.router)
 app.include_router(feedback.router)
+app.include_router(comments.router)
 
 
 @app.exception_handler(StarletteHTTPException)

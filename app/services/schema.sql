@@ -27,6 +27,15 @@ create table if not exists feedback (
   created_at  double precision not null default extract(epoch from now())
 );
 
+create table if not exists trip_comments (
+  id          text primary key,
+  trip_slug   text not null,
+  author      text not null,
+  body        text not null,
+  created_at  double precision not null default extract(epoch from now())
+);
+create index if not exists trip_comments_slug_idx on trip_comments (trip_slug, created_at);
+
 -- Lock down Supabase's auto-generated data API: with RLS enabled and no
 -- policies, the anon/authenticated API roles get zero access. The app connects
 -- as the postgres role (via DATABASE_URL), which bypasses RLS, so it is
@@ -34,3 +43,4 @@ create table if not exists feedback (
 alter table public.trips enable row level security;
 alter table public.checklist_state enable row level security;
 alter table public.feedback enable row level security;
+alter table public.trip_comments enable row level security;

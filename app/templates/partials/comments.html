@@ -1,0 +1,70 @@
+<div id="cp-comments" class="cpc" data-open="false">
+  <button class="cpc__fab" type="button" aria-label="Open trip comments" aria-expanded="false">
+    <span aria-hidden="true">💬</span>
+  </button>
+
+  <section class="cpc__panel" aria-label="Trip comments" hidden>
+    <header class="cpc__head">
+      <span class="cpc__title">Comments</span>
+      <button class="cpc__min" type="button" aria-label="Minimize comments">▾</button>
+    </header>
+    <div class="cpc__list" aria-live="polite"></div>
+    <form class="cpc__form" autocomplete="off">
+      <input class="cpc__input" type="text" name="body" maxlength="2000"
+             placeholder="Add a comment…" aria-label="Add a comment" required>
+      <button class="cpc__send" type="submit">Send</button>
+    </form>
+  </section>
+</div>
+
+<style>
+  .cpc { position: fixed; right: clamp(1rem, 3vw, 2rem); bottom: clamp(1rem, 3vw, 2rem); z-index: 60; }
+  .cpc__fab {
+    width: 56px; height: 56px; border-radius: 50%; border: 0; cursor: pointer;
+    background: var(--rust); color: var(--parchment-mist); font-size: 24px;
+    box-shadow: 0 8px 22px rgba(31, 42, 35, .35); transition: background-color .15s, transform .12s cubic-bezier(.22,1,.36,1);
+  }
+  .cpc__fab:hover { background: var(--rust-bright); }
+  .cpc__fab:active { transform: scale(.94); }
+  .cpc__fab:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(168,69,31,.35), 0 8px 22px rgba(31,42,35,.35); }
+
+  .cpc__panel {
+    width: min(360px, calc(100vw - 2rem)); display: flex; flex-direction: column;
+    max-height: min(70vh, 540px);
+    background: var(--parchment-mist); border: 1px solid var(--rule); border-radius: 12px;
+    box-shadow: 0 18px 44px -16px rgba(31, 42, 35, .5); overflow: hidden;
+  }
+  .cpc[data-open="true"] .cpc__fab { display: none; }
+  @media (prefers-reduced-motion: no-preference) {
+    .cpc[data-open="true"] .cpc__panel { animation: cpc-in .26s cubic-bezier(.22,1,.36,1); }
+  }
+  @keyframes cpc-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+  .cpc__head {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--rust); color: var(--parchment-mist); padding: .6rem .85rem;
+  }
+  .cpc__title { font-family: var(--font-serif); font-weight: 600; font-size: 1.05rem; }
+  .cpc__min { background: none; border: 0; color: var(--parchment-mist); font-size: 1.1rem; cursor: pointer; line-height: 1; padding: .15rem .35rem; border-radius: 6px; }
+  .cpc__min:hover { background: rgba(245,239,225,.18); }
+  .cpc__min:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(245,239,225,.7); }
+
+  .cpc__list { flex: 1; overflow-y: auto; padding: .85rem; display: flex; flex-direction: column; gap: .75rem; }
+  .cpc__empty { color: var(--ink-faint); font-size: .9rem; text-align: center; margin: auto 0; }
+  .cpc__item { font-size: .92rem; line-height: 1.45; }
+  .cpc__item-head { display: flex; align-items: baseline; gap: .4rem; }
+  .cpc__author { font-weight: 600; color: var(--ink); }
+  .cpc__time { color: var(--ink-faint); font-size: .76rem; }
+  .cpc__del { margin-left: auto; background: none; border: 0; color: var(--ink-faint); cursor: pointer; font-size: .76rem; padding: 0 .2rem; }
+  .cpc__del:hover { color: var(--rust); }
+  .cpc__body { color: var(--ink-soft); white-space: pre-wrap; word-break: break-word; margin-top: .12rem; }
+
+  .cpc__form { display: flex; gap: .4rem; padding: .6rem; border-top: 1px solid var(--rule-soft); background: var(--parchment); }
+  .cpc__input { flex: 1; min-width: 0; font: inherit; font-size: .92rem; color: var(--ink);
+    background: #fff; border: 1px solid var(--rule); border-radius: 8px; padding: .5rem .65rem; }
+  .cpc__input:focus-visible { outline: none; border-color: var(--rust); box-shadow: 0 0 0 3px rgba(168,69,31,.16); }
+  .cpc__send { font: 600 .9rem var(--font-sans); color: var(--parchment-mist); background: var(--rust);
+    border: 0; border-radius: 8px; padding: .5rem .9rem; cursor: pointer; }
+  .cpc__send:hover { background: var(--rust-bright); }
+  .cpc__send:disabled { opacity: .5; cursor: default; }
+</style>
