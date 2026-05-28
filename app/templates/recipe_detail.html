@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ r.name }} · Cookbook{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/recipes.css?v={{ static_version }}">
+{% endblock %}
+
+{% block body %}
+{% include "partials/nav_band.html" %}
+
+<article class="rcp" data-recipe-id="{{ r.id }}" data-base-servings="{{ r.servings }}">
+
+  <header class="rcp-head">
+    <p class="rcp-kicker">{{ r.style }} · {{ r.meal }}</p>
+    <h1 class="rcp-title">{{ r.name }}</h1>
+    <p class="rcp-meta">
+      {% set tm = (r.prep_minutes or 0) + (r.cook_minutes or 0) %}
+      {% if tm %}<span>{{ tm }} min</span> · {% endif %}
+      <span>serves {{ r.servings }}</span> · <span>{{ r.author }}</span>
+    </p>
+    <hr class="rcp-rule">
+  </header>
+
+  {% if r.has_image %}
+  <img class="rcp-hero" src="/recipes/{{ r.id }}/image" alt="{{ r.name }}">
+  {% endif %}
+
+  <section class="rcp-section">
+    <header class="rcp-section__head">
+      <h2 class="rcp-h2">Ingredients</h2>
+      <div class="rcp-servings" aria-label="Scale servings">
+        <button class="rcp-step" type="button" data-delta="-1" aria-label="Fewer servings">−</button>
+        <span class="rcp-servings__n" data-current-servings="{{ r.servings }}">{{ r.servings }}</span>
+        <button class="rcp-step" type="button" data-delta="1" aria-label="More servings">+</button>
+        <span class="rcp-servings__lbl">servings</span>
+      </div>
+    </header>
+    {% if r.ingredients %}
+    <ul class="rcp-ings">
+      {% for ing in r.ingredients %}
+      <li class="rcp-ing"
+          data-qty="{{ ing.qty if ing.qty is not none else '' }}"
+          data-unit="{{ ing.unit or '' }}">
+        <span class="rcp-ing__qty">{% if ing.qty is not none %}{{ ing.qty }}{% endif %}{% if ing.unit %} {{ ing.unit }}{% endif %}</span>
+        <span class="rcp-ing__name">{{ ing.name }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="rcp-empty">No ingredients listed.</p>
+    {% endif %}
+  </section>
+
+  {% if r.prep_at_home %}
+  <section class="rcp-section">
+    <h2 class="rcp-h2">At home</h2>
+    <div class="rcp-prose">{{ r.prep_at_home | md | safe }}</div>
+  </section>
+  {% endif %}
+
+  <section class="rcp-section">
+    <h2 class="rcp-h2">{% if r.prep_at_home %}At camp{% else %}Prep{% endif %}</h2>
+    {% if r.steps %}
+    <div class="rcp-prose">{{ r.steps | md | safe }}</div>
+    {% else %}
+    <p class="rcp-empty">No steps written.</p>
+    {% endif %}
+  </section>
+
+  {% if r.gear or r.tags or r.notes %}
+  <section class="rcp-section rcp-aside">
+    {% if r.gear %}
+    <p><span class="rcp-label">Gear</span> {{ r.gear }}</p>
+    {% endif %}
+    {% if r.tags %}
+    <p><span class="rcp-label">Tags</span>
+      {% for t in r.tags %}<a class="rcp-tag" href="/recipes?tag={{ t }}">{{ t }}</a>{% endfor %}
+    </p>
+    {% endif %}
+    {% if r.notes %}
+    <div class="rcp-notes">
+      <span class="rcp-label">Notes</span>
+      <div class="rcp-prose">{{ r.notes | md | safe }}</div>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if r.author == current_user %}
+  <footer class="rcp-foot">
+    <a class="btn btn-ghost" href="/recipes/{{ r.id }}/edit">Edit</a>
+    <form method="post" action="/recipes/{{ r.id }}/delete" style="display:inline"
+          onsubmit="return confirm('Delete this recipe?')">
+      <button class="btn btn-ghost rcp-delete" type="submit">Delete</button>
+    </form>
+  </footer>
+  {% endif %}
+</article>
+
+<script src="/static/js/recipe_detail.js?v={{ static_version }}"></script>
+{% endblock %}

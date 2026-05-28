@@ -74,6 +74,30 @@ CREATE TABLE IF NOT EXISTS trip_comments (
 CREATE INDEX IF NOT EXISTS trip_comments_slug_idx ON trip_comments (trip_slug, created_at);
 """
 
+_RECIPES_DDL = """
+CREATE TABLE IF NOT EXISTS recipes (
+    id           TEXT PRIMARY KEY,
+    author       TEXT NOT NULL,
+    name         TEXT NOT NULL,
+    style        TEXT NOT NULL,
+    meal         TEXT NOT NULL,
+    servings     INTEGER NOT NULL DEFAULT 1,
+    prep_minutes INTEGER,
+    cook_minutes INTEGER,
+    ingredients  TEXT NOT NULL DEFAULT '[]',
+    steps        TEXT NOT NULL DEFAULT '',
+    prep_at_home TEXT,
+    gear         TEXT,
+    tags         TEXT NOT NULL DEFAULT '[]',
+    notes        TEXT,
+    image        BLOB,
+    image_mime   TEXT,
+    created_at   REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS recipes_style_idx ON recipes (style);
+CREATE INDEX IF NOT EXISTS recipes_meal_idx  ON recipes (meal);
+"""
+
 
 def init_schema(path: Path | None = None) -> None:
     """Create / migrate tables. Idempotent — safe to call on every boot."""
@@ -81,6 +105,7 @@ def init_schema(path: Path | None = None) -> None:
         _ensure_checklist_state(conn)
         conn.executescript(_FEEDBACK_DDL)
         conn.executescript(_TRIP_COMMENTS_DDL)
+        conn.executescript(_RECIPES_DDL)
 
 
 def _ensure_checklist_state(conn: sqlite3.Connection) -> None:
