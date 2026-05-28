@@ -1,5 +1,32 @@
 # Camping Planner — Claude Guide
 
+## Feature map (as of 2026-05-28, `origin/main` `b1953bd`)
+
+| Route | What | Code |
+|---|---|---|
+| `/login` | Shared-password gate — username + `SITE_PASSWORD`, signed `cp_user` cookie. The login splash is a topographic-map scene built via the `/impeccable` skill. | `app/routes/auth.py`, `app/templates/login.html`, `app/static/css/login.css`, `PRODUCT.md`, `DESIGN.md` |
+| `/` | Trips index. | `app/routes/pages.py`, `app/templates/index.html` |
+| `/trip/{slug}` | Server-rendered trip detail (gear, food, route, weather, itinerary, costs). Includes the per-trip comment bubble. | `app/routes/trip_pages.py`, `app/templates/trip.html` + `partials/section_*.html`, `partials/comments.html` + `app/static/js/comments.js` (JSON API: `app/routes/comments.py`, `app/services/comments.py`) |
+| `/recipes` | Cookbook for canoe + car-camping meals. Editorial-index list with filter chips (style/meal/tag) + search; single-column journal detail with a live −/+ servings scaler; author-only edit/delete. | `app/routes/recipes.py`, `app/services/recipes.py`, `app/templates/{recipes_index,recipe_detail,recipe_form}.html`, `app/static/css/recipes.css`, `app/static/js/recipe_{form,detail}.js` |
+| `/feedback` | Ideas/bugs board with image attachments + Open/Planned/Done status; delete-your-own. | `app/routes/feedback.py`, `app/services/feedback.py`, `app/templates/feedback.html` |
+| `/healthz` | Public, no-auth health check. **UptimeRobot pings it every 5 min** to defeat Render-free cold-start. | `app/main.py` |
+
+Shared header (`partials/nav_band.html`) carries the Recipes / Feedback / user-pill / Log-out links on every authed page.
+
+Auth, hosting, and the Supabase IPv4-pooler gotcha live in the persisted memory `camping-planner-deploy`. Architecture history (SPA → server-rendered switch on 2026-05-27) and the conventions below live in `camping-planner-main-architecture`.
+
+### Conventions to follow when adding a new feature
+
+- **Dual-backend storage.** Every new content table appears in both `app/services/schema.sql` (Postgres, auto-created at boot by `pg.ensure_schema`) and `app/services/db.py:init_schema` (SQLite, used local + tests). Pattern: a `_<THING>_DDL` constant + `conn.executescript(...)`. Tables **self-create on every deploy** — no manual migrations.
+- **Backend branching** in service modules on `config.STORAGE_BACKEND == "postgres"`, importing either `app.services.pg` or `app.services.db`. See `feedback.py` / `comments.py` / `recipes.py` for the canonical shape.
+- **Images** stored inline (`bytea` / `BLOB`) with a 5 MiB cap and a dedicated `GET …/image` route per feature. No external storage / new secrets.
+- **JSON columns** (lists/dicts): `json.dumps` on write, parse on read. `jsonb` in Postgres, `TEXT` in SQLite.
+- **Authz**: `require_user` dep on every protected route; author-only mutations check `current_user.id == row.author` → 403 otherwise.
+- **Per-feature CSS** at `app/static/css/<feature>.css`, linked in the template's `head_extra` block with `?v={{ static_version }}` cache-bust.
+- **Dev loop**: brainstorm with user → visual companion (`superpowers:brainstorming`) to lock direction → spec at `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` → `EnterWorktree` → build with TDD → in-browser verify (Playwright MCP, desktop + mobile) → commit specific files (not `git add -A` — playwright scratch goes to the worktree) → push to a feature branch (**direct push to `main` is blocked** by the safety classifier) → `gh pr create` → user merges.
+
+Recent specs covering current-state features: `docs/superpowers/specs/2026-05-27-login-splash-design.md`, `…-trip-comments-design.md`, `2026-05-28-recipes-cookbook-design.md`, `2026-05-27-feedback-tab-design.md`.
+
 ## Ontario Parks API Reference
 
 Ontario Parks reservations run on the **Camis/Aspira** platform at `reservations.ontarioparks.com`. There is no official public API — these are undocumented endpoints reverse-engineered from browser network traffic.
