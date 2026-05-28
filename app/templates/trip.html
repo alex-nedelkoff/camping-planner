@@ -27,6 +27,7 @@
     {% include "partials/section_food.html" %}
     {% include "partials/section_costs.html" %}
   </div>
+  {% include "partials/comments.html" %}
   <script src="/static/js/section_gear.js?v={{ static_version }}"></script>
   <script src="/static/js/section_costs.js?v={{ static_version }}"></script>
   <script src="/static/js/section_itinerary.js?v={{ static_version }}"></script>
@@ -40,4 +41,5 @@
   <script src="/static/js/car_maps.js?v={{ static_version }}"></script>
   {% endif %}
   <script src="/static/js/trip_sidenav.js?v={{ static_version }}"></script>
+  <script src="/static/js/comments.js?v={{ static_version }}"></script>
 {% endblock %}

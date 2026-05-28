@@ -65,3 +65,25 @@ class TripListEntry(BaseModel):
 class TripsListResponse(BaseModel):
     ok: bool = True
     trips: list[TripListEntry]
+
+
+class CommentCreateRequest(BaseModel):
+    body: str = Field(min_length=1, max_length=2000)
+
+
+class CommentItem(BaseModel):
+    id: str
+    author: str
+    body: str
+    created_at: float
+    mine: bool = False
+
+
+class CommentsResponse(BaseModel):
+    ok: bool = True
+    comments: list[CommentItem]
+
+
+class CommentResponse(BaseModel):
+    ok: bool = True
+    comment: CommentItem

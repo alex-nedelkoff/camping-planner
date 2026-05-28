@@ -63,12 +63,24 @@ CREATE TABLE IF NOT EXISTS feedback (
 );
 """
 
+_TRIP_COMMENTS_DDL = """
+CREATE TABLE IF NOT EXISTS trip_comments (
+    id         TEXT PRIMARY KEY,
+    trip_slug  TEXT NOT NULL,
+    author     TEXT NOT NULL,
+    body       TEXT NOT NULL,
+    created_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS trip_comments_slug_idx ON trip_comments (trip_slug, created_at);
+"""
+
 
 def init_schema(path: Path | None = None) -> None:
     """Create / migrate tables. Idempotent — safe to call on every boot."""
     with connect(path) as conn:
         _ensure_checklist_state(conn)
         conn.executescript(_FEEDBACK_DDL)
+        conn.executescript(_TRIP_COMMENTS_DDL)
 
 
 def _ensure_checklist_state(conn: sqlite3.Connection) -> None:
