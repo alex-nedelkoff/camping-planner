@@ -50,10 +50,25 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     return conn
 
 
+_FEEDBACK_DDL = """
+CREATE TABLE IF NOT EXISTS feedback (
+    id         TEXT PRIMARY KEY,
+    author     TEXT NOT NULL,
+    kind       TEXT NOT NULL,
+    body       TEXT NOT NULL,
+    status     TEXT NOT NULL DEFAULT 'open',
+    image      BLOB,
+    image_mime TEXT,
+    created_at REAL NOT NULL
+);
+"""
+
+
 def init_schema(path: Path | None = None) -> None:
     """Create / migrate tables. Idempotent — safe to call on every boot."""
     with connect(path) as conn:
         _ensure_checklist_state(conn)
+        conn.executescript(_FEEDBACK_DDL)
 
 
 def _ensure_checklist_state(conn: sqlite3.Connection) -> None:
