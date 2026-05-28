@@ -1,16 +1,78 @@
 {% extends "base.html" %}
-{% block title %}Log in{% endblock %}
+{% block title %}Log in · Camping Planner{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/login.css?v={{ static_version }}">
+{% endblock %}
+
 {% block body %}
-<div class="auth-card">
-  <h1>Camping Planner</h1>
-  <p>Enter your name and the shared site password.</p>
-  {% if error %}<p class="error">{{ error }}</p>{% endif %}
-  <form method="post" action="/login">
-    <input type="text" name="username" placeholder="Your name" required autofocus
-           autocomplete="username">
-    <input type="password" name="password" placeholder="Site password" required
-           autocomplete="current-password">
-    <button type="submit" class="btn">Log in</button>
-  </form>
-</div>
+<main class="splash">
+  <div class="splash__map" aria-hidden="true">
+    <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <path id="contour" vector-effect="non-scaling-stroke"
+          d="M0,-96 C44,-92 90,-52 96,-8 C100,34 64,82 18,96 C-28,110 -86,78 -96,30
+             C-104,-16 -78,-82 -32,-94 C-22,-97 -10,-99 0,-96 Z"/>
+      </defs>
+
+      <!-- lake -->
+      <path class="lake" d="M560,792 C600,734 712,716 812,742 C902,766 952,820 902,860
+        C846,904 700,900 624,866 C566,840 528,838 560,792 Z"/>
+
+      <!-- summit contours -->
+      <g transform="translate(1080 250)">
+        <use href="#contour" class="ct" transform="scale(0.5)"/>
+        <use href="#contour" class="ct" transform="scale(1.0)"/>
+        <use href="#contour" class="ct" transform="scale(1.6)"/>
+        <use href="#contour" class="ct" transform="scale(2.4)"/>
+        <use href="#contour" class="ct" transform="scale(3.4)"/>
+        <use href="#contour" class="ct" transform="scale(4.6)"/>
+      </g>
+
+      <!-- secondary rise -->
+      <g transform="translate(330 690)">
+        <use href="#contour" class="ct ct--minor" transform="scale(0.6)"/>
+        <use href="#contour" class="ct ct--minor" transform="scale(1.2)"/>
+        <use href="#contour" class="ct ct--minor" transform="scale(2.0)"/>
+      </g>
+
+      <!-- planned route -->
+      <path class="route" d="M250,726 C470,672 548,524 752,476 C940,432 1004,360 1066,256"/>
+      <circle class="route-dot" cx="250" cy="726" r="7"/>
+
+      <!-- destination pin -->
+      <g class="pin">
+        <path class="pin-head" d="M1066,256 C1052,230 1040,220 1040,200 a26,26 0 1 1 52,0
+          c0,20 -12,30 -26,56 Z"/>
+        <circle class="pin-dot" cx="1066" cy="198" r="8"/>
+      </g>
+    </svg>
+  </div>
+
+  <p class="splash__coords" aria-hidden="true">46.01&deg; N<br>81.41&deg; W</p>
+  <p class="splash__legend" aria-hidden="true">N &uarr; &nbsp; 1:50 000</p>
+
+  <section class="splash__panel">
+    <p class="splash__kicker">Plot your course</p>
+    <h1 class="splash__title">Camping Planner</h1>
+    <hr class="splash__rule">
+    <p class="splash__tag">Trips, gear, and routes, planned with your crew.</p>
+
+    {% if error %}<p class="splash__error" role="alert">{{ error }}</p>{% endif %}
+
+    <form method="post" action="/login">
+      <div class="splash__field">
+        <label for="username">Your name</label>
+        <input id="username" type="text" name="username" placeholder="e.g. Alex"
+               required autofocus autocomplete="username">
+      </div>
+      <div class="splash__field">
+        <label for="password">Site password</label>
+        <input id="password" type="password" name="password" placeholder="Shared password"
+               required autocomplete="current-password">
+      </div>
+      <button class="splash__btn" type="submit">Log in</button>
+    </form>
+  </section>
+</main>
 {% endblock %}
