@@ -34,6 +34,9 @@
     background: var(--parchment-mist); border: 1px solid var(--rule); border-radius: 12px;
     box-shadow: 0 18px 44px -16px rgba(31, 42, 35, .5); overflow: hidden;
   }
+  /* `.cpc__panel { display: flex }` outweighs the UA [hidden] rule on
+     specificity, so the hidden attribute needs an explicit override. */
+  .cpc__panel[hidden] { display: none; }
   .cpc[data-open="true"] .cpc__fab { display: none; }
   @media (prefers-reduced-motion: no-preference) {
     .cpc[data-open="true"] .cpc__panel { animation: cpc-in .26s cubic-bezier(.22,1,.36,1); }
