@@ -37,6 +37,19 @@ def _md_filter(text: str) -> str:
     return _md.markdown(text or "", extensions=["extra", "sane_lists"])
 
 
+def _reltime_filter(epoch: float) -> str:
+    """Render a unix-epoch timestamp as a short relative string ('2h ago')."""
+    try:
+        delta = max(0, int(time.time() - float(epoch)))
+    except (TypeError, ValueError):
+        return ""
+    for unit, secs in (("d", 86400), ("h", 3600), ("m", 60)):
+        if delta >= secs:
+            return f"{delta // secs}{unit} ago"
+    return "just now"
+
+
 templates = Jinja2Templates(directory=str(JINJA_TEMPLATES_DIR))
 templates.env.globals["static_version"] = STATIC_VERSION
 templates.env.filters["md"] = _md_filter
+templates.env.filters["reltime"] = _reltime_filter
