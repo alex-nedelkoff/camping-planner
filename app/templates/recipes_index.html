@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Cookbook{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/recipes.css?v={{ static_version }}">
+{% endblock %}
+
+{% block body %}
+{% include "partials/nav_band.html" %}
+
+{# Helpers: drop a filter from the active set, or set one #}
+{% macro qs(updates) -%}
+  {%- set parts = [] -%}
+  {%- set f = {'style': filters.style, 'meal': filters.meal, 'tag': filters.tag, 'q': filters.q} -%}
+  {%- for k, v in updates.items() -%}
+    {%- set _ = f.update({k: v}) -%}
+  {%- endfor -%}
+  {%- for k in ['style','meal','tag','q'] -%}
+    {%- if f[k] -%}{%- set _ = parts.append(k ~ '=' ~ f[k]) -%}{%- endif -%}
+  {%- endfor -%}
+  {% if parts %}?{{ parts|join('&') }}{% endif %}
+{%- endmacro %}
+
+<main class="cb">
+  <header class="cb-head">
+    <div>
+      <p class="cb-kicker">Plan a meal</p>
+      <h1 class="cb-title">Cookbook</h1>
+    </div>
+    <a class="btn" href="/recipes/new">+ New recipe</a>
+  </header>
+
+  <form class="cb-search" method="get" action="/recipes">
+    {% if filters.style %}<input type="hidden" name="style" value="{{ filters.style }}">{% endif %}
+    {% if filters.meal %}<input type="hidden" name="meal" value="{{ filters.meal }}">{% endif %}
+    {% if filters.tag %}<input type="hidden" name="tag" value="{{ filters.tag }}">{% endif %}
+    <input type="text" name="q" value="{{ filters.q }}"
+           placeholder="Search recipes or ingredients…" aria-label="Search recipes">
+    <button type="submit" class="btn btn-ghost">Search</button>
+    {% if filters.q %}<a class="btn btn-ghost" href="{{ qs({'q': None}) }}">Clear</a>{% endif %}
+  </form>
+
+  <nav class="cb-chips" aria-label="Filter by style">
+    <span class="cb-chips__label">Style</span>
+    <a class="cb-chip {% if not filters.style %}is-active{% endif %}" href="{{ qs({'style': None}) }}">All</a>
+    {% for s in styles %}
+    <a class="cb-chip {% if filters.style == s %}is-active{% endif %}"
+       href="{{ qs({'style': None if filters.style == s else s}) }}">{{ s | capitalize }}</a>
+    {% endfor %}
+  </nav>
+
+  <nav class="cb-chips" aria-label="Filter by meal">
+    <span class="cb-chips__label">Meal</span>
+    <a class="cb-chip {% if not filters.meal %}is-active{% endif %}" href="{{ qs({'meal': None}) }}">All</a>
+    {% for m in meals %}
+    <a class="cb-chip {% if filters.meal == m %}is-active{% endif %}"
+       href="{{ qs({'meal': None if filters.meal == m else m}) }}">{{ m | capitalize }}</a>
+    {% endfor %}
+  </nav>
+
+  {% if all_tags %}
+  <nav class="cb-chips cb-chips--tags" aria-label="Filter by tag">
+    <span class="cb-chips__label">Tags</span>
+    {% for t in all_tags %}
+    <a class="cb-chip {% if filters.tag == t %}is-active{% endif %}"
+       href="{{ qs({'tag': None if filters.tag == t else t}) }}">{{ t }}</a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+
+  {% if recipes %}
+  <ul class="cb-list">
+    {% for r in recipes %}
+    <li class="cb-row">
+      <a class="cb-row__link" href="/recipes/{{ r.id }}">
+        {% if r.has_image %}
+        <img class="cb-thumb" src="/recipes/{{ r.id }}/image" alt="">
+        {% else %}
+        <span class="cb-thumb cb-thumb--empty" aria-hidden="true">∅</span>
+        {% endif %}
+        <span class="cb-row__body">
+          <span class="cb-row__name">{{ r.name }}</span>
+          <span class="cb-row__meta">
+            {{ r.style }} · {{ r.meal }}
+            {% set tm = (r.prep_minutes or 0) + (r.cook_minutes or 0) %}
+            {% if tm %} · {{ tm }}m{% endif %}
+            · serves {{ r.servings }}
+            · {{ r.author }}
+          </span>
+        </span>
+        <span class="cb-row__arrow" aria-hidden="true">→</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="cb-empty">
+    {% if filters.style or filters.meal or filters.tag or filters.q %}
+      No recipes match those filters. <a href="/recipes">Clear filters</a>.
+    {% else %}
+      No recipes yet — <a href="/recipes/new">add the first one</a>.
+    {% endif %}
+  </p>
+  {% endif %}
+</main>
+{% endblock %}
