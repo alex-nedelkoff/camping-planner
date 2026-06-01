@@ -9,6 +9,14 @@ def test_healthz_ok():
     assert r.status_code == 200 and r.json() == {"status": "ok"}
 
 
+def test_healthz_head_ok():
+    # UptimeRobot (and many uptime monitors) probe with HEAD by default; the
+    # route must answer HEAD with 200, not 405, or the monitor reports "down".
+    c = TestClient(app)
+    r = c.head("/healthz")
+    assert r.status_code == 200
+
+
 def test_healthz_public_even_with_auth_on(monkeypatch):
     monkeypatch.setattr(config, "AUTH_ENABLED", True)
     monkeypatch.setattr(config, "SUPABASE_JWT_SECRET", "secret")
